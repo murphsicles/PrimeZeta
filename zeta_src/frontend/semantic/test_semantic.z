@@ -106,6 +106,99 @@ fn test_let_with_type_annotation() -> bool {
     result && inferred_type == "i64"
 }
 
+fn test_variable_scope_resolution() -> bool {
+    // Test basic variable declaration and usage
+    // Create AST: let x = 42; x + 1;
+    let ast1 = AstNode::Let {
+        name: "x".to_string(),
+        ty: None,
+        value: Box::new(AstNode::Lit(42)),
+    };
+    
+    let ast2 = AstNode::BinaryOp {
+        op: "+".to_string(),
+        left: Box::new(AstNode::Var("x".to_string())),
+        right: Box::new(AstNode::Lit(1)),
+    };
+    
+    let mut resolver = Resolver::new();
+    let asts = vec![ast1, ast2];
+    
+    // This should pass type checking (x is defined)
+    let result = resolver.typecheck(&asts);
+    
+    println!("Variable scope resolution test (basic): {}", if result { "PASS" } else { "FAIL" });
+    result
+}
+
+fn test_variable_shadowing() -> bool {
+    // Test variable shadowing in nested scopes
+    // Create AST with shadowing: let x = 1; { let x = 2; x }
+    // Note: We need block support for this test
+    println!("Variable shadowing test: SKIPPED (needs block support)");
+    true
+}
+
+fn test_undefined_variable() -> bool {
+    // Test that using undefined variable fails
+    // Create AST: x + 1 (where x is not defined)
+    let ast = AstNode::BinaryOp {
+        op: "+".to_string(),
+        left: Box::new(AstNode::Var("undefined_var".to_string())),
+        right: Box::new(AstNode::Lit(1)),
+    };
+    
+    let mut resolver = Resolver::new();
+    let asts = vec![ast];
+    
+    // This should FAIL type checking (undefined variable)
+    let result = resolver.typecheck(&asts);
+    
+    // We expect this to fail, so invert the result
+    let expected = !result;
+    
+    println!("Undefined variable test: {}", if expected { "PASS" } else { "FAIL" });
+    println!("  (Expected failure, got: {})", if result { "PASS" } else { "FAIL" });
+    expected
+}
+
+fn test_function_parameter_scope() -> bool {
+    // Test that function parameters are in scope
+    // Create AST: fn add(x: i64, y: i64) -> i64 { x + y }
+    // Note: We need function definition support for this test
+    println!("Function parameter scope test: SKIPPED (needs full function support)");
+    true
+}
+
+fn test_duplicate_variable_declaration() -> bool {
+    // Test that duplicate variable declaration in same scope fails
+    // Create AST: let x = 1; let x = 2;
+    let ast1 = AstNode::Let {
+        name: "x".to_string(),
+        ty: None,
+        value: Box::new(AstNode::Lit(1)),
+    };
+    
+    let ast2 = AstNode::Let {
+        name: "x".to_string(),
+        ty: None,
+        value: Box::new(AstNode::Lit(2)),
+    };
+    
+    let mut resolver = Resolver::new();
+    let asts = vec![ast1, ast2];
+    
+    // This should FAIL type checking (duplicate declaration)
+    let result = resolver.typecheck(&asts);
+    
+    // We expect this to fail, so invert the result
+    let expected = !result;
+    
+    println!("Duplicate variable declaration test: {}", if expected { "PASS" } else { "FAIL" });
+    println!("  (Expected failure, got: {})", if result { "PASS" } else { "FAIL" });
+    expected
+}
+
 fn main() {
     println!("=== SEMANTIC ANALYSIS TESTS ===");
     println!("By: SEM, Semantic Child of Dark Factory");
@@ -130,6 +223,26 @@ fn main() {
     }
     
     if !test_let_with_type_annotation() {
+        all_passed = false;
+    }
+    
+    if !test_variable_scope_resolution() {
+        all_passed = false;
+    }
+    
+    if !test_variable_shadowing() {
+        all_passed = false;
+    }
+    
+    if !test_undefined_variable() {
+        all_passed = false;
+    }
+    
+    if !test_function_parameter_scope() {
+        all_passed = false;
+    }
+    
+    if !test_duplicate_variable_declaration() {
         all_passed = false;
     }
     

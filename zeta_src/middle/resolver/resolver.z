@@ -20,6 +20,8 @@ pub struct Resolver {
     pub borrow_checker: BorrowChecker,
     pub associated_types: HashMap<(String, String), String>,
     pub ctfe_consts: HashMap<AstNode, i64>,
+    // Variable scope tracking
+    pub scopes: Vec<HashMap<String, Type>>,
 }
 
 impl Resolver {
@@ -31,9 +33,44 @@ impl Resolver {
             borrow_checker: BorrowChecker::new(),
             associated_types: HashMap::new(),
             ctfe_consts: HashMap::new(),
+            scopes: vec![HashMap::new()], // Start with global scope
         };
         r.load_specialization_cache();
         r
+    }
+
+    // Scope management methods
+    pub fn push_scope(&mut self) {
+        self.scopes.push(HashMap::new());
+    }
+
+    pub fn pop_scope(&mut self) {
+        if self.scopes.len() > 1 {
+            self.scopes.pop();
+        }
+    }
+
+    pub fn declare_var(&mut self, name: &str, ty: Type) -> bool {
+        if let Some(current_scope) = self.scopes.last_mut() {
+            if current_scope.contains_key(name) {
+                // Variable already declared in current scope
+                return false;
+            }
+            current_scope.insert(name.to_string(), ty);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn lookup_var(&self, name: &str) -> Option<Type> {
+        // Search from innermost to outermost scope
+        for scope in self.scopes.iter().rev() {
+            if let Some(ty) = scope.get(name) {
+                return Some(ty.clone());
+            }
+        }
+        None
     }
 
     fn load_specialization_cache(&mut self) {
@@ -97,7 +134,7 @@ impl Resolver {
         ok
     }
 
-    fn check_node(&self, node: &AstNode) -> bool {
+    fn check_node(&mut self, node: &AstNode) -> bool {
         let mut ok = true;
         match node {
             AstNode::Call { .. } => {} // receiver methods always OK after monomorphization
@@ -114,12 +151,27 @@ impl Resolver {
                     ok = false;
                 }
             }
-            AstNode::FuncDef { body, .. } => {
+            AstNode::FuncDef { params, body, .. } => {
+                // Push new scope for function body
+                self.push_scope();
+                
+                // Declare function parameters in the new scope
+                for param in params {
+                    // Parameters have type annotations
+                    if !self.declare_var(&param.name, param.ty.clone()) {
+                        ok = false;
+                    }
+                }
+                
+                // Check function body
                 for s in body {
                     if !self.check_node(s) {
                         ok = false;
                     }
                 }
+                
+                // Pop function scope
+                self.pop_scope();
             }
             AstNode::Return(inner) => {
                 if !self.check_node(inner) {
@@ -137,15 +189,56 @@ impl Resolver {
                 if !self.check_node(cond) {
                     ok = false;
                 }
+                
+                // Push scope for then block
+                self.push_scope();
                 for s in then_ {
                     if !self.check_node(s) {
                         ok = false;
                     }
                 }
+                self.pop_scope();
+                
+                // Push scope for else block
+                self.push_scope();
                 for s in else_ {
                     if !self.check_node(s) {
                         ok = false;
                     }
+                }
+                self.pop_scope();
+            }
+            AstNode::Let { name, ty, value } => {
+                // Check the value expression first
+                if !self.check_node(value) {
+                    ok = false;
+                }
+                
+                // Determine the variable type
+                let var_type = if let Some(annotated_ty) = ty {
+                    annotated_ty.clone()
+                } else {
+                    self.infer_type(value)
+                };
+                
+                // Declare the variable in current scope
+                if !self.declare_var(name, var_type.clone()) {
+                    // Variable already declared in this scope
+                    ok = false;
+                }
+                
+                // For typed let statements, verify type compatibility
+                if let Some(annotated_ty) = ty {
+                    let inferred_ty = self.infer_type(value);
+                    if annotated_ty != &inferred_ty {
+                        ok = false;
+                    }
+                }
+            }
+            AstNode::Var(name) => {
+                // Check if variable is defined
+                if self.lookup_var(name).is_none() {
+                    ok = false;
                 }
             }
             _ => {}
@@ -161,7 +254,9 @@ impl Resolver {
             AstNode::Lit(_) => "i64".to_string(),
             AstNode::StringLit(_) => "str".to_string(),
             AstNode::FString(_) => "str".to_string(),
-            AstNode::Var(_) => "i64".to_string(),
+            AstNode::Var(name) => {
+                self.lookup_var(name).unwrap_or_else(|| "i64".to_string())
+            }
             AstNode::BinaryOp { left, .. } => self.infer_type(left),
             AstNode::Call { .. } => "i64".to_string(),
             AstNode::DictLit { entries } => {
