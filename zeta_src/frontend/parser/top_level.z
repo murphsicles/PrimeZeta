@@ -77,16 +77,31 @@ impl Parser {
 
     fn parse_impl_block(&mut self) -> AstNode {
         self.expect(Token::KeywordImpl);
-        let concept = self.expect_ident();
+        
+        // Parse first identifier (could be trait name or type name)
+        let first_ident = self.expect_ident();
         let _generics = self.parse_generics();
-        self.expect(Token::KeywordFor);
-        let ty = self.expect_ident();
-        let body = self.parse_block();
-        AstNode::ImplBlock {
-            concept,
-            ty,
-            body,
-            doc: "".to_string(),
+        
+        // Check if this is a trait impl block (has 'for' keyword)
+        if self.consume(Token::KeywordFor) {
+            // Trait impl block: impl Trait for Type { ... }
+            let ty = self.expect_ident();
+            let body = self.parse_block();
+            AstNode::ImplBlock {
+                concept: first_ident,
+                ty,
+                body,
+                doc: "".to_string(),
+            }
+        } else {
+            // Inherent impl block: impl Type { ... }
+            let body = self.parse_block();
+            AstNode::ImplBlock {
+                concept: "".to_string(), // Empty concept for inherent impl
+                ty: first_ident,
+                body,
+                doc: "".to_string(),
+            }
         }
     }
 
