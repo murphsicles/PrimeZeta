@@ -79,10 +79,26 @@ impl Lexer {
 
     fn lex_ident_or_keyword(&mut self) {
         let mut word = String::new();
-        while self.peek().is_alphanumeric() || self.peek() == '_' {
+        
+        // First character: check if it can start an identifier
+        // In Rust: XID_Start ∪ '_'
+        // For bootstrap: not digit, not whitespace, not operator symbol
+        let first_char = self.peek();
+        if !self.can_start_ident(first_char) {
+            return;
+        }
+        
+        word.push(first_char);
+        self.advance();
+        
+        // Subsequent characters: check if they can continue an identifier
+        // In Rust: XID_Continue
+        // For bootstrap: not whitespace, not operator symbol
+        while self.can_continue_ident(self.peek()) {
             word.push(self.peek());
             self.advance();
         }
+        
         let tok = match word.as_str() {
             "fn" => Token::KeywordFn,
             "concept" => Token::KeywordConcept,
@@ -98,6 +114,56 @@ impl Lexer {
             _ => Token::Ident(word),
         };
         self.tokens.push(tok);
+    }
+    
+    fn can_start_ident(&self, ch: char) -> bool {
+        if ch == '\0' {
+            return false;
+        }
+        
+        // Check for ASCII whitespace
+        match ch {
+            ' ' | '\t' | '\n' | '\r' => return false,
+            _ => {}
+        }
+        
+        // Can't start with ASCII digit
+        match ch {
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => return false,
+            _ => {}
+        }
+        
+        // Check if it's an operator symbol that can't start an identifier
+        match ch {
+            '(' | ')' | '{' | '}' | '[' | ']' |
+            ':' | ',' | '=' | '+' | '-' | '*' | '/' |
+            '<' | '>' | '.' | '?' | ';' | '"' | '\'' |
+            '&' | '|' | '!' | '^' | '%' | '~' | '`' |
+            '@' | '#' | '\\' => false,
+            _ => true, // Allow everything else (including Unicode)
+        }
+    }
+    
+    fn can_continue_ident(&self, ch: char) -> bool {
+        if ch == '\0' {
+            return false;
+        }
+        
+        // Check for ASCII whitespace
+        match ch {
+            ' ' | '\t' | '\n' | '\r' => return false,
+            _ => {}
+        }
+        
+        // Check if it's an operator symbol that can't be in identifier
+        match ch {
+            '(' | ')' | '{' | '}' | '[' | ']' |
+            ':' | ',' | '=' | '+' | '-' | '*' | '/' |
+            '<' | '>' | '.' | '?' | ';' | '"' | '\'' |
+            '&' | '|' | '!' | '^' | '%' | '~' | '`' |
+            '@' | '#' | '\\' => false,
+            _ => true, // Allow everything else (including Unicode, digits, $, _)
+        }
     }
 
     fn lex_number(&mut self) {
