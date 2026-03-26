@@ -176,4 +176,10 @@ pub enum AstNode {
     ArrayLit(Vec<AstNode>),
     /// Boolean literal.
     Bool(bool),
+    /// Constant definition.
+    ConstDef {
+        name: String,
+        ty: String,
+        value: Box<AstNode>,
+    },
 }

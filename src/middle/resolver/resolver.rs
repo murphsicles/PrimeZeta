@@ -102,6 +102,15 @@ impl Resolver {
             } => {
                 self.funcs.insert(name, (params, ret, false));
             }
+            AstNode::ConstDef { ref name, ref ty, ref value } => {
+                // Register constant for compile-time evaluation
+                // For now, we'll store it in ctfe_consts if it's a simple literal
+                if let AstNode::Lit(val) = **value {
+                    self.ctfe_consts.insert(ast.clone(), val);
+                }
+                // Also register as a function-like entity for name resolution
+                self.funcs.insert(name.clone(), (vec![], ty.clone(), false));
+            }
             _ => {}
         }
     }
