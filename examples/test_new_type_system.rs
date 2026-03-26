@@ -2,7 +2,6 @@
 
 extern crate zetac;
 use zetac::middle::types::{Type, TypeVar, Substitution};
-use zetac::frontend::ast::AstNode;
 
 fn main() {
     println!("=== Testing New Type System Foundation ===");
