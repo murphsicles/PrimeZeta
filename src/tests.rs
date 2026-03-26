@@ -340,4 +340,3 @@ fn assoc_fold() -> i32 {
         assert_eq!(params, vec!["T: Display + Debug + Clone".to_string(), "U: Copy + Send".to_string()]);
     }
 }
-}
