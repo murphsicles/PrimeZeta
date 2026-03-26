@@ -4,8 +4,8 @@ mod tests {
     //! Unit tests for Zeta compiler.
     //! Verifies parsing, type checking, code generation, resolution, and runtime features.
     use crate::frontend::ast::AstNode;
-    use crate::middle::mir::r#gen::MirGen;
-    use crate::middle::resolver::resolver::MonoKey;
+    use crate::middle::mir::mir::MirStmt;
+    use crate::middle::specialization::MonoKey;
     use crate::{middle::resolver::resolver::Resolver, compile_and_run_zeta, frontend::parser::top_level::parse_zeta};
     use std::time::Instant;
     /// Tests parsing of Addable concept definition.
@@ -261,8 +261,11 @@ fn ffi_add(a: i32, b: i32) -> i32 { a + b } // No generics
         assert!(res.typecheck(&asts)); // Stable ABI check
     }
     /// Benchmarks semiring addition performance.
-    #[bench]
-    fn bench_semiring_add(b: &mut criterion::Criterion) {
+    /// Note: This test is disabled because #[bench] requires unstable features.
+    /// For benchmarking, use the dedicated benchmark suite in benches/.
+    #[test]
+    #[ignore]
+    fn bench_semiring_add() {
         let input = r#"
 fn bench_add() -> i32 {
     let mut sum = 0;
@@ -276,8 +279,6 @@ fn bench_add() -> i32 {
         let _ = compile_and_run_zeta(input).unwrap();
         let duration = start.elapsed();
         println!("Semiring add bench: {:?}", duration);
-        // Stub: Compare to Rust/Zig/Go (manual)
-        b.bench_function("zeta_semiring", |b| b.iter(|| compile_and_run_zeta(input)));
     }
     /// Tests associative fold fusion optimization.
     #[test]
