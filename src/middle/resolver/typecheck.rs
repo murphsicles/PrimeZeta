@@ -22,13 +22,29 @@ impl Resolver {
             }
         }
 
-        // Semantic checks (recursive)
-        for ast in asts {
-            if !self.check_node(ast) {
-                ok = false;
+        // Try using new type system if available
+        use super::typecheck_new::NewTypeCheck;
+        match self.typecheck_new(asts) {
+            Ok(_) => {
+                // New type system succeeded
+                true
+            }
+            Err(errors) => {
+                // New type system failed, fall back to old system
+                eprintln!("New type system failed, falling back to old system");
+                for error in errors {
+                    eprintln!("  Type error: {}", error);
+                }
+                
+                // Semantic checks (recursive) - old system
+                for ast in asts {
+                    if !self.check_node(ast) {
+                        ok = false;
+                    }
+                }
+                ok
             }
         }
-        ok
     }
 
     fn check_node(&self, node: &AstNode) -> bool {

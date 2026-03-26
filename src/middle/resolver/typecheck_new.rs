@@ -23,23 +23,33 @@ impl NewTypeCheck for Resolver {
         
         let mut context = new_resolver::InferContext::new();
         
-        // Convert existing variable types from old system
-        // (This would need access to Resolver's internal state)
+        // Convert existing variable types from old system to new system
+        // Note: This is a simplified conversion - in a full implementation,
+        // we would need to convert the entire resolver state
+        // For now, we start with a clean context
         
         // Infer types for all AST nodes
         for ast in asts {
-            if let Err(e) = context.infer(ast) {
-                // Convert inference error to unification error
-                return Err(vec![UnifyError::Mismatch(
-                    Type::Error,
-                    Type::Error
-                )]);
+            match context.infer(ast) {
+                Ok(_) => {
+                    // Type inference succeeded for this node
+                }
+                Err(e) => {
+                    // Convert inference error to unification error
+                    eprintln!("Type inference error: {}", e);
+                    return Err(vec![UnifyError::Mismatch(
+                        Type::Error,
+                        Type::Error
+                    )]);
+                }
             }
         }
         
         // Solve constraints
-        context.solve()?;
-        Ok(context.take_substitution())
+        match context.solve() {
+            Ok(_) => Ok(context.take_substitution()),
+            Err(e) => Err(e),
+        }
     }
     
     fn string_to_type(&self, s: &str) -> Type {
