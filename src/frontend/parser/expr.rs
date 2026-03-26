@@ -421,14 +421,14 @@ fn parse_primary(input: &str) -> IResult<&str, AstNode> {
         parse_tuple_or_paren,
         parse_lit,
         parse_string_lit,
-        parse_simple_ident, // Try simple ident first
+        parse_match_expr,   // Try match expression before identifier
+        parse_simple_ident, // Fall back to simple ident
         parse_path_expr,    // Fall back to full path parser
         parse_array_lit,
         parse_bool,
         parse_closure,
         parse_block,
         parse_unsafe_expr,
-        parse_match_expr,
         // parse_if_let and parse_if removed - they're not primary expressions
         // They should be parsed at a higher level
     ))
