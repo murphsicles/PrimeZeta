@@ -1,6 +1,18 @@
 // zeta_src/frontend/ast.z
 // Full AST definition synchronized with Rust bootstrap compiler
 // Complete for Phase 1 (v0.2.2) — all variants, fields, and doc/attrs support
+
+/// Match expression arm with pattern and body.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MatchArm {
+    /// Pattern to match against
+    pattern: Box<AstNode>,
+    /// Guard expression (optional)
+    guard: Option<Box<AstNode>>,
+    /// Body expression to evaluate if pattern matches
+    body: Box<AstNode>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum AstNode {
     Program(Vec<AstNode>),
@@ -92,5 +104,9 @@ pub enum AstNode {
         name: String,
         ty: Option<String>,
         value: Box<AstNode>,
+    },
+    Match {
+        scrutinee: Box<AstNode>,
+        arms: Vec<MatchArm>,
     },
 }
