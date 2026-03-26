@@ -66,8 +66,11 @@ fn parse_use_statement(input: &str) -> IResult<&str, Vec<AstNode>> {
 
 fn parse_func(input: &str) -> IResult<&str, AstNode> {
     println!("[PARSER DEBUG] parse_func called");
-    println!("[PARSER DEBUG] parse_func input first 50 chars: {:?}", &input[..50.min(input.len())]);
-    
+    println!(
+        "[PARSER DEBUG] parse_func input first 50 chars: {:?}",
+        &input[..50.min(input.len())]
+    );
+
     let (input, extern_opt) = opt(ws(tag("extern"))).parse(input)?;
     let (input, _) = ws(tag("fn")).parse(input)?;
     let (input, path) = ws(parse_path).parse(input)?;
@@ -307,38 +310,53 @@ pub fn parse_zeta(input: &str) -> IResult<&str, Vec<AstNode>> {
     if input.len() < 100 {
         println!("[PARSER DEBUG] Input: {:?}", input);
     } else {
-        println!("[PARSER DEBUG] First 100 chars: {:?}", &input[..100.min(input.len())]);
+        println!(
+            "[PARSER DEBUG] First 100 chars: {:?}",
+            &input[..100.min(input.len())]
+        );
     }
-    
+
     let (input, _) = skip_ws_and_comments(input)?;
-    println!("[PARSER DEBUG] After skipping whitespace/comments, remaining length: {}", input.len());
-    
+    println!(
+        "[PARSER DEBUG] After skipping whitespace/comments, remaining length: {}",
+        input.len()
+    );
+
     let parse_result = many0(ws(alt((
         parse_use_statement,
         map(parse_top_level_item, |node| vec![node]),
     ))))
     .parse(input);
-    
+
     let (input, vec_vec) = match parse_result {
         Ok((i, v)) => (i, v),
         Err(e) => {
             println!("[PARSER DEBUG] parse_zeta: Parser error type: {:?}", e);
-            println!("[PARSER DEBUG] parse_zeta: Is Failure? {}", matches!(e, nom::Err::Failure(_)));
-            println!("[PARSER DEBUG] parse_zeta: Is Error? {}", matches!(e, nom::Err::Error(_)));
+            println!(
+                "[PARSER DEBUG] parse_zeta: Is Failure? {}",
+                matches!(e, nom::Err::Failure(_))
+            );
+            println!(
+                "[PARSER DEBUG] parse_zeta: Is Error? {}",
+                matches!(e, nom::Err::Error(_))
+            );
             return Err(e);
         }
     };
-    
+
     println!("[PARSER DEBUG] Parsed {} top-level items", vec_vec.len());
     let asts: Vec<AstNode> = vec_vec.into_iter().flatten().collect::<Vec<AstNode>>();
     println!("[PARSER DEBUG] Total ASTs: {}", asts.len());
-    
+
     if !input.is_empty() {
-        println!("[PARSER DEBUG] WARNING: {} characters remaining unparsed", input.len());
+        println!(
+            "[PARSER DEBUG] WARNING: {} characters remaining unparsed",
+            input.len()
+        );
         if input.len() < 200 {
             println!("[PARSER DEBUG] Remaining: {:?}", input);
         }
     }
-    
+
     Ok((input, asts))
 }

@@ -32,8 +32,11 @@ pub struct Resolver {
     pub borrow_checker: RefCell<BorrowChecker>,
     pub associated_types: HashMap<(String, String), String>,
     pub ctfe_consts: HashMap<AstNode, i64>,
-    funcs: HashMap<String, (Vec<(String, String)>, String, bool)>,
+    funcs: HashMap<String, FuncSignature>,
 }
+
+// Learning: Complex type factored into type definition per clippy suggestion
+type FuncSignature = (Vec<(String, String)>, String, bool);
 
 impl Resolver {
     pub fn new() -> Self {
@@ -52,12 +55,12 @@ impl Resolver {
 
     fn load_specialization_cache(&mut self) {
         let path = PathBuf::from(SPECIALIZATION_CACHE_FILE);
-        if let Ok(data) = fs::read_to_string(&path) {
-            if let Ok(cache) = serde_json::from_str::<CacheFile>(&data) {
-                for (key, value) in cache.entries {
-                    self.mono_mirs.insert(key.clone(), Mir::default());
-                    record_specialization(key, value);
-                }
+        if let Ok(data) = fs::read_to_string(&path)
+            && let Ok(cache) = serde_json::from_str::<CacheFile>(&data)
+        {
+            for (key, value) in cache.entries {
+                self.mono_mirs.insert(key.clone(), Mir::default());
+                record_specialization(key, value);
             }
         }
     }

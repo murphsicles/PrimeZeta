@@ -46,7 +46,7 @@ pub enum MirStmt {
         cond: u32,
         then: Vec<MirStmt>,
         else_: Vec<MirStmt>,
-        dest: Option<u32>,  // Destination for if expression value (None for statement if)
+        dest: Option<u32>, // Destination for if expression value (None for statement if)
     },
     TryProp {
         expr_id: u32,

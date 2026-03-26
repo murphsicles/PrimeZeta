@@ -117,7 +117,8 @@ impl Resolver {
         if let Some(&v) = self.ctfe_consts.get(node) {
             return Some(v);
         }
-        let result = match node {
+
+        match node {
             AstNode::Lit(n) => Some(*n),
             AstNode::BinaryOp { op, left, right } => {
                 let l = self.ctfe_eval(left)?;
@@ -137,8 +138,7 @@ impl Resolver {
                 }
             }
             _ => None,
-        };
-        result
+        }
     }
 
     pub fn is_copy(&self, ty: &Type) -> bool {

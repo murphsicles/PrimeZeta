@@ -153,7 +153,7 @@ pub fn parse_type(input: &str) -> IResult<&str, String> {
             s.push_str("&mut ");
             input = i;
         } else if let Ok((i, _)) = ws(tag("&")).parse(input) {
-            s.push_str("&");
+            s.push('&');
             input = i;
         } else {
             break;
@@ -187,13 +187,13 @@ pub fn parse_type_args(input: &str) -> IResult<&str, Vec<String>> {
 /// Examples: "T", "T: Display", "T: Display + Debug"
 pub fn parse_generic_param(input: &str) -> IResult<&str, String> {
     let (input, param_name) = ws(parse_ident).parse(input)?;
-    
+
     // Check for trait bounds
     let (input, bounds_str) = if let Ok((input, _)) = ws(tag(":")).parse(input) {
         // Parse first bound
         let (input, first_bound) = ws(parse_ident).parse(input)?;
         let mut bounds = vec![first_bound];
-        
+
         // Parse additional bounds with +
         let mut input = input;
         while let Ok((new_input, _)) = ws(tag("+")).parse(input) {
@@ -201,12 +201,12 @@ pub fn parse_generic_param(input: &str) -> IResult<&str, String> {
             bounds.push(bound);
             input = new_input;
         }
-        
+
         (input, format!(": {}", bounds.join(" + ")))
     } else {
         (input, String::new())
     };
-    
+
     Ok((input, format!("{}{}", param_name, bounds_str)))
 }
 

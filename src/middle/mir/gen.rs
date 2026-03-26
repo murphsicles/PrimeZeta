@@ -59,7 +59,10 @@ impl MirGen {
                     MirStmt::SemiringFold { result, .. } => *result,
                     MirStmt::Assign { lhs, .. } => *lhs,
                     MirStmt::DictGet { dest, .. } => *dest,
-                    MirStmt::If { dest: Some(dest_id), .. } => {
+                    MirStmt::If {
+                        dest: Some(dest_id),
+                        ..
+                    } => {
                         // If expression produces a value
                         *dest_id
                     }
@@ -91,7 +94,7 @@ impl MirGen {
             ctfe_consts: std::mem::take(&mut self.ctfe_consts),
             type_map: std::mem::take(&mut self.type_map),
         };
-        
+
         println!("[MIR DEBUG] Generated MIR for function: {:?}", mir.name);
         println!("[MIR DEBUG]   Statements: {}", mir.stmts.len());
         for (i, stmt) in mir.stmts.iter().enumerate() {
@@ -101,7 +104,7 @@ impl MirGen {
         for (id, expr) in &mir.exprs {
             println!("[MIR DEBUG]     Expr[{}]: {:?}", id, expr);
         }
-        
+
         mir
     }
 
@@ -190,7 +193,7 @@ impl MirGen {
                     self.lower_ast(stmt);
                 }
                 if let Some(ret_expr) = ret_expr {
-                    let val = self.lower_expr(&**ret_expr);
+                    let val = self.lower_expr(ret_expr);
                     self.stmts.push(MirStmt::Return { val });
                 }
             }
@@ -199,15 +202,18 @@ impl MirGen {
                 println!("[MIR DEBUG]   Condition expression: {:?}", cond);
                 let cond_id = self.lower_expr(cond);
                 println!("[MIR DEBUG]   Condition ID: {}", cond_id);
-                
+
                 // Check if this is expression if (branches produce values) or statement if
                 // Simple heuristic: if any branch contains return, treat as statement
                 let mut is_statement_if = false;
                 let mut then_has_return = false;
                 let mut else_has_return = false;
-                
+
                 // Scan branches for returns
-                println!("[MIR DEBUG]   Scanning then branch ({} statements)", then.len());
+                println!(
+                    "[MIR DEBUG]   Scanning then branch ({} statements)",
+                    then.len()
+                );
                 for (i, s) in then.iter().enumerate() {
                     println!("[MIR DEBUG]     Then[{}]: {:?}", i, s);
                     if let AstNode::Return(_) = s {
@@ -217,7 +223,10 @@ impl MirGen {
                         break;
                     }
                 }
-                println!("[MIR DEBUG]   Scanning else branch ({} statements)", else_.len());
+                println!(
+                    "[MIR DEBUG]   Scanning else branch ({} statements)",
+                    else_.len()
+                );
                 for (i, s) in else_.iter().enumerate() {
                     println!("[MIR DEBUG]     Else[{}]: {:?}", i, s);
                     if let AstNode::Return(_) = s {
@@ -227,9 +236,11 @@ impl MirGen {
                         break;
                     }
                 }
-                println!("[MIR DEBUG]   then_has_return: {}, else_has_return: {}, is_statement_if: {}", 
-                         then_has_return, else_has_return, is_statement_if);
-                
+                println!(
+                    "[MIR DEBUG]   then_has_return: {}, else_has_return: {}, is_statement_if: {}",
+                    then_has_return, else_has_return, is_statement_if
+                );
+
                 let dest_id = if is_statement_if {
                     // Statement if: no destination needed
                     println!("[MIR DEBUG]   Statement if -> dest: None");
@@ -242,97 +253,95 @@ impl MirGen {
                     self.type_map.insert(id, "i64".to_string());
                     Some(id)
                 };
-                
+
                 // Generate then block in isolated context
                 // Generate then block inline (no isolated context)
                 let mut then_stmts = vec![];
                 if !then.is_empty() {
                     // Save current statements
                     let saved_stmts = std::mem::take(&mut self.stmts);
-                    
+
                     // Generate block statements directly in current context
                     for s in then {
                         self.lower_ast(s);
                     }
-                    
+
                     // Take the generated statements
                     then_stmts = std::mem::take(&mut self.stmts);
-                    
+
                     // Restore main statements
                     self.stmts = saved_stmts;
-                    
+
                     // For expression if, capture the last value
-                    if let Some(dest) = dest_id {
-                        if !then_has_return {
-                            if let Some(last_stmt) = then_stmts.last() {
-                                match last_stmt {
-                                    MirStmt::Assign { lhs, .. } => {
-                                        // Add assignment to dest
-                                        then_stmts.push(MirStmt::Assign {
-                                            lhs: dest,
-                                            rhs: *lhs,
-                                        });
-                                    }
-                                    _ => {
-                                        // No value-producing statement found
-                                        let zero_id = self.next_id_with_lit(0);
-                                        then_stmts.push(MirStmt::Assign {
-                                            lhs: dest,
-                                            rhs: zero_id,
-                                        });
-                                    }
-                                }
+                    if let Some(dest) = dest_id
+                        && !then_has_return
+                        && let Some(last_stmt) = then_stmts.last()
+                    {
+                        match last_stmt {
+                            MirStmt::Assign { lhs, .. } => {
+                                // Add assignment to dest
+                                then_stmts.push(MirStmt::Assign {
+                                    lhs: dest,
+                                    rhs: *lhs,
+                                });
+                            }
+                            _ => {
+                                // No value-producing statement found
+                                let zero_id = self.next_id_with_lit(0);
+                                then_stmts.push(MirStmt::Assign {
+                                    lhs: dest,
+                                    rhs: zero_id,
+                                });
                             }
                         }
                     }
                 }
-                
-                // Generate else block inline  
+
+                // Generate else block inline
                 let mut else_stmts = vec![];
                 if !else_.is_empty() {
                     // Save current statements
                     let saved_stmts = std::mem::take(&mut self.stmts);
-                    
+
                     // Generate block statements directly in current context
                     for s in else_ {
                         self.lower_ast(s);
                     }
-                    
+
                     // Take the generated statements
                     else_stmts = std::mem::take(&mut self.stmts);
-                    
+
                     // Restore main statements
                     self.stmts = saved_stmts;
-                    
+
                     // For expression if, capture the last value
-                    if let Some(dest) = dest_id {
-                        if !else_has_return {
-                            if let Some(last_stmt) = else_stmts.last() {
-                                match last_stmt {
-                                    MirStmt::Assign { lhs, .. } => {
-                                        // Add assignment to dest
-                                        else_stmts.push(MirStmt::Assign {
-                                            lhs: dest,
-                                            rhs: *lhs,
-                                        });
-                                    }
-                                    _ => {
-                                        // No value-producing statement found
-                                        let zero_id = self.next_id_with_lit(0);
-                                        else_stmts.push(MirStmt::Assign {
-                                            lhs: dest,
-                                            rhs: zero_id,
-                                        });
-                                    }
-                                }
+                    if let Some(dest) = dest_id
+                        && !else_has_return
+                        && let Some(last_stmt) = else_stmts.last()
+                    {
+                        match last_stmt {
+                            MirStmt::Assign { lhs, .. } => {
+                                // Add assignment to dest
+                                else_stmts.push(MirStmt::Assign {
+                                    lhs: dest,
+                                    rhs: *lhs,
+                                });
+                            }
+                            _ => {
+                                // No value-producing statement found
+                                let zero_id = self.next_id_with_lit(0);
+                                else_stmts.push(MirStmt::Assign {
+                                    lhs: dest,
+                                    rhs: zero_id,
+                                });
                             }
                         }
                     }
                 }
-                
+
                 // Expressions are already in self.exprs (generated inline)
                 // No need to merge or update next_id
-                
+
                 self.stmts.push(MirStmt::If {
                     cond: cond_id,
                     then: then_stmts,
@@ -421,41 +430,42 @@ impl MirGen {
                 args,
                 ..
             } => {
-                println!("[MIR GEN DEBUG] Processing call: method={:?}, receiver={:?}, args={:?}", method, receiver, args);
-                
+                println!(
+                    "[MIR GEN DEBUG] Processing call: method={:?}, receiver={:?}, args={:?}",
+                    method, receiver, args
+                );
+
                 // SPECIAL HANDLING: If method is "call" and receiver is a function name,
                 // generate direct function call instead of call_i64
                 if method == "call" {
                     // receiver is &Option<Box<AstNode>>
                     if let Some(receiver_ast) = receiver {
                         // receiver_ast is &Box<AstNode>, dereference to &AstNode
-                        let ast_ref: &AstNode = &**receiver_ast;
-                        match ast_ref {
-                            AstNode::Var(func_name) => {
-                                println!("[MIR GEN DEBUG] Direct function call: {}(...)", func_name);
-                                
-                                // Generate direct call to function
-                                let mut arg_ids = vec![];
-                                for a in args {
-                                    arg_ids.push(self.lower_expr(a));
-                                }
-                                
-                                self.stmts.push(MirStmt::Call {
-                                    func: func_name.clone(),
-                                    args: arg_ids,
-                                    dest: id,
-                                    type_args: vec![],  // No type args for direct call
-                                });
-                                
-                                self.exprs.insert(id, MirExpr::Var(id));
-                                self.type_map.insert(id, "i64".to_string());
-                                return id;
+                        let ast_ref: &AstNode = receiver_ast;
+                        if let AstNode::Var(func_name) = ast_ref {
+                            println!("[MIR GEN DEBUG] Direct function call: {}(...)", func_name);
+
+                            // Generate direct call to function
+                            let mut arg_ids = vec![];
+                            for a in args {
+                                arg_ids.push(self.lower_expr(a));
                             }
-                            _ => {} // Not a variable, fall through
+
+                            self.stmts.push(MirStmt::Call {
+                                func: func_name.clone(),
+                                args: arg_ids,
+                                dest: id,
+                                type_args: vec![], // No type args for direct call
+                            });
+
+                            self.exprs.insert(id, MirExpr::Var(id));
+                            self.type_map.insert(id, "i64".to_string());
+                            return id;
                         }
+                        // Not a variable, fall through
                     }
                 }
-                
+
                 let mut arg_ids = vec![];
                 let receiver_ty = if let Some(r) = receiver {
                     let rid = self.lower_expr(r);

@@ -77,10 +77,10 @@ impl BorrowChecker {
                             return false;
                         }
                         if let AstNode::Var(ref name) = **base {
-                            if let Some(&state) = self.borrows.get(name) {
-                                if !matches!(state, BorrowState::Owned | BorrowState::MutBorrowed) {
-                                    return false;
-                                }
+                            if let Some(&state) = self.borrows.get(name)
+                                && !matches!(state, BorrowState::Owned | BorrowState::MutBorrowed)
+                            {
+                                return false;
                             }
                             self.borrows.insert(name.clone(), BorrowState::MutBorrowed);
                         }
@@ -108,15 +108,13 @@ impl BorrowChecker {
                     if !self.check(arg, resolver) {
                         return false;
                     }
-                    if let AstNode::Var(ref name) = *arg {
-                        if let Some(ty) = self.types.get(name) {
-                            if !resolver.is_copy(ty)
-                                && !*self.affine_moves.get(name).unwrap_or(&false)
-                            {
-                                *self.affine_moves.entry(name.clone()).or_insert(false) = true;
-                                self.borrows.insert(name.clone(), BorrowState::Consumed);
-                            }
-                        }
+                    if let AstNode::Var(ref name) = *arg
+                        && let Some(ty) = self.types.get(name)
+                        && !resolver.is_copy(ty)
+                        && !*self.affine_moves.get(name).unwrap_or(&false)
+                    {
+                        *self.affine_moves.entry(name.clone()).or_insert(false) = true;
+                        self.borrows.insert(name.clone(), BorrowState::Consumed);
                     }
                 }
                 true

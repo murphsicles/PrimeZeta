@@ -10,7 +10,9 @@
 //!
 //! UPDATED FOR PRINTLN SUPPORT (March 2026) - Grok + Zeta team
 
+use crate::middle::mir::mir::{Mir, MirExpr, MirStmt, SemiringOp};
 use inkwell::AddressSpace;
+use inkwell::IntPredicate;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module};
@@ -19,8 +21,6 @@ use inkwell::values::{
     BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FunctionValue, PointerValue,
 };
 use std::collections::HashMap;
-use crate::middle::mir::mir::{Mir, MirExpr, MirStmt, SemiringOp};
-use inkwell::IntPredicate;
 
 /// The complete LLVM code generator for Zeta.
 pub struct LLVMCodegen<'ctx> {
@@ -178,11 +178,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
 
         // === PRINTLN SUPPORT (the fix) ===
         let printf_type = context.i32_type().fn_type(&[ptr_type.into()], true); // variadic
-        module.add_function(
-            "printf",
-            printf_type,
-            Some(Linkage::External),
-        );
+        module.add_function("printf", printf_type, Some(Linkage::External));
         module.add_function(
             "println",
             i64_type.fn_type(&[i64_type.into()], false),
@@ -221,7 +217,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
             i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
         );
-        
+
         // Arithmetic operators
         module.add_function(
             "+",
@@ -248,26 +244,86 @@ impl<'ctx> LLVMCodegen<'ctx> {
             i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
         );
-        
+
         // Also declare mangled operator names for compatibility
-        module.add_function("eq_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("ne_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("lt_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("gt_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("le_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("ge_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("add_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("sub_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("mul_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("div_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("mod_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("and_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("or_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        module.add_function("not_i64", i64_type.fn_type(&[i64_type.into()], false), Some(Linkage::External));
-        
+        module.add_function(
+            "eq_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "ne_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "lt_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "gt_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "le_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "ge_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "add_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "sub_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "mul_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "div_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "mod_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "and_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "or_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "not_i64",
+            i64_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+
         // Declare call_i64 for function calls (will be handled inline)
-        module.add_function("call_i64", i64_type.fn_type(&[i64_type.into(), i64_type.into()], false), Some(Linkage::External));
-        
+        module.add_function(
+            "call_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+
         // Note: These functions are declared as external but will be handled inline
         // by the code generator (see is_operator and MirStmt::Call handling)
 
@@ -315,10 +371,10 @@ impl<'ctx> LLVMCodegen<'ctx> {
             self.locals.insert(id, alloca);
         }
         for (i, _) in mir.param_indices.iter().enumerate() {
-            if let Some(param_val) = fn_val.get_nth_param(i as u32) {
-                if let Some(&alloca) = self.locals.get(&(i as u32 + 1)) {
-                    self.builder.build_store(alloca, param_val).unwrap();
-                }
+            if let Some(param_val) = fn_val.get_nth_param(i as u32)
+                && let Some(&alloca) = self.locals.get(&(i as u32 + 1))
+            {
+                self.builder.build_store(alloca, param_val).unwrap();
             }
         }
         for stmt in &mir.stmts {
@@ -430,7 +486,12 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 }
                 ids.insert(*dest);
             }
-            MirStmt::If { cond, then, else_, dest } => {
+            MirStmt::If {
+                cond,
+                then,
+                else_,
+                dest,
+            } => {
                 if let Some(e) = exprs.get(cond) {
                     self.collect_ids_from_expr_safe(e, ids, exprs);
                 }
@@ -477,16 +538,49 @@ impl<'ctx> LLVMCodegen<'ctx> {
 
     /// Check if a function name is an operator that should be handled inline
     fn is_operator(&self, name: &str) -> bool {
-        matches!(name, 
-            "+" | "-" | "*" | "/" | "%" | 
-            "==" | "!=" | "<" | ">" | "<=" | ">=" |
-            "&&" | "||" | "!" |
-            "add" | "sub" | "mul" | "div" | "mod" |
-            "eq" | "ne" | "lt" | "gt" | "le" | "ge" |
-            "and" | "or" | "not" |
-            "add_i64" | "sub_i64" | "mul_i64" | "div_i64" | "mod_i64" |
-            "eq_i64" | "ne_i64" | "lt_i64" | "gt_i64" | "le_i64" | "ge_i64" |
-            "and_i64" | "or_i64" | "not_i64"
+        matches!(
+            name,
+            "+" | "-"
+                | "*"
+                | "/"
+                | "%"
+                | "=="
+                | "!="
+                | "<"
+                | ">"
+                | "<="
+                | ">="
+                | "&&"
+                | "||"
+                | "!"
+                | "add"
+                | "sub"
+                | "mul"
+                | "div"
+                | "mod"
+                | "eq"
+                | "ne"
+                | "lt"
+                | "gt"
+                | "le"
+                | "ge"
+                | "and"
+                | "or"
+                | "not"
+                | "add_i64"
+                | "sub_i64"
+                | "mul_i64"
+                | "div_i64"
+                | "mod_i64"
+                | "eq_i64"
+                | "ne_i64"
+                | "lt_i64"
+                | "gt_i64"
+                | "le_i64"
+                | "ge_i64"
+                | "and_i64"
+                | "or_i64"
+                | "not_i64"
         )
     }
 
@@ -506,27 +600,27 @@ impl<'ctx> LLVMCodegen<'ctx> {
         if let Some(&f) = self.fns.get(base) {
             return f;
         }
-        if name == "add" {
-            if let Some(&f) = self.fns.get("add_i64") {
-                return f;
-            }
+        if name == "add"
+            && let Some(&f) = self.fns.get("add_i64")
+        {
+            return f;
         }
-        if name == "add_i64" {
-            if let Some(&f) = self.fns.get("add") {
-                return f;
-            }
+        if name == "add_i64"
+            && let Some(&f) = self.fns.get("add")
+        {
+            return f;
         }
         // === NEW: handle println explicitly to prevent CRITICAL panic ===
-        if name == "println" {
-            if let Some(f) = self.module.get_function("println") {
-                return f;
-            }
+        if name == "println"
+            && let Some(f) = self.module.get_function("println")
+        {
+            return f;
         }
         // === NEW: handle call_i64 - function call dispatcher ===
-        if name == "call_i64" {
-            if let Some(f) = self.module.get_function("call_i64") {
-                return f;
-            }
+        if name == "call_i64"
+            && let Some(f) = self.module.get_function("call_i64")
+        {
+            return f;
         }
         panic!("CRITICAL: Missing function '{}'", name);
     }
@@ -546,117 +640,190 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     // call_i64(func_ptr: i64, arg: i64) -> i64
                     // For now, use identity workaround
                     let arg_val = self.gen_expr_safe(&args[1], exprs);
-                    let dest_alloca = *self.locals.get(&dest).unwrap();
+                    let dest_alloca = *self.locals.get(dest).unwrap();
                     self.builder.build_store(dest_alloca, arg_val).unwrap();
                     return;
                 }
-                
+
                 // Handle operator functions inline
                 if args.len() == 2 && self.is_operator(func) {
                     let left = self.gen_expr_safe(&args[0], exprs);
                     let right = self.gen_expr_safe(&args[1], exprs);
-                    
+
                     let result = match func.as_str() {
                         // Arithmetic operators
-                        "+" | "add" | "add_i64" => self.builder.build_int_add(left.into_int_value(), right.into_int_value(), "add").unwrap(),
-                        "-" | "sub" | "sub_i64" => self.builder.build_int_sub(left.into_int_value(), right.into_int_value(), "sub").unwrap(),
-                        "*" | "mul" | "mul_i64" => self.builder.build_int_mul(left.into_int_value(), right.into_int_value(), "mul").unwrap(),
-                        "/" | "div" | "div_i64" => self.builder.build_int_signed_div(left.into_int_value(), right.into_int_value(), "div").unwrap(),
-                        "%" | "mod" | "mod_i64" => self.builder.build_int_signed_rem(left.into_int_value(), right.into_int_value(), "mod").unwrap(),
-                        
+                        "+" | "add" | "add_i64" => self
+                            .builder
+                            .build_int_add(left.into_int_value(), right.into_int_value(), "add")
+                            .unwrap(),
+                        "-" | "sub" | "sub_i64" => self
+                            .builder
+                            .build_int_sub(left.into_int_value(), right.into_int_value(), "sub")
+                            .unwrap(),
+                        "*" | "mul" | "mul_i64" => self
+                            .builder
+                            .build_int_mul(left.into_int_value(), right.into_int_value(), "mul")
+                            .unwrap(),
+                        "/" | "div" | "div_i64" => self
+                            .builder
+                            .build_int_signed_div(
+                                left.into_int_value(),
+                                right.into_int_value(),
+                                "div",
+                            )
+                            .unwrap(),
+                        "%" | "mod" | "mod_i64" => self
+                            .builder
+                            .build_int_signed_rem(
+                                left.into_int_value(),
+                                right.into_int_value(),
+                                "mod",
+                            )
+                            .unwrap(),
+
                         // Comparison operators (return i64: 1 for true, 0 for false)
                         "==" | "eq" | "eq_i64" => {
-                            let cmp = self.builder.build_int_compare(
-                                inkwell::IntPredicate::EQ,
-                                left.into_int_value(),
-                                right.into_int_value(),
-                                "eq"
-                            ).unwrap();
-                            self.builder.build_int_z_extend(cmp, self.i64_type, "eq_ext").unwrap()
-                        },
+                            let cmp = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::EQ,
+                                    left.into_int_value(),
+                                    right.into_int_value(),
+                                    "eq",
+                                )
+                                .unwrap();
+                            self.builder
+                                .build_int_z_extend(cmp, self.i64_type, "eq_ext")
+                                .unwrap()
+                        }
                         "!=" | "ne" | "ne_i64" => {
-                            let cmp = self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE,
-                                left.into_int_value(),
-                                right.into_int_value(),
-                                "ne"
-                            ).unwrap();
-                            self.builder.build_int_z_extend(cmp, self.i64_type, "ne_ext").unwrap()
-                        },
+                            let cmp = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    left.into_int_value(),
+                                    right.into_int_value(),
+                                    "ne",
+                                )
+                                .unwrap();
+                            self.builder
+                                .build_int_z_extend(cmp, self.i64_type, "ne_ext")
+                                .unwrap()
+                        }
                         "<" | "lt" | "lt_i64" => {
-                            let cmp = self.builder.build_int_compare(
-                                inkwell::IntPredicate::SLT,
-                                left.into_int_value(),
-                                right.into_int_value(),
-                                "lt"
-                            ).unwrap();
-                            self.builder.build_int_z_extend(cmp, self.i64_type, "lt_ext").unwrap()
-                        },
+                            let cmp = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::SLT,
+                                    left.into_int_value(),
+                                    right.into_int_value(),
+                                    "lt",
+                                )
+                                .unwrap();
+                            self.builder
+                                .build_int_z_extend(cmp, self.i64_type, "lt_ext")
+                                .unwrap()
+                        }
                         ">" | "gt" | "gt_i64" => {
-                            let cmp = self.builder.build_int_compare(
-                                inkwell::IntPredicate::SGT,
-                                left.into_int_value(),
-                                right.into_int_value(),
-                                "gt"
-                            ).unwrap();
-                            self.builder.build_int_z_extend(cmp, self.i64_type, "gt_ext").unwrap()
-                        },
+                            let cmp = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::SGT,
+                                    left.into_int_value(),
+                                    right.into_int_value(),
+                                    "gt",
+                                )
+                                .unwrap();
+                            self.builder
+                                .build_int_z_extend(cmp, self.i64_type, "gt_ext")
+                                .unwrap()
+                        }
                         "<=" | "le" | "le_i64" => {
-                            let cmp = self.builder.build_int_compare(
-                                inkwell::IntPredicate::SLE,
-                                left.into_int_value(),
-                                right.into_int_value(),
-                                "le"
-                            ).unwrap();
-                            self.builder.build_int_z_extend(cmp, self.i64_type, "le_ext").unwrap()
-                        },
+                            let cmp = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::SLE,
+                                    left.into_int_value(),
+                                    right.into_int_value(),
+                                    "le",
+                                )
+                                .unwrap();
+                            self.builder
+                                .build_int_z_extend(cmp, self.i64_type, "le_ext")
+                                .unwrap()
+                        }
                         ">=" | "ge" | "ge_i64" => {
-                            let cmp = self.builder.build_int_compare(
-                                inkwell::IntPredicate::SGE,
-                                left.into_int_value(),
-                                right.into_int_value(),
-                                "ge"
-                            ).unwrap();
-                            self.builder.build_int_z_extend(cmp, self.i64_type, "ge_ext").unwrap()
-                        },
-                        
+                            let cmp = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::SGE,
+                                    left.into_int_value(),
+                                    right.into_int_value(),
+                                    "ge",
+                                )
+                                .unwrap();
+                            self.builder
+                                .build_int_z_extend(cmp, self.i64_type, "ge_ext")
+                                .unwrap()
+                        }
+
                         // Logical operators (treat i64 as boolean: 0=false, non-zero=true)
                         "&&" | "and" | "and_i64" => {
                             // Convert to boolean (0 or 1) then logical AND
-                            let left_bool = self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE,
-                                left.into_int_value(),
-                                self.i64_type.const_int(0, false),
-                                "left_bool"
-                            ).unwrap();
-                            let right_bool = self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE,
-                                right.into_int_value(),
-                                self.i64_type.const_int(0, false),
-                                "right_bool"
-                            ).unwrap();
-                            let bool_and = self.builder.build_and(left_bool, right_bool, "and").unwrap();
-                            self.builder.build_int_z_extend(bool_and, self.i64_type, "and_ext").unwrap()
-                        },
+                            let left_bool = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    left.into_int_value(),
+                                    self.i64_type.const_int(0, false),
+                                    "left_bool",
+                                )
+                                .unwrap();
+                            let right_bool = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    right.into_int_value(),
+                                    self.i64_type.const_int(0, false),
+                                    "right_bool",
+                                )
+                                .unwrap();
+                            let bool_and = self
+                                .builder
+                                .build_and(left_bool, right_bool, "and")
+                                .unwrap();
+                            self.builder
+                                .build_int_z_extend(bool_and, self.i64_type, "and_ext")
+                                .unwrap()
+                        }
                         "||" | "or" | "or_i64" => {
                             // Convert to boolean (0 or 1) then logical OR
-                            let left_bool = self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE,
-                                left.into_int_value(),
-                                self.i64_type.const_int(0, false),
-                                "left_bool"
-                            ).unwrap();
-                            let right_bool = self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE,
-                                right.into_int_value(),
-                                self.i64_type.const_int(0, false),
-                                "right_bool"
-                            ).unwrap();
-                            let bool_or = self.builder.build_or(left_bool, right_bool, "or").unwrap();
-                            self.builder.build_int_z_extend(bool_or, self.i64_type, "or_ext").unwrap()
-                        },
+                            let left_bool = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    left.into_int_value(),
+                                    self.i64_type.const_int(0, false),
+                                    "left_bool",
+                                )
+                                .unwrap();
+                            let right_bool = self
+                                .builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    right.into_int_value(),
+                                    self.i64_type.const_int(0, false),
+                                    "right_bool",
+                                )
+                                .unwrap();
+                            let bool_or =
+                                self.builder.build_or(left_bool, right_bool, "or").unwrap();
+                            self.builder
+                                .build_int_z_extend(bool_or, self.i64_type, "or_ext")
+                                .unwrap()
+                        }
                         // Note: "!" (not) is unary, handled separately if needed
-                        
+
                         // Not an operator we handle inline
                         _ => {
                             let callee = self.get_function(func);
@@ -673,7 +840,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
                             basic_val.into_int_value()
                         }
                     };
-                    
+
                     let alloca = *self.locals.get(dest).unwrap();
                     self.builder.build_store(alloca, result).unwrap();
                 } else {
@@ -866,7 +1033,12 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 let alloca = *self.locals.get(dest).unwrap();
                 self.builder.build_store(alloca, val).unwrap();
             }
-            MirStmt::If { cond, then, else_, dest: _ } => {
+            MirStmt::If {
+                cond,
+                then,
+                else_,
+                dest: _,
+            } => {
                 let cond_i64 = self.gen_expr_safe(cond, exprs).into_int_value();
                 let cond_i1 = self
                     .builder
@@ -889,7 +1061,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 self.builder
                     .build_conditional_branch(cond_i1, then_bb, else_bb)
                     .unwrap();
-                
+
                 // Generate then block
                 self.builder.position_at_end(then_bb);
                 for s in then {
@@ -899,8 +1071,8 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 if !then.iter().any(|s| matches!(s, MirStmt::Return { .. })) {
                     self.builder.build_unconditional_branch(merge_bb).unwrap();
                 }
-                
-                // Generate else block  
+
+                // Generate else block
                 self.builder.position_at_end(else_bb);
                 for s in else_ {
                     self.gen_stmt(s, exprs);
@@ -909,7 +1081,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 if !else_.iter().any(|s| matches!(s, MirStmt::Return { .. })) {
                     self.builder.build_unconditional_branch(merge_bb).unwrap();
                 }
-                
+
                 // Continue at merge block
                 self.builder.position_at_end(merge_bb);
                 // dest is handled by assignments in the branches

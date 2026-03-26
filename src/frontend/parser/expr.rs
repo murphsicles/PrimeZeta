@@ -1,5 +1,7 @@
 // src/frontend/parser/expr.rs
-use super::parser::{parse_ident, parse_path, parse_type, parse_type_args, ws, skip_ws_and_comments0};
+use super::parser::{
+    parse_ident, parse_path, parse_type, parse_type_args, skip_ws_and_comments0, ws,
+};
 
 use super::stmt::parse_block_body;
 use crate::frontend::ast::AstNode;
@@ -13,7 +15,7 @@ use nom::multi::{separated_list0, separated_list1};
 use nom::sequence::{delimited, preceded, terminated};
 
 fn parse_lit(input: &str) -> IResult<&str, AstNode> {
-    let (input, num) = take_while(|c: char| c.is_digit(10)).parse(input)?;
+    let (input, num) = take_while(|c: char| c.is_ascii_digit()).parse(input)?;
     if num.is_empty() {
         return Err(nom::Err::Error(NomError::new(
             input,
@@ -26,15 +28,15 @@ fn parse_lit(input: &str) -> IResult<&str, AstNode> {
 
 fn parse_string_lit(input: &str) -> IResult<&str, AstNode> {
     let (input, _) = tag("\"")(input)?;
-    
+
     // Simple parser that handles escaped quotes
     let mut content = String::new();
     let mut chars = input.chars();
     let mut pos = 0;
-    
+
     while let Some(c) = chars.next() {
         pos += c.len_utf8();
-        
+
         if c == '\\' {
             // Handle escape
             if let Some(next_c) = chars.next() {
@@ -65,7 +67,7 @@ fn parse_string_lit(input: &str) -> IResult<&str, AstNode> {
             content.push(c);
         }
     }
-    
+
     // No closing quote found
     Err(nom::Err::Error(NomError::new(
         input,
@@ -91,8 +93,8 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
     } else {
         (input, None)
     };
-    
-    if let Some(_) = is_macro {
+
+    if is_macro.is_some() {
         let (input, delim_start) = ws(alt((tag("("), tag("["), tag("{")))).parse(input)?;
         let close = match delim_start {
             "(" => ")",
@@ -139,7 +141,6 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
                 },
             ))
         } else {
-            
             let (input, fields_opt) = opt(delimited(
                 ws(tag("{")),
                 terminated(
@@ -205,18 +206,22 @@ fn parse_unsafe_expr(input: &str) -> IResult<&str, AstNode> {
     }
 }
 
-
-
 fn parse_condition(input: &str) -> IResult<&str, AstNode> {
     // Parse condition for if/while - stops at '{' or other block delimiters
     parse_expr_no_if(input)
 }
 
 fn parse_if(input: &str) -> IResult<&str, AstNode> {
-    println!("[PARSER DEBUG] parse_if called, input: {:?}", &input[..30.min(input.len())]);
+    println!(
+        "[PARSER DEBUG] parse_if called, input: {:?}",
+        &input[..30.min(input.len())]
+    );
     let (input, _) = ws(tag("if")).parse(input)?;
-    println!("[PARSER DEBUG] parse_if: parsed 'if', remaining: {:?}", &input[..30.min(input.len())]);
-    
+    println!(
+        "[PARSER DEBUG] parse_if: parsed 'if', remaining: {:?}",
+        &input[..30.min(input.len())]
+    );
+
     // Parse condition with special handling
     let (input, cond) = if let Ok((i, expr)) = parse_condition(input) {
         (i, expr)
@@ -224,7 +229,10 @@ fn parse_if(input: &str) -> IResult<&str, AstNode> {
         // Fallback: parse any expression
         ws(parse_expr_no_if).parse(input)?
     };
-    println!("[PARSER DEBUG] parse_if: parsed condition, remaining: {:?}", &input[..30.min(input.len())]);
+    println!(
+        "[PARSER DEBUG] parse_if: parsed condition, remaining: {:?}",
+        &input[..30.min(input.len())]
+    );
     let (input, then) = delimited(ws(tag("{")), parse_block_body, ws(tag("}"))).parse(input)?;
     let (input, else_opt) = opt(preceded(
         ws(tag("else")),
@@ -277,8 +285,11 @@ fn parse_bool(input: &str) -> IResult<&str, AstNode> {
 }
 
 fn parse_unary(input: &str) -> IResult<&str, AstNode> {
-    println!("[PARSER DEBUG] parse_unary called, input: {:?}", &input[..20.min(input.len())]);
-    
+    println!(
+        "[PARSER DEBUG] parse_unary called, input: {:?}",
+        &input[..20.min(input.len())]
+    );
+
     // Check for "!" but NOT followed by "=" (which would be != operator)
     let (input, op_opt) = if input.starts_with("!") && !input.starts_with("!=") {
         // It's a unary !, not !=
@@ -288,9 +299,13 @@ fn parse_unary(input: &str) -> IResult<&str, AstNode> {
         // Try other unary operators
         opt(alt((tag("&mut"), tag("&"), tag("-")))).parse(input)?
     };
-    
-    println!("[PARSER DEBUG] parse_unary: op_opt = {:?}, remaining: {:?}", op_opt, &input[..20.min(input.len())]);
-    
+
+    println!(
+        "[PARSER DEBUG] parse_unary: op_opt = {:?}, remaining: {:?}",
+        op_opt,
+        &input[..20.min(input.len())]
+    );
+
     let (input, expr) = if op_opt.is_some() {
         ws(parse_primary).parse(input)?
     } else {
@@ -316,13 +331,16 @@ fn parse_simple_ident(input: &str) -> IResult<&str, AstNode> {
 }
 
 fn parse_primary(input: &str) -> IResult<&str, AstNode> {
-    println!("[PARSER DEBUG] parse_primary called, input: {:?}", &input[..20.min(input.len())]);
+    println!(
+        "[PARSER DEBUG] parse_primary called, input: {:?}",
+        &input[..20.min(input.len())]
+    );
     alt((
         parse_tuple_or_paren,
         parse_lit,
         parse_string_lit,
-        parse_simple_ident,  // Try simple ident first
-        parse_path_expr,     // Fall back to full path parser
+        parse_simple_ident, // Try simple ident first
+        parse_path_expr,    // Fall back to full path parser
         parse_array_lit,
         parse_bool,
         parse_closure,
@@ -411,9 +429,11 @@ fn parse_expr_no_if(input: &str) -> IResult<&str, AstNode> {
         // Try to parse operator
         let mut found_op = None;
         let mut remaining_input = input;
-        
-        let operators = ["!=", "==", "<=", ">=", "<", ">", "+", "-", "*", "/", "%", "&&", "||", ".."];
-        
+
+        let operators = [
+            "!=", "==", "<=", ">=", "<", ">", "+", "-", "*", "/", "%", "&&", "||", "..",
+        ];
+
         // Try operators without whitespace first
         for &op in &operators {
             if remaining_input.starts_with(op) {
@@ -422,21 +442,21 @@ fn parse_expr_no_if(input: &str) -> IResult<&str, AstNode> {
                 break;
             }
         }
-        
+
         // If no operator, try with whitespace
         if found_op.is_none() {
             let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
             if i != remaining_input {
                 for &op in &operators {
-                    if i.starts_with(op) {
+                    if let Some(stripped) = i.strip_prefix(op) {
                         found_op = Some(op);
-                        remaining_input = &i[op.len()..];
+                        remaining_input = stripped;
                         break;
                     }
                 }
             }
         }
-        
+
         if let Some(op) = found_op {
             // Skip whitespace after operator
             let (j, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
@@ -455,13 +475,16 @@ fn parse_expr_no_if(input: &str) -> IResult<&str, AstNode> {
 }
 
 pub fn parse_expr(input: &str) -> IResult<&str, AstNode> {
-    println!("[PARSER DEBUG] parse_expr called, input first 50 chars: {:?}", &input[..50.min(input.len())]);
-    
+    println!(
+        "[PARSER DEBUG] parse_expr called, input first 50 chars: {:?}",
+        &input[..50.min(input.len())]
+    );
+
     // Try if expression first
     if let Ok((remaining, if_expr)) = parse_if(input) {
         return Ok((remaining, if_expr));
     }
-    
+
     // Otherwise parse normal expression
     parse_expr_no_if(input)
 }

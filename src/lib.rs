@@ -32,7 +32,7 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
     init_runtime();
 
     let (_, asts) = parse_zeta(code).map_err(|e| format!("Parse error: {:?}", e))?;
-    
+
     // DEBUG: Print ASTs
     println!("[DEBUG] Parsed {} ASTs", asts.len());
     for (i, ast) in asts.iter().enumerate() {
