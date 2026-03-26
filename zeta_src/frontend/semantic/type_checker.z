@@ -31,7 +31,7 @@ impl Resolver {
         ok
     }
 
-    fn check_node(&self, node: &AstNode) -> bool {
+    fn check_node(&mut self, node: &AstNode) -> bool {
         let mut ok = true;
         match node {
             AstNode::Call { .. } => {} // receiver methods always OK after monomorphization
@@ -49,11 +49,15 @@ impl Resolver {
                 }
             }
             AstNode::FuncDef { body, .. } => {
+                // Push new scope for function body
+                self.push_scope();
                 for s in body {
                     if !self.check_node(s) {
                         ok = false;
                     }
                 }
+                // Pop function body scope
+                self.pop_scope();
             }
             AstNode::Return(inner) => {
                 if !self.check_node(inner) {
@@ -71,16 +75,25 @@ impl Resolver {
                 if !self.check_node(cond) {
                     ok = false;
                 }
+                // Push new scope for then branch
+                self.push_scope();
                 for s in then_ {
                     if !self.check_node(s) {
                         ok = false;
                     }
                 }
+                // Pop then branch scope
+                self.pop_scope();
+                
+                // Push new scope for else branch
+                self.push_scope();
                 for s in else_ {
                     if !self.check_node(s) {
                         ok = false;
                     }
                 }
+                // Pop else branch scope
+                self.pop_scope();
             }
             AstNode::Let { name, ty, value } => {
                 // Check the value expression
@@ -99,8 +112,17 @@ impl Resolver {
                     }
                 }
                 
-                // TODO: Add variable to scope for later reference
-                // This would require updating the resolver to track variables
+                // Add variable to scope for later reference
+                let type_to_declare = if let Some(annotated_type) = ty {
+                    annotated_type.clone()
+                } else {
+                    value_type
+                };
+                
+                if !self.declare_var(name, type_to_declare) {
+                    // Variable already declared in current scope
+                    ok = false;
+                }
             }
             _ => {}
         }
