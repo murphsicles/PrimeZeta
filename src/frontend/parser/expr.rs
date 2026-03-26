@@ -8,13 +8,95 @@ use crate::frontend::ast::{AstNode, MatchArm};
 use nom::IResult;
 use nom::Parser;
 use nom::branch::alt;
-use nom::bytes::complete::{tag, take_while};
-use nom::combinator::opt;
+use nom::bytes::complete::{tag, take_while, take_while1};
+use nom::combinator::{opt, recognize, verify};
 use nom::error::Error as NomError;
 use nom::multi::{separated_list0, separated_list1};
 use nom::sequence::{delimited, preceded, terminated};
+use nom::character::complete::{char, one_of};
+
+fn parse_float_lit(input: &str) -> IResult<&str, AstNode> {
+    // Simple float parser: digits.digits
+    // For v0.3.8, support basic floats without exponent
+    
+    let mut chars = input.chars().peekable();
+    let mut pos = 0;
+    let mut has_digit = false;
+    
+    // Parse integer part
+    while let Some(&c) = chars.peek() {
+        if c.is_ascii_digit() {
+            has_digit = true;
+            chars.next();
+            pos += c.len_utf8();
+        } else {
+            break;
+        }
+    }
+    
+    if !has_digit {
+        return Err(nom::Err::Error(NomError::new(
+            input,
+            nom::error::ErrorKind::Digit,
+        )));
+    }
+    
+    // Check for decimal point
+    let mut has_decimal = false;
+    if let Some(&c) = chars.peek() {
+        if c == '.' {
+            has_decimal = true;
+            chars.next();
+            pos += c.len_utf8();
+            
+            // Parse fractional part (at least one digit)
+            let mut has_fraction_digit = false;
+            while let Some(&c) = chars.peek() {
+                if c.is_ascii_digit() {
+                    has_fraction_digit = true;
+                    chars.next();
+                    pos += c.len_utf8();
+                } else {
+                    break;
+                }
+            }
+            
+            if !has_fraction_digit {
+                // Invalid: decimal point without digits
+                return Err(nom::Err::Error(NomError::new(
+                    input,
+                    nom::error::ErrorKind::Digit,
+                )));
+            }
+        }
+    }
+    
+    // Must have decimal to be a float (for v0.3.8, no exponent support yet)
+    if !has_decimal {
+        return Err(nom::Err::Error(NomError::new(
+            input,
+            nom::error::ErrorKind::Digit,
+        )));
+    }
+    
+    let float_str = &input[..pos];
+    let remaining = &input[pos..];
+    Ok((remaining, AstNode::FloatLit(float_str.to_string())))
+}
 
 fn parse_lit(input: &str) -> IResult<&str, AstNode> {
+    println!("[PARSER DEBUG] parse_lit called, input: {:?}", input);
+    // Try float first, then integer
+    match parse_float_lit(input) {
+        Ok(result) => {
+            println!("[PARSER DEBUG] parse_float_lit succeeded: {:?}", result);
+            return Ok(result);
+        }
+        Err(e) => {
+            println!("[PARSER DEBUG] parse_float_lit failed: {:?}", e);
+        }
+    }
+    
     let (input, num) = take_while(|c: char| c.is_ascii_digit()).parse(input)?;
     if num.is_empty() {
         return Err(nom::Err::Error(NomError::new(
@@ -23,6 +105,7 @@ fn parse_lit(input: &str) -> IResult<&str, AstNode> {
         )));
     }
     let value = num.parse::<i64>().unwrap_or(0);
+    println!("[PARSER DEBUG] parse_lit returning integer: {}", value);
     Ok((input, AstNode::Lit(value)))
 }
 
