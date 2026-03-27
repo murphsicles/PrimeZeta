@@ -81,9 +81,12 @@ jobs:
         if: steps.check-tags.outputs.tagged == 'true'
         run: cargo build --workspace --all-features --all-targets
         
-      - name: Run tests
+      - name: Build release compiler
         if: steps.check-tags.outputs.tagged == 'true'
-        run: cargo test --workspace --all-features
+        run: cargo build --release
+      - name: Run Zeta tests
+        if: steps.check-tags.outputs.tagged == 'true'
+        run: powershell -ExecutionPolicy Bypass -File scripts/run_zeta_tests.ps1
         
       - name: Generate agent report
         id: report

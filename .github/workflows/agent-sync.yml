@@ -100,8 +100,12 @@ jobs:
           rustup default stable
           rustup component add clippy rustfmt
           
-          # Run tests
+          # Run Rust tests
           cargo test --workspace --all-features
+          
+          # Build and run Zeta tests
+          cargo build --release
+          powershell -ExecutionPolicy Bypass -File scripts/run_zeta_tests.ps1
           
       - name: Create sync report
         if: always()
