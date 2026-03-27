@@ -88,15 +88,15 @@ fn demonstrate_new_type_system() {
     // Test 6: Float type unification
     println!("\n6. Float Type Support:");
     let mut subst5 = Substitution::new();
-    
+
     // Float literals unify with f64
     assert!(subst5.unify(&Type::F64, &Type::F64).is_ok());
     println!("  ✓ f64 = f64 unification works");
-    
+
     // f32 unifies with f32
     assert!(subst5.unify(&Type::F32, &Type::F32).is_ok());
     println!("  ✓ f32 = f32 unification works");
-    
+
     // f32 != f64 (different types)
     assert!(subst5.unify(&Type::F32, &Type::F64).is_err());
     println!("  ✓ f32 != f64 (distinct types)");
