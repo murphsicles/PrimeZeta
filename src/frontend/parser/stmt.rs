@@ -1,7 +1,7 @@
 // src/frontend/parser/stmt.rs
 //! Module for parsing statements and patterns in the Zeta language.
 
-use super::expr::parse_full_expr;
+use super::expr::{parse_full_expr, parse_lit};
 use super::parser::{parse_ident, parse_path, parse_type, skip_ws_and_comments, ws};
 use super::top_level::parse_type_alias;
 use crate::frontend::ast::AstNode;
@@ -27,6 +27,7 @@ pub fn parse_pattern(input: &str) -> IResult<&str, AstNode> {
         )
         .map(AstNode::Tuple),
         parse_path_pattern,
+        parse_lit,
         parse_ident.map(AstNode::Var),
     ))
     .parse(input)

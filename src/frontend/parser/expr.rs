@@ -83,7 +83,7 @@ fn parse_float_lit(input: &str) -> IResult<&str, AstNode> {
     Ok((remaining, AstNode::FloatLit(float_str.to_string())))
 }
 
-fn parse_lit(input: &str) -> IResult<&str, AstNode> {
+pub fn parse_lit(input: &str) -> IResult<&str, AstNode> {
     println!("[PARSER DEBUG] parse_lit called, input: {:?}", input);
     // Try float first, then integer
     match parse_float_lit(input) {
