@@ -515,8 +515,6 @@ impl MirGen {
                 let mut else_branch = Vec::new();
                 
                 for arm in arms.iter().rev() {
-                    let arm_body_id = self.lower_expr(&arm.body);
-                    
                     // Generate condition based on pattern
                     let cond_id = self.next_id();
                     
@@ -543,13 +541,22 @@ impl MirGen {
                             self.exprs.insert(cond_id, MirExpr::Lit(1));
                             self.type_map.insert(cond_id, "bool".to_string());
                         }
+                        AstNode::Var(ref var_name) => {
+                            // Variable binding pattern - always matches
+                            // Add binding to name_to_id so the arm body can reference it
+                            self.name_to_id.insert(var_name.clone(), scrutinee_id);
+                            self.exprs.insert(cond_id, MirExpr::Lit(1));
+                            self.type_map.insert(cond_id, "bool".to_string());
+                        }
                         _ => {
                             // For now, treat other patterns as always false
-                            // (This will be extended for variable patterns, etc.)
                             self.exprs.insert(cond_id, MirExpr::Lit(0));
                             self.type_map.insert(cond_id, "bool".to_string());
                         }
                     }
+                    
+                    // Now lower the arm body (after establishing pattern bindings)
+                    let arm_body_id = self.lower_expr(&arm.body);
                     
                     // Create the if statement for this arm
                     let then_branch = vec![MirStmt::Assign {

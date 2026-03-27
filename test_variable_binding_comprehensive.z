@@ -1,0 +1,45 @@
+// Comprehensive test of variable binding in match patterns
+fn test_basic_binding() -> i64 {
+    let x = 10;
+    match x {
+        y => y * 2  // Should return 20
+    }
+}
+
+fn test_with_wildcard() -> i64 {
+    let x = 5;
+    match x {
+        1 => 100,
+        2 => 200,
+        y => y * 10  // Should return 50
+    }
+}
+
+fn test_multiple_bindings() -> i64 {
+    let a = 3;
+    let b = 7;
+    
+    // Test that we can use bound variable in expression
+    match a {
+        x => match b {
+            y => x + y  // Should return 10
+        }
+    }
+}
+
+fn test_shadowing() -> i64 {
+    let x = 99;
+    match x {
+        x => x + 1  // Should return 100 (shadows outer x)
+    }
+}
+
+fn main() -> i64 {
+    // Run all tests and sum results
+    let r1 = test_basic_binding();      // 20
+    let r2 = test_with_wildcard();      // 50
+    let r3 = test_multiple_bindings();  // 10
+    let r4 = test_shadowing();          // 100
+    
+    r1 + r2 + r3 + r4  // Should return 180
+}
