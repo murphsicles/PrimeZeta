@@ -504,44 +504,75 @@ impl MirGen {
                 self.type_map.insert(id, "i64".to_string());
             }
             AstNode::Match { scrutinee, arms } => {
-                // For now, implement simple match with first matching arm
-                let _scrutinee_id = self.lower_expr(scrutinee);
+                // Lower the scrutinee expression
+                let scrutinee_id = self.lower_expr(scrutinee);
 
-                // Generate basic if-else chain for match
-                let current_id = id;
-
-                for (i, arm) in arms.iter().enumerate() {
+                // Generate if-else chain for match arms
+                let result_id = id;
+                
+                // We'll build the match as a series of if-else statements
+                // Start from the last arm and work backwards
+                let mut else_branch = Vec::new();
+                
+                for arm in arms.iter().rev() {
                     let arm_body_id = self.lower_expr(&arm.body);
-
-                    if i == 0 {
-                        // First arm - just assign
-                        self.stmts.push(MirStmt::Assign {
-                            lhs: current_id,
-                            rhs: arm_body_id,
-                        });
-                    } else {
-                        // Subsequent arms - need conditional
-                        let cond_id = self.next_id();
-                        // Simplified: always true for now (pattern matching not implemented)
-                        self.exprs.insert(cond_id, MirExpr::Lit(1));
-                        self.type_map.insert(cond_id, "bool".to_string());
-
-                        let then_id = self.next_id();
-                        self.stmts.push(MirStmt::Assign {
-                            lhs: then_id,
-                            rhs: arm_body_id,
-                        });
-
-                        self.stmts.push(MirStmt::If {
-                            cond: cond_id,
-                            then: vec![MirStmt::Assign {
-                                lhs: current_id,
-                                rhs: then_id,
-                            }],
-                            else_: vec![],
-                            dest: None, // Statement if, not expression
-                        });
+                    
+                    // Generate condition based on pattern
+                    let cond_id = self.next_id();
+                    
+                    match *arm.pattern {
+                        AstNode::Lit(pattern_value) => {
+                            // For literal patterns, generate equality check
+                            let pattern_id = self.next_id();
+                            self.exprs.insert(pattern_id, MirExpr::Lit(pattern_value));
+                            self.type_map.insert(pattern_id, "i64".to_string());
+                            
+                            // Create equality comparison: scrutinee == pattern
+                            // This creates a call to the "==" operator
+                            self.stmts.push(MirStmt::Call {
+                                func: "==".to_string(),
+                                args: vec![scrutinee_id, pattern_id],
+                                dest: cond_id,
+                                type_args: vec![],
+                            });
+                            self.exprs.insert(cond_id, MirExpr::Var(cond_id));
+                            self.type_map.insert(cond_id, "bool".to_string());
+                        }
+                        AstNode::Var(ref var_name) if var_name == "_" => {
+                            // Wildcard pattern - always true
+                            self.exprs.insert(cond_id, MirExpr::Lit(1));
+                            self.type_map.insert(cond_id, "bool".to_string());
+                        }
+                        _ => {
+                            // For now, treat other patterns as always false
+                            // (This will be extended for variable patterns, etc.)
+                            self.exprs.insert(cond_id, MirExpr::Lit(0));
+                            self.type_map.insert(cond_id, "bool".to_string());
+                        }
                     }
+                    
+                    // Create the if statement for this arm
+                    let then_branch = vec![MirStmt::Assign {
+                        lhs: result_id,
+                        rhs: arm_body_id,
+                    }];
+                    
+                    let if_stmt = MirStmt::If {
+                        cond: cond_id,
+                        then: then_branch,
+                        else_: else_branch,
+                        dest: None,
+                    };
+                    
+                    // For the next iteration, the current if becomes the else branch
+                    else_branch = vec![if_stmt];
+                }
+                
+                // The final else_branch contains the complete if-else chain
+                // Add it to statements
+                if !else_branch.is_empty() {
+                    // The chain starts with the first arm's if statement
+                    self.stmts.extend(else_branch);
                 }
 
                 self.exprs.insert(id, MirExpr::Var(id));

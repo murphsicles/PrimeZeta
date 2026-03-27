@@ -1,0 +1,39 @@
+// Comprehensive match statement tests
+fn test_match_basic(x: i64) -> i64 {
+    match x {
+        1 => 10,
+        2 => 20,
+        _ => 0
+    }
+}
+
+fn test_match_wildcard_only(x: i64) -> i64 {
+    match x {
+        _ => 42
+    }
+}
+
+fn test_match_two_patterns(x: i64) -> i64 {
+    match x {
+        100 => 1,
+        200 => 2
+    }
+}
+
+fn main() -> i64 {
+    // Test 1: Basic match with literal 1
+    let result1 = test_match_basic(1);
+    // Test 2: Basic match with literal 2  
+    let result2 = test_match_basic(2);
+    // Test 3: Basic match with other value (should use wildcard)
+    let result3 = test_match_basic(99);
+    // Test 4: Wildcard only match
+    let result4 = test_match_wildcard_only(999);
+    // Test 5: Two patterns without wildcard (should return 0 if no match?)
+    let result5 = test_match_two_patterns(100);
+    let result6 = test_match_two_patterns(200);
+    let result7 = test_match_two_patterns(300);
+    
+    // Return sum of all tests for verification
+    result1 + result2 + result3 + result4 + result5 + result6 + result7
+}
