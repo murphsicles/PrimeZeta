@@ -1,0 +1,8 @@
+fn main() -> i64 {
+    let x = 3;
+    match x {
+        1 if false => 100,
+        3 if true => 200,
+        _ => 0
+    }
+}
