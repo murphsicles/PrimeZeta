@@ -1,8 +1,0 @@
-fn returns_string() -> &str {
-    "hello"
-}
-
-fn main() -> i32 {
-    let x: i32 = returns_string();
-    x
-}

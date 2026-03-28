@@ -1,5 +1,0 @@
-fn main() -> i32 {
-    let x = "string";
-    let y: i32 = x;
-    y
-}
