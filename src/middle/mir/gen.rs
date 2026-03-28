@@ -624,7 +624,7 @@ impl MirGen {
                 self.exprs.insert(id, MirExpr::Var(id));
                 self.type_map.insert(id, "i64".to_string());
             }
-            AstNode::FieldAccess { base, field } => {
+            AstNode::FieldAccess { base: _, field } => {
                 // TODO-20260327-001: Implement proper field access
                 // Temporary implementation for testing
                 let value = match field.as_str() {
@@ -635,11 +635,11 @@ impl MirGen {
                 self.exprs.insert(id, MirExpr::Lit(value));
                 self.type_map.insert(id, "i64".to_string());
             }
-            AstNode::StructLit { variant, fields } => {
+            AstNode::StructLit { variant: _, fields } => {
                 // TODO-20260327-002: Implement proper struct literal creation
                 // Temporary implementation for testing
                 let mut sum = 0;
-                for (field_name, field_expr) in fields {
+                for (_field_name, field_expr) in fields {
                     // Evaluate the field expression if it's a literal
                     if let AstNode::Lit(n) = *field_expr {
                         sum += n;
