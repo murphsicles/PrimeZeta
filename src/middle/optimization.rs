@@ -55,6 +55,12 @@ pub fn dead_code_elimination(mir: &mut Mir) {
             MirStmt::Consume { id } => {
                 mark_expr_used(*id, &mut used, &mir.exprs);
             }
+            MirStmt::StructNew { fields, dest, .. } => {
+                used.insert(*dest, true);
+                for (_, expr_id) in fields {
+                    mark_expr_used(*expr_id, &mut used, &mir.exprs);
+                }
+            }
             MirStmt::If { cond, then, else_, dest } => {
                 mark_expr_used(*cond, &mut used, &mir.exprs);
                 // dest is being defined (result of if expression), not used here
