@@ -5,9 +5,9 @@
 fn test_actor_smoke_module() {
     // Test that actor module exists
     use zetac::runtime::actor;
-    
+
     println!("Actor system module exists");
-    
+
     // Actor system should provide:
     // - Actor creation and management
     // - Message passing
@@ -18,9 +18,9 @@ fn test_actor_smoke_module() {
 #[test]
 fn test_actor_smoke_basic_concepts() {
     // Test basic actor concepts
-    
+
     println!("Actor system implements basic concepts");
-    
+
     // Core concepts:
     // 1. Actors: Independent units of computation
     // 2. Messages: Communication between actors
@@ -32,9 +32,9 @@ fn test_actor_smoke_basic_concepts() {
 #[test]
 fn test_actor_smoke_concurrency() {
     // Test concurrency aspects
-    
+
     println!("Actor system handles concurrency");
-    
+
     // Concurrency features:
     // - Non-blocking message passing
     // - Actor scheduling
@@ -45,9 +45,9 @@ fn test_actor_smoke_concurrency() {
 #[test]
 fn test_actor_smoke_message_passing() {
     // Test message passing
-    
+
     println!("Actor system implements message passing");
-    
+
     // Message passing features:
     // - Type-safe messages
     // - Ask/tell patterns
@@ -58,9 +58,9 @@ fn test_actor_smoke_message_passing() {
 #[test]
 fn test_actor_smoke_integration() {
     // Test actor system integration
-    
+
     println!("Actor system integrates with runtime and type system");
-    
+
     // Integration points:
     // 1. Runtime manages actor scheduling
     // 2. Type system ensures message type safety
@@ -70,9 +70,9 @@ fn test_actor_smoke_integration() {
 #[test]
 fn test_actor_smoke_erlang_influence() {
     // Test Erlang/OTP influence
-    
+
     println!("Actor system shows Erlang/OTP influence");
-    
+
     // Erlang-inspired features:
     // - "Let it crash" philosophy
     // - Supervision trees

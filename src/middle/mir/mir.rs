@@ -83,8 +83,14 @@ pub enum MirExpr {
     ConstEval(i64),
     TimingOwned(u32),
     // Struct support
-    Struct { variant: String, fields: Vec<(String, u32)> },
-    FieldAccess { base: u32, field: String },
+    Struct {
+        variant: String,
+        fields: Vec<(String, u32)>,
+    },
+    FieldAccess {
+        base: u32,
+        field: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

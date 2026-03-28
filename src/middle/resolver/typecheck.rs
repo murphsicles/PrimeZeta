@@ -94,7 +94,12 @@ impl Resolver {
                     }
                 }
             }
-            AstNode::Let { pattern: _, ty, expr, .. } => {
+            AstNode::Let {
+                pattern: _,
+                ty,
+                expr,
+                ..
+            } => {
                 // Check if type annotation is provided
                 if let Some(type_str) = ty {
                     let expr_type = self.infer_type(expr);

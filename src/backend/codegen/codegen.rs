@@ -1160,9 +1160,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     self.i64_type.const_int(0, true).into()
                 }
             }
-            MirExpr::FieldAccess { base, field: _ } => {
-                self.gen_expr(&exprs[base], exprs)
-            }
+            MirExpr::FieldAccess { base, field: _ } => self.gen_expr(&exprs[base], exprs),
         }
     }
 

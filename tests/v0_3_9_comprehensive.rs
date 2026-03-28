@@ -20,37 +20,37 @@ fn test_float_literals_comprehensive() {
         3.14
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse basic float literal");
-    
+
     // Test 2: Float arithmetic
     let code = r#"
     fn add_floats() -> f64 {
         1.5 + 2.5
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse float arithmetic");
-    
+
     // Test 3: Mixed int/float operations
     let code = r#"
     fn mixed_ops() -> f64 {
         3 + 4.5  // Integer should be promoted to float
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse mixed int/float operations");
-    
+
     // Test 4: Float comparisons
     let code = r#"
     fn compare_floats() -> bool {
         3.14 > 2.71
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse float comparisons");
 }
@@ -66,10 +66,10 @@ fn test_const_parsing_comprehensive() {
         MAX_SIZE
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse simple const");
-    
+
     // Test 2: Const with expression
     let code = r#"
     const BASE: i64 = 100;
@@ -80,10 +80,10 @@ fn test_const_parsing_comprehensive() {
         TOTAL - OFFSET
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse const with expression");
-    
+
     // Test 3: Const in match statement
     let code = r#"
     const MODE_A: i64 = 1;
@@ -97,10 +97,10 @@ fn test_const_parsing_comprehensive() {
         }
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse const in match statement");
-    
+
     // Test 4: Float const
     let code = r#"
     const PI: f64 = 3.14159;
@@ -109,7 +109,7 @@ fn test_const_parsing_comprehensive() {
         PI * radius * radius
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse float const");
 }
@@ -128,10 +128,10 @@ fn test_match_statements_comprehensive() {
         }
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse basic match statement");
-    
+
     // Test 2: Match with variable binding
     let code = r#"
     fn match_with_binding(x: i64) -> i64 {
@@ -142,10 +142,10 @@ fn test_match_statements_comprehensive() {
         }
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse match with variable binding");
-    
+
     // Test 3: Nested match
     let code = r#"
     fn nested_match(x: i64, y: i64) -> i64 {
@@ -160,10 +160,10 @@ fn test_match_statements_comprehensive() {
         }
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse nested match");
-    
+
     // Test 4: Match with guard clauses
     let code = r#"
     fn match_with_guard(x: i64) -> &str {
@@ -175,7 +175,7 @@ fn test_match_statements_comprehensive() {
         }
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse match with guard clauses");
 }
@@ -191,10 +191,10 @@ fn test_type_system_enhancements() {
         y
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse type inference with floats");
-    
+
     // Test 2: Explicit float types
     let code = r#"
     fn explicit_types(x: f64, y: f64) -> f64 {
@@ -202,10 +202,10 @@ fn test_type_system_enhancements() {
         result
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse explicit float types");
-    
+
     // Test 3: Type conversion
     let code = r#"
     fn type_conversion() -> f64 {
@@ -214,10 +214,10 @@ fn test_type_system_enhancements() {
         float_val
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse type conversion");
-    
+
     // Test 4: Complex type expressions
     let code = r#"
     fn complex_types() -> f64 {
@@ -226,7 +226,7 @@ fn test_type_system_enhancements() {
         sum
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse complex type expressions");
 }
@@ -266,10 +266,10 @@ fn test_feature_integration() {
         calculate(5.0, 2)
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse complex integration example");
-    
+
     // Test 2: Real-world example - geometric calculations
     let code = r#"
     // Geometric constants
@@ -300,9 +300,12 @@ fn test_feature_integration() {
         circle_area + rect_area
     }
     "#;
-    
+
     let result = parse_zeta(code);
-    assert!(result.is_ok(), "Should parse geometric calculations example");
+    assert!(
+        result.is_ok(),
+        "Should parse geometric calculations example"
+    );
 }
 
 /// Test error handling and edge cases
@@ -314,11 +317,11 @@ fn test_error_handling() {
         3.  // Invalid: trailing decimal only
     }
     "#;
-    
+
     // Parsing should work (type checking happens later)
     let result = parse_zeta(code);
     // Note: This might fail parsing, which is OK for now
-    
+
     // Test 2: Non-exhaustive match (should parse)
     let code = r#"
     fn non_exhaustive(x: i64) -> i64 {
@@ -329,10 +332,10 @@ fn test_error_handling() {
         }
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse non-exhaustive match");
-    
+
     // Test 3: Const type mismatch (should parse)
     let code = r#"
     const WRONG: i64 = "string";  // Type mismatch
@@ -341,7 +344,7 @@ fn test_error_handling() {
         42  // Should still parse despite const error
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse despite const type mismatch");
 }
@@ -356,22 +359,22 @@ fn test_compilation_and_execution() {
         x
     }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
     assert!(result.is_ok(), "Simple program should compile and run");
     assert_eq!(result.unwrap(), 42, "Should return correct value");
-    
+
     // Test with float
     let code = r#"
     fn main() -> f64 {
         3.14
     }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
     // Note: Float support might not be fully implemented in codegen yet
     // This test might fail, which is OK for now
-    
+
     // Test with match statement
     let code = r#"
     fn main() -> i64 {
@@ -383,7 +386,7 @@ fn test_compilation_and_execution() {
         }
     }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
     // Match statement execution might not be fully implemented yet
     // This test might fail, which is OK for now
@@ -404,10 +407,10 @@ fn test_backward_compatibility() {
         old_function(OLD_CONST)
     }
     "#;
-    
+
     let result = parse_zeta(v0_3_7_code);
     assert!(result.is_ok(), "Should maintain backward compatibility");
-    
+
     // Test mixed old and new code
     let mixed_code = r#"
     // Old-style const
@@ -436,7 +439,7 @@ fn test_backward_compatibility() {
         process(1, int_result as f64, FLOAT_CONST)
     }
     "#;
-    
+
     let result = parse_zeta(mixed_code);
     assert!(result.is_ok(), "Should parse mixed old/new code");
 }
@@ -447,7 +450,7 @@ fn test_performance_with_many_features() {
     // Generate a large test program
     let mut code = String::new();
     code.push_str("// Performance test with many v0.3.9 features\n\n");
-    
+
     // Add 50 constants
     for i in 0..50 {
         if i % 2 == 0 {
@@ -456,20 +459,20 @@ fn test_performance_with_many_features() {
             code.push_str(&format!("const F{}: f64 = {}.{};\n", i, i, i));
         }
     }
-    
+
     code.push_str("\n// Function using constants in match\n");
     code.push_str("fn process(value: i64) -> f64 {\n");
     code.push_str("    match value {\n");
-    
+
     // Add match arms for first 10 constants
     for i in 0..10 {
         code.push_str(&format!("        C{} => F{} * 2.0,\n", i, i));
     }
-    
+
     code.push_str("        _ => 0.0,\n");
     code.push_str("    }\n");
     code.push_str("}\n");
-    
+
     code.push_str("\n// Main function\n");
     code.push_str("fn main() -> f64 {\n");
     code.push_str("    let mut total = 0.0;\n");
@@ -478,7 +481,7 @@ fn test_performance_with_many_features() {
     code.push_str("    }\n");
     code.push_str("    total\n");
     code.push_str("}\n");
-    
+
     let result = parse_zeta(&code);
     assert!(result.is_ok(), "Should parse large performance test");
 }
@@ -514,24 +517,24 @@ fn test_documentation_examples() {
         calculate(OP_ADD, 3.14, 2.86)
     }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse calculator example");
-    
+
     // Example 2: Temperature converter (simplified) - COMMENTED OUT DUE TO PARSING ISSUE
     // let code = r#"
     // const FAHRENHEIT_TO_CELSIUS: f64 = 5.0 / 9.0;
     // const FREEZING_POINT_F: f64 = 32.0;
-    // 
+    //
     // fn fahrenheit_to_celsius(f: f64) -> f64 {
     //     (f - FREEZING_POINT_F) * FAHRENHEIT_TO_CELSIUS
     // }
-    // 
+    //
     // fn example() -> f64 {
     //     fahrenheit_to_celsius(100.0)
     // }
     // "#;
-    // 
+    //
     // let result = parse_zeta(code);
     // assert!(result.is_ok(), "Should parse temperature converter example");
 }

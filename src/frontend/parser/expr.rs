@@ -440,7 +440,7 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
     loop {
         if let Ok((i, _)) = ws(tag(".")).parse(input) {
             let (j, field_or_method) = parse_ident(i)?;
-            
+
             // Check if this is a method call (has parentheses) or field access
             let (k, args_opt) = opt(delimited(
                 ws(tag("(")),
@@ -451,10 +451,11 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
                 ws(tag(")")),
             ))
             .parse(j)?;
-            
+
             if let Some(args) = args_opt {
                 // It's a method call
-                let (k, type_args_opt) = opt(ws(preceded(opt(tag("::")), parse_type_args))).parse(k)?;
+                let (k, type_args_opt) =
+                    opt(ws(preceded(opt(tag("::")), parse_type_args))).parse(k)?;
                 let type_args: Vec<String> = type_args_opt.unwrap_or_default();
                 expr = AstNode::Call {
                     receiver: Some(Box::new(expr)),

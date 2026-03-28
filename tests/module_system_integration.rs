@@ -15,12 +15,12 @@ fn test_basic_module() {
             x + y
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
+
     // Basic test should work regardless of module support
     assert!(result.is_ok(), "Basic code should compile: {:?}", result);
-    
+
     if let Ok(value) = result {
         println!("Basic test compiled and returned: {}", value);
         assert_eq!(value, 52, "Should compute correct sum");
@@ -44,11 +44,11 @@ fn test_unknown_syntax_handling() {
             42
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
+
     println!("Module syntax test result: {:?}", result);
-    
+
     // Test passes regardless - we're testing error handling
     // If modules aren't supported, should give clear error, not crash
 }
@@ -68,12 +68,12 @@ fn test_nested_structure() {
             outer()
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
+
     // Nested functions might or might not be supported
     println!("Nested function test result: {:?}", result);
-    
+
     // Test passes as long as compiler doesn't crash
 }
 
@@ -93,11 +93,15 @@ fn test_visibility_concepts() {
             public_api()
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
-    assert!(result.is_ok(), "Function visibility test should work: {:?}", result);
-    
+
+    assert!(
+        result.is_ok(),
+        "Function visibility test should work: {:?}",
+        result
+    );
+
     if let Ok(value) = result {
         println!("Visibility test returned: {}", value);
         assert_eq!(value, 42, "Should return correct value");
@@ -116,11 +120,15 @@ fn test_multiple_functions() {
             helper1() + helper2() + helper3()
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
-    assert!(result.is_ok(), "Multiple functions should work: {:?}", result);
-    
+
+    assert!(
+        result.is_ok(),
+        "Multiple functions should work: {:?}",
+        result
+    );
+
     if let Ok(value) = result {
         println!("Multiple functions returned: {}", value);
         assert_eq!(value, 60, "Should compute correct sum");
@@ -138,11 +146,11 @@ fn test_unsupported_feature_error() {
             42
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
+
     println!("Unsupported feature test result: {:?}", result);
-    
+
     // Should either compile or give clear error, not crash
     // This tests the error handling system
 }
@@ -171,11 +179,11 @@ fn test_rust_like_code() {
             p.sum()
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
+
     println!("Rust-like code test result: {:?}", result);
-    
+
     // Test passes regardless - checking if compiler handles struct/impl
 }
 
@@ -196,11 +204,15 @@ fn test_cross_function_type_checking() {
             process(x)
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
-    assert!(result.is_ok(), "Cross-function type checking should work: {:?}", result);
-    
+
+    assert!(
+        result.is_ok(),
+        "Cross-function type checking should work: {:?}",
+        result
+    );
+
     if let Ok(value) = result {
         println!("Cross-function test returned: {}", value);
         assert_eq!(value, 200, "Should compute correct value");
@@ -220,21 +232,18 @@ fn test_type_mismatch_error() {
             x
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
+
     // Should fail with type error
     assert!(result.is_err(), "Type mismatch should cause error");
-    
+
     let error = result.unwrap_err();
     let error_str = error.to_string();
     println!("Type mismatch error: {}", error_str);
-    
+
     // Should mention type issue
-    assert!(
-        !error_str.is_empty(),
-        "Should provide error message"
-    );
+    assert!(!error_str.is_empty(), "Should provide error message");
 }
 
 /// Test compilation pipeline end-to-end
@@ -256,11 +265,15 @@ fn test_end_to_end_compilation() {
             sum + product
         }
     "#;
-    
+
     let result = compile_and_run_zeta(code);
-    
-    assert!(result.is_ok(), "End-to-end compilation should work: {:?}", result);
-    
+
+    assert!(
+        result.is_ok(),
+        "End-to-end compilation should work: {:?}",
+        result
+    );
+
     if let Ok(value) = result {
         println!("End-to-end test returned: {}", value);
         // 5+3=8, 2*4=8, 8+8=16

@@ -20,16 +20,16 @@ pub enum OptLevel {
 /// Dead code elimination pass
 pub fn dead_code_elimination(mir: &mut Mir) {
     let mut used = HashMap::new();
-    
+
     // Mark all expressions used in statements
     for stmt in &mir.stmts {
         match stmt {
-            MirStmt::Assign { lhs, rhs } => {
+            MirStmt::Assign { lhs: _, rhs } => {
                 // lhs is being defined, not used here
                 // Only mark it as used if something else uses it
                 mark_expr_used(*rhs, &mut used, &mir.exprs);
             }
-            MirStmt::Call { args, dest, .. } => {
+            MirStmt::Call { args, dest: _, .. } => {
                 // dest is being defined (result of call), not used here
                 for arg in args {
                     mark_expr_used(*arg, &mut used, &mir.exprs);
@@ -61,63 +61,72 @@ pub fn dead_code_elimination(mir: &mut Mir) {
                     mark_expr_used(*expr_id, &mut used, &mir.exprs);
                 }
             }
-            MirStmt::If { cond, then, else_, dest } => {
+            MirStmt::If {
+                cond,
+                then,
+                else_,
+                dest: _,
+            } => {
                 mark_expr_used(*cond, &mut used, &mir.exprs);
                 // dest is being defined (result of if expression), not used here
-                // if let Some(dest_id) = dest {
-                //     used.insert(*dest_id, true);
-                // }
                 // Recursively process nested statements
                 let mut nested_mir = Mir {
                     stmts: then.clone(),
                     ..Default::default()
                 };
                 dead_code_elimination(&mut nested_mir);
-                
+
                 let mut nested_mir_else = Mir {
                     stmts: else_.clone(),
                     ..Default::default()
                 };
                 dead_code_elimination(&mut nested_mir_else);
             }
-            MirStmt::TryProp { expr_id, ok_dest, err_dest } => {
+            MirStmt::TryProp {
+                expr_id,
+                ok_dest: _,
+                err_dest: _,
+            } => {
                 mark_expr_used(*expr_id, &mut used, &mir.exprs);
                 // ok_dest and err_dest are being defined (results of try), not used here
-                // used.insert(*ok_dest, true);
-                // used.insert(*err_dest, true);
             }
-            MirStmt::DictInsert { map_id, key_id, val_id } => {
+            MirStmt::DictInsert {
+                map_id,
+                key_id,
+                val_id,
+            } => {
                 mark_expr_used(*map_id, &mut used, &mir.exprs);
                 mark_expr_used(*key_id, &mut used, &mir.exprs);
                 mark_expr_used(*val_id, &mut used, &mir.exprs);
             }
-            MirStmt::DictGet { map_id, key_id, dest } => {
+            MirStmt::DictGet {
+                map_id,
+                key_id,
+                dest: _,
+            } => {
                 mark_expr_used(*map_id, &mut used, &mir.exprs);
                 mark_expr_used(*key_id, &mut used, &mir.exprs);
                 // dest is being defined (retrieved value), not used here
-                // used.insert(*dest, true);
             }
-            MirStmt::MapNew { dest } => {
+            MirStmt::MapNew { dest: _ } => {
                 // dest is being defined (new map), not used here
             }
         }
     }
-    
+
     // Remove unused expressions
     mir.exprs.retain(|id, _| used.contains_key(id));
-    
+
     // Remove dead assignments
-    mir.stmts.retain(|stmt| {
-        match stmt {
-            MirStmt::Assign { lhs, .. } => used.contains_key(lhs),
-            _ => true,
-        }
+    mir.stmts.retain(|stmt| match stmt {
+        MirStmt::Assign { lhs, .. } => used.contains_key(lhs),
+        _ => true,
     });
 }
 
 fn mark_expr_used(id: u32, used: &mut HashMap<u32, bool>, exprs: &HashMap<u32, MirExpr>) {
     used.insert(id, true);
-    
+
     if let Some(expr) = exprs.get(&id) {
         match expr {
             MirExpr::Var(var_id) => {
@@ -139,7 +148,7 @@ fn mark_expr_used(id: u32, used: &mut HashMap<u32, bool>, exprs: &HashMap<u32, M
 /// Constant folding pass
 pub fn constant_folding(mir: &mut Mir) {
     let mut const_values = HashMap::new();
-    
+
     // First pass: collect constant values
     for (id, expr) in &mir.exprs {
         match expr {
@@ -152,41 +161,38 @@ pub fn constant_folding(mir: &mut Mir) {
             _ => {}
         }
     }
-    
+
     // Second pass: fold constants in statements
     for stmt in &mut mir.stmts {
-        match stmt {
-            MirStmt::SemiringFold { op, values, result } => {
-                // Try to fold if all values are constants
-                let mut all_const = true;
-                let mut folded_value: i64 = match op {
-                    SemiringOp::Add => 0,
-                    SemiringOp::Mul => 1,
-                };
-                
-                for val in values.iter() {
-                    if let Some(const_val) = const_values.get(val) {
-                        folded_value = match op {
-                            SemiringOp::Add => folded_value.wrapping_add(*const_val),
-                            SemiringOp::Mul => folded_value.wrapping_mul(*const_val),
-                        };
-                    } else {
-                        all_const = false;
-                        break;
-                    }
-                }
-                
-                if all_const {
-                    // Replace with constant expression
-                    mir.exprs.insert(*result, MirExpr::Lit(folded_value));
-                    // Mark the statement for removal (will be handled by DCE)
-                    *stmt = MirStmt::Assign {
-                        lhs: *result,
-                        rhs: *result, // Self-assignment, will be removed
+        if let MirStmt::SemiringFold { op, values, result } = stmt {
+            // Try to fold if all values are constants
+            let mut all_const = true;
+            let mut folded_value: i64 = match op {
+                SemiringOp::Add => 0,
+                SemiringOp::Mul => 1,
+            };
+
+            for val in values.iter() {
+                if let Some(const_val) = const_values.get(val) {
+                    folded_value = match op {
+                        SemiringOp::Add => folded_value.wrapping_add(*const_val),
+                        SemiringOp::Mul => folded_value.wrapping_mul(*const_val),
                     };
+                } else {
+                    all_const = false;
+                    break;
                 }
             }
-            _ => {}
+
+            if all_const {
+                // Replace with constant expression
+                mir.exprs.insert(*result, MirExpr::Lit(folded_value));
+                // Mark the statement for removal (will be handled by DCE)
+                *stmt = MirStmt::Assign {
+                    lhs: *result,
+                    rhs: *result, // Self-assignment, will be removed
+                };
+            }
         }
     }
 }
@@ -227,7 +233,7 @@ pub fn optimize(mir: &mut Mir, level: OptLevel) {
 mod tests {
     use super::*;
     use crate::middle::mir::mir::{Mir, MirExpr, MirStmt};
-    
+
     #[test]
     #[ignore = "Test needs debugging - assertion failure"]
     fn test_dead_code_elimination() {
@@ -242,42 +248,44 @@ mod tests {
                 (2, MirExpr::Lit(10)),
                 (3, MirExpr::Lit(99)),
                 (4, MirExpr::Lit(20)),
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
             ..Default::default()
         };
-        
+
         dead_code_elimination(&mut mir);
-        
+
         // Only expression 1 and 2 should remain (3 and 4 are dead)
         assert_eq!(mir.exprs.len(), 2);
         assert!(mir.exprs.contains_key(&1));
         assert!(mir.exprs.contains_key(&2));
-        
+
         // Only the return statement and assignment to 1 should remain
         assert_eq!(mir.stmts.len(), 2);
     }
-    
+
     #[test]
     fn test_constant_folding() {
         let mut mir = Mir {
-            stmts: vec![
-                MirStmt::SemiringFold {
-                    op: SemiringOp::Add,
-                    values: vec![1, 2, 3],
-                    result: 4,
-                },
-            ],
+            stmts: vec![MirStmt::SemiringFold {
+                op: SemiringOp::Add,
+                values: vec![1, 2, 3],
+                result: 4,
+            }],
             exprs: vec![
                 (1, MirExpr::Lit(10)),
                 (2, MirExpr::Lit(20)),
                 (3, MirExpr::Lit(30)),
                 (4, MirExpr::Lit(0)), // Will be replaced
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
             ..Default::default()
         };
-        
+
         constant_folding(&mut mir);
-        
+
         // Result should be constant folded to 60
         if let MirExpr::Lit(value) = mir.exprs[&4] {
             assert_eq!(value, 60);

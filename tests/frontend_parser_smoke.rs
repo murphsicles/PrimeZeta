@@ -16,10 +16,15 @@ fn test_parser_smoke_basic_expressions() {
         ("f(x, y)", "function call"),
         ("x.y", "field access"),
     ];
-    
+
     for (code, description) in test_cases {
         let result = parse_zeta(code);
-        assert!(result.is_ok(), "Failed to parse {}: {:?}", description, result);
+        assert!(
+            result.is_ok(),
+            "Failed to parse {}: {:?}",
+            description,
+            result
+        );
     }
 }
 
@@ -33,10 +38,15 @@ fn test_parser_smoke_statements() {
         ("if x { y }", "if statement"),
         ("while x { y }", "while loop"),
     ];
-    
+
     for (code, description) in test_cases {
         let result = parse_zeta(code);
-        assert!(result.is_ok(), "Failed to parse {}: {:?}", description, result);
+        assert!(
+            result.is_ok(),
+            "Failed to parse {}: {:?}",
+            description,
+            result
+        );
     }
 }
 
@@ -48,9 +58,13 @@ fn test_parser_smoke_functions() {
             a + b
         }
     "#;
-    
+
     let result = parse_zeta(code);
-    assert!(result.is_ok(), "Failed to parse function definition: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to parse function definition: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -59,7 +73,7 @@ fn test_parser_smoke_error_recovery() {
     // Note: This is a basic test - more comprehensive error recovery tests needed
     let code = "let x = ; let y = 42;";
     let result = parse_zeta(code);
-    
+
     // Parser should handle the error and continue parsing
     // The exact behavior depends on error recovery implementation
     // For now, just verify it doesn't panic
@@ -71,5 +85,9 @@ fn test_parser_smoke_complex_expression() {
     // Test parsing a complex expression
     let code = "a + b * c - d / e % f";
     let result = parse_zeta(code);
-    assert!(result.is_ok(), "Failed to parse complex expression: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to parse complex expression: {:?}",
+        result
+    );
 }
