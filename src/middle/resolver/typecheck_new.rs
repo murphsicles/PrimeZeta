@@ -55,8 +55,8 @@ impl NewTypeCheck for Resolver {
                 Ok(_) => Ok(context.take_substitution()),
                 Err(e) => {
                     eprintln!("Constraint solving failed: {:?}", e);
-                    // Return empty substitution to indicate partial success
-                    Ok(Substitution::new())
+                    // Return error to indicate type check failure
+                    Err(e)
                 }
             }
         } else {
@@ -67,11 +67,34 @@ impl NewTypeCheck for Resolver {
     }
 
     fn string_to_type(&self, s: &str) -> Type {
+        // Handle reference types: &str, &mut i64, etc.
+        let s = s.trim();
+        
+        // Debug: print what we're parsing
+        eprintln!("[DEBUG] string_to_type parsing: '{}'", s);
+        
+        // Check for &mut prefix (must check before & prefix)
+        if let Some(rest) = s.strip_prefix("&mut ") {
+            let inner = self.string_to_type(rest);
+            return Type::Ref(Box::new(inner), crate::middle::types::Mutability::Mutable);
+        }
+        
+        // Check for & prefix
+        if let Some(rest) = s.strip_prefix("&") {
+            // Make sure we didn't match &mut (should have been caught above)
+            if !rest.starts_with("mut ") {
+                let inner = self.string_to_type(rest);
+                return Type::Ref(Box::new(inner), crate::middle::types::Mutability::Immutable);
+            }
+        }
+        
+        // Handle base types
         match s {
             "i64" => Type::I64,
             "i32" => Type::I32,
             "bool" => Type::Bool,
             "str" => Type::Str,
+            "String" => Type::Named("String".to_string(), Vec::new()),
             "i8" => Type::I8,
             "i16" => Type::I16,
             "u8" => Type::U8,
@@ -163,11 +186,34 @@ mod tests {
         assert_eq!(resolver.string_to_type("bool"), Type::Bool);
         assert_eq!(resolver.string_to_type("str"), Type::Str);
 
+        // Test reference types
+        assert_eq!(
+            resolver.string_to_type("&str"),
+            Type::Ref(Box::new(Type::Str), crate::middle::types::Mutability::Immutable)
+        );
+        
+        assert_eq!(
+            resolver.string_to_type("&mut i64"),
+            Type::Ref(Box::new(Type::I64), crate::middle::types::Mutability::Mutable)
+        );
+        
+        assert_eq!(
+            resolver.string_to_type("&bool"),
+            Type::Ref(Box::new(Type::Bool), crate::middle::types::Mutability::Immutable)
+        );
+
         let i64_type = Type::I64;
         assert_eq!(resolver.type_to_string(&i64_type), "i64");
 
         let bool_type = Type::Bool;
         assert_eq!(resolver.type_to_string(&bool_type), "bool");
+        
+        // Test reference type display
+        let ref_str = Type::Ref(Box::new(Type::Str), crate::middle::types::Mutability::Immutable);
+        assert_eq!(resolver.type_to_string(&ref_str), "&str");
+        
+        let mut_ref_i64 = Type::Ref(Box::new(Type::I64), crate::middle::types::Mutability::Mutable);
+        assert_eq!(resolver.type_to_string(&mut_ref_i64), "&mut i64");
     }
 
     #[test]

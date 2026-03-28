@@ -117,45 +117,51 @@ See `RELEASE_v0.3.8.md` for full documentation of shipped features.
 
 ## Bootstrap Progress
 **Current: v0.3.9 SHIPPED (version updated, tagged, pushed to GitHub)**
-**Next: v0.3.10 PLANNING - Select and implement next bootstrap feature**
+**Next: v0.3.10 IMPLEMENTATION IN PROGRESS - Complex type parsing and reference type support**
 **Goal: v0.4.0 self-compilation**
-**Urgency: MEDIUM - Release complete, need to plan next version**
+**Urgency: MEDIUM - Implementing next version features**
 
-## 🚀 v0.3.10 PLANNING: COMPLEX TYPE PARSING
+## 🚀 v0.3.10 IMPLEMENTATION: COMPLEX TYPE PARSING & REFERENCE TYPE SUPPORT
 
-### Priority Feature Selection:
-Based on bootstrap advancement needs toward v0.5.0 self-compilation:
+### Current Status Analysis:
+**GOOD NEWS**: Significant progress made!
+1. **Parser already supports `&` and `&mut` prefixes** - `parse_type` function in `parser.rs` handles them ✓
+2. **Type system has `Ref` variant** - `Type::Ref(Box<Type>, Mutability)` exists in `types/mod.rs` ✓
+3. **Reference type parsing implemented** - `string_to_type` function now parses `&str`, `&mut i64`, etc. ✓
+4. **Type inference fixed** - `typecheck_new` now returns `Err` when constraint solving fails ✓
+5. **Basic tests passing** - Unit tests pass, integration tests mostly pass ✓
 
-**PRIMARY TARGET: Complex type parsing (`&str`, references)**
-- **Why**: Critical for parsing v0.5.0 source code which uses reference types
-- **Impact**: Enables compilation of more complex Zeta programs
-- **Foundation**: Builds on existing type system infrastructure
+**ISSUES IDENTIFIED**:
+1. **One integration test failing** - `test_type_mismatch_error` expects type error for `&str` to `i32` assignment
+2. **Reference type inference incomplete** - New type system doesn't handle function calls with reference types
 
-**SECONDARY TARGET: Enhanced `use` statement resolution**
-- **Why**: Needed for module system and v0.5.0 compatibility
-- **Impact**: Enables proper module imports and code organization
-- **Foundation**: Already has basic unit type handling in v0.3.9
-
-### v0.3.10 Implementation Plan:
-1. **Phase 1**: Add `&str` reference type parsing to AST and type system
-2. **Phase 2**: Implement reference type inference in new resolver
-3. **Phase 3**: Add test suite for reference type compilation
-4. **Phase 4**: Extend to other reference types (`&i64`, `&f64`, etc.)
-5. **Phase 5**: Enhance `use` statement resolution if time permits
+### v0.3.10 Implementation Progress:
+1. **Phase 1**: ✅ Fix `string_to_type` to parse reference types (`&str`, `&mut str`, etc.)
+2. **Phase 2**: ⚠️ Add reference type support to type inference in `new_resolver.rs` (partial)
+3. **Phase 3**: ⚠️ Create comprehensive test suite for reference types (partial)
+4. **Phase 4**: ❌ Test compilation of programs with reference type parameters
+5. **Phase 5**: ❌ Document v0.3.10 features and update release notes
 
 ### Immediate Next Steps:
-1. **Analyze current type parsing** - Review `parse_type` function in parser
-2. **Design reference type AST node** - Add `RefType` variant to `Type` enum
-3. **Implement parser support** - Extend `parse_type` to handle `&` prefix
-4. **Update type inference** - Add reference type handling to `new_resolver.rs`
-5. **Create test cases** - Develop comprehensive test suite
+1. **Debug failing test** - Understand why `test_type_mismatch_error` fails
+2. **Improve type inference** - Handle function calls with reference return types
+3. **Create reference type examples** - Test `&str` parameters and return types
+4. **Run full test suite** - Ensure all tests pass
+5. **Update version to v0.3.10** - Update Cargo.toml and tag release
 
 ### Success Metrics:
-- [ ] `&str` type parses successfully in type annotations
-- [ ] Reference types inferred correctly in type system
-- [ ] Programs with `&str` parameters compile and run
-- [ ] Test suite passes with new reference type tests
-- [ ] Documentation updated for v0.3.10 features
+- [x] Parser already supports `&` and `&mut` prefixes ✓
+- [x] `string_to_type` function parses reference types from strings ✓
+- [⚠️] Type inference handles reference types correctly (partial)
+- [❌] Programs with `&str` parameters compile and run
+- [⚠️] Test suite passes with new reference type tests (1 test failing)
+- [❌] Documentation updated for v0.3.10 features
+
+### Code Changes Made:
+1. **Updated `string_to_type`** in `typecheck_new.rs` to parse `&` and `&mut` prefixes
+2. **Added reference type tests** in `test_type_conversion`
+3. **Fixed `typecheck_new`** to return `Err` when constraint solving fails
+4. **Added `String` type handling** to `string_to_type`
 
 ---
 *Dark Factory Accountability - Real progress, real shipping, real urgency*
