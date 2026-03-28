@@ -58,12 +58,9 @@ impl InferContext {
     pub fn infer(&mut self, node: &AstNode) -> Result<Type, String> {
         let ty = match node {
             AstNode::Lit(n) => {
-                // Infer integer literal type
-                if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
-                    Type::I32
-                } else {
-                    Type::I64
-                }
+                // Integer literals are i64 by default
+                // (Simplified - in full system would have type inference with promotion)
+                Type::I64
             }
 
             AstNode::StringLit(_) => Type::Str,
@@ -255,6 +252,11 @@ impl InferContext {
                 self.declare(name.clone(), ret_ty.clone());
 
                 // Function definitions have unit type
+                Type::Tuple(vec![]) // Unit type
+            }
+
+            AstNode::Use { path: _ } => {
+                // Use statements are declarations, not expressions
                 Type::Tuple(vec![]) // Unit type
             }
 

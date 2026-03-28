@@ -1,6 +1,0 @@
-// Debug const test
-const X: i64 = 42;
-
-fn main() -> i64 {
-    0
-}
