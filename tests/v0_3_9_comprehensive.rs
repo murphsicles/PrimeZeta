@@ -8,7 +8,6 @@
 //! 5. Integration between features
 
 use zetac::compile_and_run_zeta;
-use zetac::frontend::ast::AstNode;
 use zetac::frontend::parser::top_level::parse_zeta;
 
 /// Test float literals in various contexts
@@ -319,7 +318,7 @@ fn test_error_handling() {
     "#;
 
     // Parsing should work (type checking happens later)
-    let result = parse_zeta(code);
+    let _result = parse_zeta(code);
     // Note: This might fail parsing, which is OK for now
 
     // Test 2: Non-exhaustive match (should parse)
@@ -371,7 +370,7 @@ fn test_compilation_and_execution() {
     }
     "#;
 
-    let result = compile_and_run_zeta(code);
+    let _result = compile_and_run_zeta(code);
     // Note: Float support might not be fully implemented in codegen yet
     // This test might fail, which is OK for now
 
@@ -387,7 +386,7 @@ fn test_compilation_and_execution() {
     }
     "#;
 
-    let result = compile_and_run_zeta(code);
+    let _result = compile_and_run_zeta(code);
     // Match statement execution might not be fully implemented yet
     // This test might fail, which is OK for now
 }

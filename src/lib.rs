@@ -64,7 +64,9 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
     }
 
     // Check if we have a main function (for backward compatibility with tests)
-    let has_main = asts.iter().any(|a| matches!(a, AstNode::FuncDef { name, .. } if name == "main"));
+    let has_main = asts
+        .iter()
+        .any(|a| matches!(a, AstNode::FuncDef { name, .. } if name == "main"));
     if !has_main {
         return Err("No main function".to_string());
     }

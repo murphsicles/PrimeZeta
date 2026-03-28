@@ -4,8 +4,6 @@
 #[test]
 fn test_runtime_smoke_modules() {
     // Test that runtime modules exist
-    use zetac::runtime;
-
     // Verify modules exist
     println!("Runtime modules: actor, host, std, xai");
 
@@ -16,8 +14,6 @@ fn test_runtime_smoke_modules() {
 #[test]
 fn test_runtime_smoke_host_integration() {
     // Test host integration module
-    use zetac::runtime::host;
-
     // Host module should exist
     // Check for common host functions
     println!("Host integration module exists");
@@ -26,8 +22,6 @@ fn test_runtime_smoke_host_integration() {
 #[test]
 fn test_runtime_smoke_std_lib() {
     // Test standard library module
-    use zetac::runtime::std;
-
     // Std module should exist
     // This contains built-in functions and types
     println!("Standard library module exists");
@@ -36,8 +30,6 @@ fn test_runtime_smoke_std_lib() {
 #[test]
 fn test_runtime_smoke_actor_system() {
     // Test actor system module
-    use zetac::runtime::actor;
-
     // Actor module should exist
     // This is for concurrency and message passing
     println!("Actor system module exists");
@@ -46,8 +38,6 @@ fn test_runtime_smoke_actor_system() {
 #[test]
 fn test_runtime_smoke_xai() {
     // Test XAI module (explainable AI?)
-    use zetac::runtime::xai;
-
     // XAI module should exist
     println!("XAI module exists");
 }

@@ -4,8 +4,6 @@
 #[test]
 fn test_actor_smoke_module() {
     // Test that actor module exists
-    use zetac::runtime::actor;
-
     println!("Actor system module exists");
 
     // Actor system should provide:

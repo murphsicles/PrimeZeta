@@ -49,7 +49,7 @@ fn test_mir_smoke_creation() {
 #[ignore = "MIR API needs to be updated - add_expr method not available"]
 fn test_mir_smoke_expression_types() {
     // Test different MIR expression types
-    let mut mir = Mir::default();
+    let _mir = Mir::default();
 
     // TODO: Fix MIR API usage - add_expr method may not exist
     // Test literal expression

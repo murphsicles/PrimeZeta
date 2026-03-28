@@ -4,9 +4,7 @@
 #[test]
 fn test_stdlib_smoke_module() {
     // Test that stdlib module exists and can be used
-    use zetac::runtime::std;
-
-    // Standard library should provide:
+    // Note: Standard library should provide:
     // - Built-in types (i32, f64, bool, String, etc.)
     // - Built-in functions (print, len, etc.)
     // - Type methods
