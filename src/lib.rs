@@ -53,13 +53,23 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
     let context = Context::create();
     let mut codegen = LLVMCodegen::new(&context, "zeta");
 
-    let main_func = asts
-        .iter()
-        .find(|a| matches!(a, AstNode::FuncDef { name, .. } if name == "main"))
-        .ok_or("No main function".to_string())?;
+    // Generate MIR for all function definitions, not just main
+    let mut mirs = Vec::new();
+    for ast in &asts {
+        if let AstNode::FuncDef { name, .. } = ast {
+            let mir = resolver.lower_to_mir(ast);
+            mirs.push(mir);
+            println!("[DEBUG] Generated MIR for function: {}", name);
+        }
+    }
 
-    let mir = resolver.lower_to_mir(main_func);
-    codegen.gen_mirs(&[mir]);
+    // Check if we have a main function (for backward compatibility with tests)
+    let has_main = asts.iter().any(|a| matches!(a, AstNode::FuncDef { name, .. } if name == "main"));
+    if !has_main {
+        return Err("No main function".to_string());
+    }
+
+    codegen.gen_mirs(&mirs);
 
     let ee = codegen.finalize_and_jit().map_err(|e| e.to_string())?;
 
