@@ -58,9 +58,12 @@ impl InferContext {
     pub fn infer(&mut self, node: &AstNode) -> Result<Type, String> {
         let ty = match node {
             AstNode::Lit(n) => {
-                // Integer literals are i64 by default
-                // (Simplified - in full system would have type inference with promotion)
-                Type::I64
+                // Infer integer literal type
+                if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
+                    Type::I32
+                } else {
+                    Type::I64
+                }
             }
 
             AstNode::FloatLit(_) => {
@@ -71,8 +74,6 @@ impl InferContext {
             AstNode::StringLit(_) => Type::Str,
 
             AstNode::Bool(_b) => Type::Bool,
-
-            AstNode::FloatLit(_s) => Type::F64,
 
             AstNode::Var(name) => self
                 .lookup(name)
@@ -161,7 +162,6 @@ impl InferContext {
                     let annotated_ty = match type_str.as_str() {
                         "i64" => Type::I64,
                         "i32" => Type::I32,
-                        "f64" => Type::F64,
                         "bool" => Type::Bool,
                         "str" => Type::Str,
                         "f32" => Type::F32,
@@ -180,90 +180,18 @@ impl InferContext {
                 Type::Tuple(vec![]) // Unit type
             }
 
-            AstNode::ConstDef { name, ty, value } => {
-                // Parse the type string to Type
-                let const_ty = match ty.as_str() {
-                    "i64" => Type::I64,
-                    "i32" => Type::I32,
-                    "f64" => Type::F64,
-                    "bool" => Type::Bool,
-                    "str" => Type::Str,
-                    _ => return Err(format!("Unsupported const type: {}", ty)),
-                };
-
-                // Infer type of the value expression
-                let value_ty = self.infer(value)?;
-
-                // Constraint: value type must match declared const type
-                self.constrain(value_ty.clone(), const_ty.clone());
-
-                // Register constant in variables for later lookup
-                self.declare(name.clone(), const_ty.clone());
-
-                // Const definitions have unit type (they're statements, not expressions)
-                Type::Tuple(vec![]) // Unit type
-            }
-
-            AstNode::FuncDef {
-                name,
-                generics: _,
-                params,
-                ret,
-                body,
-                attrs: _,
-                ret_expr,
-                single_line: _,
-                doc: _,
-            } => {
-                // Parse return type string to Type
-                let ret_ty = match ret.as_str() {
-                    "i64" => Type::I64,
-                    "i32" => Type::I32,
-                    "f64" => Type::F64,
-                    "bool" => Type::Bool,
-                    "str" => Type::Str,
-                    "" => Type::Tuple(vec![]), // Unit type for no return
-                    _ => return Err(format!("Unsupported function return type: {}", ret)),
-                };
-
-                // Parse parameter types
-                let mut param_tys = Vec::new();
-                for (param_name, param_ty_str) in params {
-                    let param_ty = match param_ty_str.as_str() {
-                        "i64" => Type::I64,
-                        "i32" => Type::I32,
-                        "f64" => Type::F64,
-                        "bool" => Type::Bool,
-                        "str" => Type::Str,
-                        _ => return Err(format!("Unsupported parameter type: {}", param_ty_str)),
-                    };
-                    // Register parameter in local scope
-                    self.declare(param_name.clone(), param_ty.clone());
-                    param_tys.push(param_ty);
-                }
-
-                // Type-check body statements
+            AstNode::FuncDef { body, ret_expr, .. } => {
+                // Type check function body
                 for stmt in body {
                     self.infer(stmt)?;
                 }
 
-                // Type-check return expression if present
+                // Type check return expression if present
                 if let Some(expr) = ret_expr {
-                    let expr_ty = self.infer(expr)?;
-                    // Constraint: expression type must match declared return type
-                    self.constrain(expr_ty.clone(), ret_ty.clone());
+                    self.infer(expr)?;
                 }
 
-                // Register function for later lookup (simplified - in full system would need function type)
-                // For now, just register return type
-                self.declare(name.clone(), ret_ty.clone());
-
-                // Function definitions have unit type
-                Type::Tuple(vec![]) // Unit type
-            }
-
-            AstNode::Use { path: _ } => {
-                // Use statements are declarations, not expressions
+                // Function definitions have unit type at top level
                 Type::Tuple(vec![]) // Unit type
             }
 

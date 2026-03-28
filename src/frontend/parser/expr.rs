@@ -572,9 +572,10 @@ fn parse_expr_no_if(input: &str) -> IResult<&str, AstNode> {
 
 /// Parse a match expression: `match expr { pattern => expr, ... }`
 fn parse_match_expr(input: &str) -> IResult<&str, AstNode> {
+    println!("[PARSER DEBUG] parse_match_expr called, input: {:?}", &input[..30.min(input.len())]);
     // Parse "match" with optional whitespace
-    let (input, _) = tag::<_, _, nom::error::Error<&str>>("match")(input)?;
-    let (input, _) = skip_ws_and_comments0(input)?;
+    let (input, _) = ws(tag::<_, _, nom::error::Error<&str>>("match")).parse(input)?;
+    println!("[PARSER DEBUG] parse_match_expr: parsed 'match', remaining: {:?}", &input[..30.min(input.len())]);
 
     // Parse scrutinee
     let (input, scrutinee) = parse_expr(input)?;
@@ -583,8 +584,7 @@ fn parse_match_expr(input: &str) -> IResult<&str, AstNode> {
     let (input, _) = skip_ws_and_comments0(input)?;
 
     // Parse "{"
-    let (input, _) = tag::<_, _, nom::error::Error<&str>>("{")(input)?;
-    let (input, _) = skip_ws_and_comments0(input)?;
+    let (input, _) = ws(tag::<_, _, nom::error::Error<&str>>("{")).parse(input)?;
 
     // Parse arms
     let mut arms = Vec::new();
@@ -596,7 +596,7 @@ fn parse_match_expr(input: &str) -> IResult<&str, AstNode> {
 
         // Check for comma or closing brace
         let (next_input, _) = skip_ws_and_comments0(current_input)?;
-        if let Ok((next_input, _)) = tag::<_, _, nom::error::Error<&str>>(",")(next_input) {
+        if let Ok((next_input, _)) = tag::<_, _, nom::error::Error<&str>>(",").parse(next_input) {
             current_input = next_input;
             let (next_input, _) = skip_ws_and_comments0(current_input)?;
             current_input = next_input;
@@ -605,7 +605,7 @@ fn parse_match_expr(input: &str) -> IResult<&str, AstNode> {
 
         // Check for closing brace
         let (next_input, _) = skip_ws_and_comments0(current_input)?;
-        if let Ok((next_input, _)) = tag::<_, _, nom::error::Error<&str>>("}")(next_input) {
+        if let Ok((next_input, _)) = tag::<_, _, nom::error::Error<&str>>("}").parse(next_input) {
             return Ok((
                 next_input,
                 AstNode::Match {
@@ -641,7 +641,7 @@ fn parse_match_arm(input: &str) -> IResult<&str, MatchArm> {
     // Parse optional guard
     let (input, guard) = opt(preceded(
         terminated(
-            tag::<_, _, nom::error::Error<&str>>("if"),
+            ws(tag::<_, _, nom::error::Error<&str>>("if")),
             skip_ws_and_comments0,
         ),
         parse_expr,
@@ -651,8 +651,7 @@ fn parse_match_arm(input: &str) -> IResult<&str, MatchArm> {
     let (input, _) = skip_ws_and_comments0(input)?;
 
     // Parse arrow
-    let (input, _) = tag::<_, _, nom::error::Error<&str>>("=>")(input)?;
-    let (input, _) = skip_ws_and_comments0(input)?;
+    let (input, _) = ws(tag::<_, _, nom::error::Error<&str>>("=>")).parse(input)?;
 
     // Parse body expression
     let (input, body) = parse_expr(input)?;
