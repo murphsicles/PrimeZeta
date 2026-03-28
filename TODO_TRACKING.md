@@ -24,6 +24,17 @@
 - **Status**: OPEN
 - **Priority**: HIGH
 
+### TODO-20260328-001
+- **ID**: TODO-20260328-001
+- **Owner**: Zak
+- **Created**: 2026-03-28 03:20 GMT
+- **Due**: 2026-03-30 03:20 GMT (48 hours)
+- **Impact**: HIGH - Struct representation in codegen is placeholder
+- **Description**: The current implementation of struct expressions in `src/backend/codegen/codegen.rs` returns the first field value as a placeholder instead of creating proper struct values. Need to implement proper struct representation (LLVM struct types with insertvalue/extractvalue).
+- **Files**: `src/backend/codegen/codegen.rs`
+- **Status**: OPEN
+- **Priority**: HIGH
+
 ## Completed TODOs
 
 *(None yet)*

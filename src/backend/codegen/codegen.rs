@@ -1151,8 +1151,6 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     .unwrap()
             }
             MirExpr::Struct { variant: _, fields } => {
-                // For now, handle simple structs by returning the first field value
-                // This is a temporary implementation - proper struct support needs allocation
                 if let Some((_, first_field_id)) = fields.first() {
                     self.gen_expr(&exprs[first_field_id], exprs)
                 } else {
@@ -1160,8 +1158,6 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 }
             }
             MirExpr::FieldAccess { base, field: _ } => {
-                // For now, handle field access by returning the base value
-                // This is a temporary implementation - proper field access needs struct layout
                 self.gen_expr(&exprs[base], exprs)
             }
         }
