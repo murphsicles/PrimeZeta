@@ -23,9 +23,9 @@ pub use frontend::ast::AstNode;
 pub use frontend::parser::top_level::parse_zeta;
 pub use middle::mir::mir::Mir;
 pub use middle::resolver::resolver::Resolver;
+pub use runtime::actor::result;
 pub use runtime::actor::scheduler::{init_runtime, spawn};
 pub use runtime::option;
-pub use runtime::actor::result;
 
 use inkwell::context::Context;
 

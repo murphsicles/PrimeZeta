@@ -555,7 +555,7 @@ impl MirGen {
                                     self.type_map.insert(cond_id, "bool".to_string());
                                     continue;
                                 };
-                                
+
                                 // Call the runtime function to check the variant
                                 let check_result_id = self.next_id();
                                 self.stmts.push(MirStmt::Call {
@@ -564,9 +564,10 @@ impl MirGen {
                                     dest: check_result_id,
                                     type_args: vec![],
                                 });
-                                self.exprs.insert(check_result_id, MirExpr::Var(check_result_id));
+                                self.exprs
+                                    .insert(check_result_id, MirExpr::Var(check_result_id));
                                 self.type_map.insert(check_result_id, "bool".to_string());
-                                
+
                                 // Invert the check (None is not Some, Err is not Ok)
                                 let inverted_id = self.next_id();
                                 self.stmts.push(MirStmt::Call {
@@ -577,7 +578,7 @@ impl MirGen {
                                 });
                                 self.exprs.insert(inverted_id, MirExpr::Var(inverted_id));
                                 self.type_map.insert(inverted_id, "bool".to_string());
-                                
+
                                 self.exprs.insert(cond_id, MirExpr::Var(inverted_id));
                                 self.type_map.insert(cond_id, "bool".to_string());
                             } else if var_name == "_" {
@@ -617,7 +618,7 @@ impl MirGen {
                                     self.type_map.insert(cond_id, "bool".to_string());
                                     continue;
                                 };
-                                
+
                                 // Call the runtime function to check the variant
                                 let check_result_id = self.next_id();
                                 self.stmts.push(MirStmt::Call {
@@ -626,25 +627,27 @@ impl MirGen {
                                     dest: check_result_id,
                                     type_args: vec![],
                                 });
-                                self.exprs.insert(check_result_id, MirExpr::Var(check_result_id));
+                                self.exprs
+                                    .insert(check_result_id, MirExpr::Var(check_result_id));
                                 self.type_map.insert(check_result_id, "bool".to_string());
-                                
+
                                 // For None and Err, we need to invert the check
-                                let final_check_id = if variant == "Option::None" || variant == "Result::Err" {
-                                    let inverted_id = self.next_id();
-                                    self.stmts.push(MirStmt::Call {
-                                        func: "!".to_string(),
-                                        args: vec![check_result_id],
-                                        dest: inverted_id,
-                                        type_args: vec![],
-                                    });
-                                    self.exprs.insert(inverted_id, MirExpr::Var(inverted_id));
-                                    self.type_map.insert(inverted_id, "bool".to_string());
-                                    inverted_id
-                                } else {
-                                    check_result_id
-                                };
-                                
+                                let final_check_id =
+                                    if variant == "Option::None" || variant == "Result::Err" {
+                                        let inverted_id = self.next_id();
+                                        self.stmts.push(MirStmt::Call {
+                                            func: "!".to_string(),
+                                            args: vec![check_result_id],
+                                            dest: inverted_id,
+                                            type_args: vec![],
+                                        });
+                                        self.exprs.insert(inverted_id, MirExpr::Var(inverted_id));
+                                        self.type_map.insert(inverted_id, "bool".to_string());
+                                        inverted_id
+                                    } else {
+                                        check_result_id
+                                    };
+
                                 // Set up bindings for field patterns
                                 for (_field_name, field_pattern) in fields {
                                     if let AstNode::Var(var_name) = field_pattern {
@@ -652,13 +655,15 @@ impl MirGen {
                                         let field_id = self.next_id();
                                         let extract_func = if variant == "Option::Some" {
                                             "option_get_data"
-                                        } else if variant == "Result::Ok" || variant == "Result::Err" {
+                                        } else if variant == "Result::Ok"
+                                            || variant == "Result::Err"
+                                        {
                                             "host_result_get_data"
                                         } else {
                                             // No data to extract
                                             continue;
                                         };
-                                        
+
                                         // Call runtime function to extract the data
                                         self.stmts.push(MirStmt::Call {
                                             func: extract_func.to_string(),
@@ -671,7 +676,7 @@ impl MirGen {
                                         self.name_to_id.insert(var_name.clone(), field_id);
                                     }
                                 }
-                                
+
                                 self.exprs.insert(cond_id, MirExpr::Var(final_check_id));
                                 self.type_map.insert(cond_id, "bool".to_string());
                             } else {

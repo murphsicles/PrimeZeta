@@ -48,7 +48,7 @@ impl ModuleResolver {
         if path.is_empty() {
             return Err("Empty path".to_string());
         }
-        
+
         // Try to resolve the path without the last component
         let module_path = if path.len() > 1 {
             &path[..path.len() - 1]
@@ -56,29 +56,29 @@ impl ModuleResolver {
             // Single component like `use Item;` - look in current directory
             &[]
         };
-        
+
         let mut file_path = self.root_dir.clone();
-        
+
         for component in module_path {
             file_path.push(component);
         }
-        
+
         // Try with .z extension
         let mut z_path = file_path.clone();
         z_path.set_extension("z");
-        
+
         if z_path.exists() {
             return Ok(z_path);
         }
-        
+
         // Try as directory with mod.z
         let mut mod_path = file_path.clone();
         mod_path.push("mod.z");
-        
+
         if mod_path.exists() {
             return Ok(mod_path);
         }
-        
+
         // If no file found, try the full path (for backward compatibility)
         if !module_path.is_empty() {
             let mut full_path = self.root_dir.clone();
@@ -87,35 +87,39 @@ impl ModuleResolver {
             }
             let mut full_z_path = full_path.clone();
             full_z_path.set_extension("z");
-            
+
             if full_z_path.exists() {
                 return Ok(full_z_path);
             }
         }
-        
+
         Err(format!("Module not found: {}", path.join("::")))
     }
 
     /// Load a module from file
     pub fn load_module(&mut self, path: &Path) -> Result<&Module, String> {
         let path_str = path.to_string_lossy().to_string();
-        
+
         // Check cache first
         if self.modules.contains_key(&path_str) {
             return Ok(self.modules.get(&path_str).unwrap());
         }
-        
+
         // Read and parse file
         let content = fs::read_to_string(path)
             .map_err(|e| format!("Failed to read module file {}: {}", path.display(), e))?;
-        
+
         let (remaining, asts) = parse_zeta(&content)
             .map_err(|e| format!("Failed to parse module {}: {:?}", path.display(), e))?;
-        
+
         if !remaining.is_empty() {
-            return Err(format!("Incomplete parse in module {}: {}", path.display(), remaining));
+            return Err(format!(
+                "Incomplete parse in module {}: {}",
+                path.display(),
+                remaining
+            ));
         }
-        
+
         // Extract exports (public items)
         let mut exports = HashMap::new();
         for ast in &asts {
@@ -138,20 +142,21 @@ impl ModuleResolver {
                 _ => {}
             }
         }
-        
+
         // Get module name from file path
-        let name = path.file_stem()
+        let name = path
+            .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("unknown")
             .to_string();
-        
+
         let module = Module {
             name,
             path: path.to_path_buf(),
             asts,
             exports,
         };
-        
+
         self.modules.insert(path_str.clone(), module);
         Ok(self.modules.get(&path_str).unwrap())
     }
@@ -161,16 +166,16 @@ impl ModuleResolver {
     pub fn process_use_statement(&mut self, path: &[String]) -> Result<Vec<AstNode>, String> {
         // Resolve path to file
         let module_path = self.resolve_use_path(path)?;
-        
+
         // Load the module
         let module = self.load_module(&module_path)?.clone();
-        
+
         // Add all exports to import scope
         for (name, _ast) in &module.exports {
             let full_path = path.join("::") + "::" + name;
             self.imports.insert(name.clone(), full_path);
         }
-        
+
         // Return the module's ASTs so they can be registered
         Ok(module.asts)
     }

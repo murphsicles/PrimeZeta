@@ -61,28 +61,36 @@ impl InferContext {
     /// Parse type string to Type
     fn parse_type_string(&self, s: &str) -> Result<Type, String> {
         let s = s.trim();
-        
+
         // Check for reference types
         if s.starts_with("&mut ") {
             let inner = s.trim_start_matches("&mut ").trim();
             let inner_ty = self.parse_type_string(inner)?;
-            return Ok(Type::Ref(Box::new(inner_ty), crate::middle::types::Mutability::Mutable));
+            return Ok(Type::Ref(
+                Box::new(inner_ty),
+                crate::middle::types::Mutability::Mutable,
+            ));
         } else if s.starts_with("&") {
             let inner = s.trim_start_matches("&").trim();
             let inner_ty = self.parse_type_string(inner)?;
-            return Ok(Type::Ref(Box::new(inner_ty), crate::middle::types::Mutability::Immutable));
+            return Ok(Type::Ref(
+                Box::new(inner_ty),
+                crate::middle::types::Mutability::Immutable,
+            ));
         }
-        
+
         // Check for array/slice type
         if s.starts_with('[') {
             if !s.ends_with(']') {
                 return Err("Array/slice type missing closing ']'".to_string());
             }
-            
-            let inner = &s[1..s.len()-1]; // Remove brackets
+
+            let inner = &s[1..s.len() - 1]; // Remove brackets
             if let Some((type_part, size_part)) = inner.split_once(';') {
                 let inner_type = self.parse_type_string(type_part.trim())?;
-                let size = size_part.trim().parse::<usize>()
+                let size = size_part
+                    .trim()
+                    .parse::<usize>()
                     .map_err(|e| format!("Invalid array size: {}", e))?;
                 return Ok(Type::Array(Box::new(inner_type), size));
             } else {
@@ -91,24 +99,24 @@ impl InferContext {
                 return Ok(Type::Slice(Box::new(inner_type)));
             }
         }
-        
+
         // Check for tuple type: (T1, T2, T3)
         if s.starts_with('(') {
             if !s.ends_with(')') {
                 return Err("Tuple type missing closing ')'".to_string());
             }
-            
-            let inner = &s[1..s.len()-1]; // Remove parentheses
+
+            let inner = &s[1..s.len() - 1]; // Remove parentheses
             if inner.is_empty() {
                 // Empty tuple: ()
                 return Ok(Type::Tuple(Vec::new()));
             }
-            
+
             // Split by commas, but be careful about nested tuples
             let mut types = Vec::new();
             let mut current = String::new();
             let mut depth = 0;
-            
+
             for ch in inner.chars() {
                 match ch {
                     '(' => {
@@ -128,32 +136,32 @@ impl InferContext {
                     _ => current.push(ch),
                 }
             }
-            
+
             if !current.is_empty() {
                 types.push(self.parse_type_string(current.trim())?);
             }
-            
+
             return Ok(Type::Tuple(types));
         }
-        
+
         // Check for Zeta's lt() syntax: lt(Result, i64)
         if s.starts_with("lt(") && s.ends_with(')') {
-            let inner = &s[3..s.len()-1]; // Remove "lt(" and ")"
+            let inner = &s[3..s.len() - 1]; // Remove "lt(" and ")"
             // Parse type name and arguments
             let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
             if parts.is_empty() {
                 return Ok(Type::Named(s.to_string(), Vec::new()));
             }
-            
+
             let type_name = parts[0];
             let mut args = Vec::new();
             for arg in parts.iter().skip(1) {
                 args.push(self.parse_type_string(arg)?);
             }
-            
+
             return Ok(Type::Named(type_name.to_string(), args));
         }
-        
+
         // Check for generic type: Vec<i32>, Option<T>, Result<T, E>
         // Look for < followed by > with content in between
         if let Some(open_angle) = s.find('<') {
@@ -161,12 +169,12 @@ impl InferContext {
                 if open_angle < close_angle {
                     let type_name = &s[..open_angle];
                     let inner = &s[open_angle + 1..close_angle];
-                    
+
                     // Parse type arguments, handling nested generics
                     let mut args = Vec::new();
                     let mut current = String::new();
                     let mut depth = 0;
-                    
+
                     for ch in inner.chars() {
                         match ch {
                             '<' => {
@@ -186,16 +194,16 @@ impl InferContext {
                             _ => current.push(ch),
                         }
                     }
-                    
+
                     if !current.is_empty() {
                         args.push(self.parse_type_string(current.trim())?);
                     }
-                    
+
                     return Ok(Type::Named(type_name.to_string(), args));
                 }
             }
         }
-        
+
         // Handle base types
         match s {
             "i64" => Ok(Type::I64),
@@ -340,7 +348,7 @@ impl InferContext {
 
                 // Infer type of the value expression
                 let value_ty = self.infer(value)?;
-                
+
                 // Constrain value type to match const type
                 self.constrain(value_ty, const_ty.clone());
 
@@ -351,10 +359,16 @@ impl InferContext {
                 Type::Tuple(vec![]) // Unit type
             }
 
-            AstNode::FuncDef { name, ret, body, ret_expr, .. } => {
+            AstNode::FuncDef {
+                name,
+                ret,
+                body,
+                ret_expr,
+                ..
+            } => {
                 // Parse return type
                 let return_ty = self.parse_type_string(ret)?;
-                
+
                 // Register function signature
                 self.functions.insert(name.clone(), return_ty.clone());
 
@@ -582,32 +596,44 @@ mod tests {
         let ctx = InferContext::new();
 
         // Test array types
-        assert_eq!(ctx.parse_type_string("[i32; 10]").unwrap(), Type::Array(Box::new(Type::I32), 10));
-        assert_eq!(ctx.parse_type_string("[bool; 5]").unwrap(), Type::Array(Box::new(Type::Bool), 5));
-        
+        assert_eq!(
+            ctx.parse_type_string("[i32; 10]").unwrap(),
+            Type::Array(Box::new(Type::I32), 10)
+        );
+        assert_eq!(
+            ctx.parse_type_string("[bool; 5]").unwrap(),
+            Type::Array(Box::new(Type::Bool), 5)
+        );
+
         // Test slice types
-        assert_eq!(ctx.parse_type_string("[i64]").unwrap(), Type::Slice(Box::new(Type::I64)));
+        assert_eq!(
+            ctx.parse_type_string("[i64]").unwrap(),
+            Type::Slice(Box::new(Type::I64))
+        );
         assert_eq!(
             ctx.parse_type_string("[&str]").unwrap(),
-            Type::Slice(Box::new(Type::Ref(Box::new(Type::Str), crate::middle::types::Mutability::Immutable)))
+            Type::Slice(Box::new(Type::Ref(
+                Box::new(Type::Str),
+                crate::middle::types::Mutability::Immutable
+            )))
         );
-        
+
         // Test tuple types
-        assert_eq!(ctx.parse_type_string("()").unwrap(), Type::Tuple(Vec::new()));
+        assert_eq!(
+            ctx.parse_type_string("()").unwrap(),
+            Type::Tuple(Vec::new())
+        );
         assert_eq!(
             ctx.parse_type_string("(i32, bool)").unwrap(),
             Type::Tuple(vec![Type::I32, Type::Bool])
         );
-        
+
         // Test nested types
         assert_eq!(
             ctx.parse_type_string("[(i32, bool); 3]").unwrap(),
-            Type::Array(
-                Box::new(Type::Tuple(vec![Type::I32, Type::Bool])),
-                3
-            )
+            Type::Array(Box::new(Type::Tuple(vec![Type::I32, Type::Bool])), 3)
         );
-        
+
         // Test error cases
         assert!(ctx.parse_type_string("[i32; not_a_number]").is_err());
         assert!(ctx.parse_type_string("[i32;").is_err());

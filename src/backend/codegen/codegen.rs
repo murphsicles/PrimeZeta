@@ -715,15 +715,16 @@ impl<'ctx> LLVMCodegen<'ctx> {
                             )
                             .unwrap();
                         let is_false = self.builder.build_not(is_true, "not").unwrap();
-                        let result = self.builder
+                        let result = self
+                            .builder
                             .build_int_z_extend(is_false, self.i64_type, "not_ext")
                             .unwrap();
-                        
+
                         let alloca = *self.locals.get(dest).unwrap();
                         self.builder.build_store(alloca, result).unwrap();
                         return;
                     }
-                    
+
                     // Handle binary operators
                     if args.len() == 2 {
                         let left = self.gen_expr_safe(&args[0], exprs);
@@ -941,25 +942,35 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 } else {
                     // Regular function call
                     let callee = self.get_function(func);
-                    
+
                     // Check if this is a runtime function that takes pointer arguments
-                    let needs_ptr_arg = func == "option_is_some" || func == "option_get_data" || func == "option_free" ||
-                                       func == "host_result_is_ok" || func == "host_result_get_data" || func == "host_result_free";
-                    
+                    let needs_ptr_arg = func == "option_is_some"
+                        || func == "option_get_data"
+                        || func == "option_free"
+                        || func == "host_result_is_ok"
+                        || func == "host_result_get_data"
+                        || func == "host_result_free";
+
                     // Check if this is a runtime function that returns a pointer
-                    let returns_ptr = func == "option_make_some" || func == "option_make_none" ||
-                                     func == "host_result_make_ok" || func == "host_result_make_err";
-                    
+                    let returns_ptr = func == "option_make_some"
+                        || func == "option_make_none"
+                        || func == "host_result_make_ok"
+                        || func == "host_result_make_err";
+
                     let arg_vals: Vec<BasicMetadataValueEnum> = args
                         .iter()
                         .enumerate()
                         .map(|(i, &id)| {
                             let val = self.gen_expr_safe(&id, exprs);
                             // If this function needs pointer arguments, convert i64 to ptr
-                            if needs_ptr_arg && i == 0 { // First argument is the pointer
+                            if needs_ptr_arg && i == 0 {
+                                // First argument is the pointer
                                 // Convert i64 to ptr
                                 let int_val = val.into_int_value();
-                                let ptr_val = self.builder.build_int_to_ptr(int_val, self.ptr_type, "inttoptr").unwrap();
+                                let ptr_val = self
+                                    .builder
+                                    .build_int_to_ptr(int_val, self.ptr_type, "inttoptr")
+                                    .unwrap();
                                 ptr_val.into()
                             } else {
                                 val.into()
@@ -974,11 +985,14 @@ impl<'ctx> LLVMCodegen<'ctx> {
                         // If function returns a pointer, convert it to i64
                         let final_val = if returns_ptr {
                             let ptr_val = val.into_pointer_value();
-                            self.builder.build_ptr_to_int(ptr_val, self.i64_type, "ptrtoint").unwrap().into()
+                            self.builder
+                                .build_ptr_to_int(ptr_val, self.i64_type, "ptrtoint")
+                                .unwrap()
+                                .into()
                         } else {
                             val
                         };
-                        
+
                         let alloca = *self.locals.get(dest).unwrap();
                         self.builder.build_store(alloca, final_val).unwrap();
                     }

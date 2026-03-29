@@ -84,7 +84,10 @@ fn parse_float_lit(input: &str) -> IResult<&str, AstNode> {
 }
 
 pub fn parse_lit(input: &str) -> IResult<&str, AstNode> {
-    println!("[PARSER DEBUG] parse_lit called, input: {:?}", &input[..20.min(input.len())]);
+    println!(
+        "[PARSER DEBUG] parse_lit called, input: {:?}",
+        &input[..20.min(input.len())]
+    );
     // Try float first, then integer
     match parse_float_lit(input) {
         Ok(result) => {
@@ -434,17 +437,20 @@ fn parse_primary(input: &str) -> IResult<&str, AstNode> {
         // They should be parsed at a higher level
     ))
     .parse(input);
-    
+
     match &result {
         Ok((remaining, ast)) => {
-            println!("[PARSER DEBUG] parse_primary succeeded, remaining: {:?}, ast: {:?}", 
-                     &remaining[..20.min(remaining.len())], ast);
+            println!(
+                "[PARSER DEBUG] parse_primary succeeded, remaining: {:?}, ast: {:?}",
+                &remaining[..20.min(remaining.len())],
+                ast
+            );
         }
         Err(e) => {
             println!("[PARSER DEBUG] parse_primary failed: {:?}", e);
         }
     }
-    
+
     result
 }
 

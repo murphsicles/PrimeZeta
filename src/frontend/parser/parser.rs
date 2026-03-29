@@ -201,8 +201,9 @@ pub fn parse_lt_type(input: &str) -> IResult<&str, String> {
             opt(ws(tag(","))),
         ),
         ws(tag(")")),
-    ).parse(input)?;
-    
+    )
+    .parse(input)?;
+
     if type_args.is_empty() {
         Ok((input, type_name))
     } else {

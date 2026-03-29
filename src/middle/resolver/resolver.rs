@@ -105,7 +105,11 @@ impl Resolver {
                         }
                     }
                     Err(e) => {
-                        eprintln!("Warning: Failed to process use statement {}: {}", path.join("::"), e);
+                        eprintln!(
+                            "Warning: Failed to process use statement {}: {}",
+                            path.join("::"),
+                            e
+                        );
                     }
                 }
             }

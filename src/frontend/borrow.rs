@@ -55,10 +55,12 @@ impl BorrowChecker {
 
     pub fn check(&mut self, node: &AstNode, resolver: &Resolver) -> bool {
         match node {
-            AstNode::Var(v) => self
-                .borrows
-                .get(v)
-                .is_some_and(|s| matches!(s, BorrowState::Owned | BorrowState::Borrowed | BorrowState::MutBorrowed)),
+            AstNode::Var(v) => self.borrows.get(v).is_some_and(|s| {
+                matches!(
+                    s,
+                    BorrowState::Owned | BorrowState::Borrowed | BorrowState::MutBorrowed
+                )
+            }),
             AstNode::Assign(lhs, rhs) => {
                 if !self.check(rhs, resolver) {
                     return false;
