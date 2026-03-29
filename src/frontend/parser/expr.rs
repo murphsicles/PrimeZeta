@@ -455,8 +455,16 @@ fn parse_primary(input: &str) -> IResult<&str, AstNode> {
 }
 
 fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
+    println!(
+        "[PARSER DEBUG] parse_postfix called, input: {:?}",
+        &input[..input.len().min(30)]
+    );
     let (mut input, mut expr) = parse_unary(input)?;
     loop {
+        println!(
+            "[PARSER DEBUG] parse_postfix loop, input: {:?}",
+            &input[..input.len().min(20)]
+        );
         if let Ok((i, _)) = ws(tag(".")).parse(input) {
             let (j, field_or_method) = parse_ident(i)?;
 

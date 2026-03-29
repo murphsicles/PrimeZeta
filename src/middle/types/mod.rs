@@ -136,6 +136,103 @@ impl Type {
             Type::Error => "<?>".to_string(),
         }
     }
+
+    /// Instantiate a generic type by substituting type variables with concrete types
+    /// This is used when we have a generic type like `Result<T, E>` and want to
+    /// instantiate it as `Result<i64, String>` by providing `[i64, String]` as arguments
+    pub fn instantiate_generic(&self, type_args: &[Type]) -> Result<Type, String> {
+        match self {
+            Type::Named(name, generic_params) => {
+                // Check if we have the right number of type arguments
+                if generic_params.len() != type_args.len() {
+                    return Err(format!(
+                        "Wrong number of type arguments for {}: expected {}, got {}",
+                        name,
+                        generic_params.len(),
+                        type_args.len()
+                    ));
+                }
+
+                // Create a substitution mapping from type variables to concrete types
+                let mut substitution = Substitution::new();
+
+                // For each generic parameter, if it's a type variable, map it to the corresponding type argument
+                for (param, arg) in generic_params.iter().zip(type_args.iter()) {
+                    if let Type::Variable(var) = param {
+                        substitution.mapping.insert(var.clone(), arg.clone());
+                    } else {
+                        // If the parameter is not a simple type variable, we need to recursively
+                        // substitute within it (for nested generics like Vec<Option<T>>)
+                        // For now, we'll handle simple cases
+                        return Err(format!(
+                            "Complex generic parameter not yet supported: {}",
+                            param.display_name()
+                        ));
+                    }
+                }
+
+                // Apply the substitution to create the instantiated type
+                let instantiated =
+                    substitution.apply(&Type::Named(name.clone(), generic_params.clone()));
+                Ok(instantiated)
+            }
+
+            // For other types, we might need to recursively instantiate
+            Type::Array(inner, size) => {
+                let instantiated_inner = inner.instantiate_generic(type_args)?;
+                Ok(Type::Array(Box::new(instantiated_inner), *size))
+            }
+
+            Type::Slice(inner) => {
+                let instantiated_inner = inner.instantiate_generic(type_args)?;
+                Ok(Type::Slice(Box::new(instantiated_inner)))
+            }
+
+            Type::Tuple(types) => {
+                let instantiated_types: Result<Vec<Type>, String> = types
+                    .iter()
+                    .map(|t| t.instantiate_generic(type_args))
+                    .collect();
+                Ok(Type::Tuple(instantiated_types?))
+            }
+
+            Type::Ptr(inner) => {
+                let instantiated_inner = inner.instantiate_generic(type_args)?;
+                Ok(Type::Ptr(Box::new(instantiated_inner)))
+            }
+
+            Type::Ref(inner, mutability) => {
+                let instantiated_inner = inner.instantiate_generic(type_args)?;
+                Ok(Type::Ref(Box::new(instantiated_inner), *mutability))
+            }
+
+            Type::Function(params, ret) => {
+                let instantiated_params: Result<Vec<Type>, String> = params
+                    .iter()
+                    .map(|p| p.instantiate_generic(type_args))
+                    .collect();
+                let instantiated_ret = ret.instantiate_generic(type_args)?;
+                Ok(Type::Function(
+                    instantiated_params?,
+                    Box::new(instantiated_ret),
+                ))
+            }
+
+            // Type variables get replaced if they're in the substitution
+            Type::Variable(var) => {
+                // For a standalone type variable, we need to check if it should be replaced
+                // This would require tracking which type variables are bound to this generic
+                // For now, we'll return an error for unbound type variables
+                Err(format!(
+                    "Unbound type variable T{} in generic instantiation",
+                    var.0
+                ))
+            }
+
+            // Primitive types and error type remain unchanged
+            _ => Ok(self.clone()),
+        }
+    }
 }
 
 /// Substitution mapping type variables to types

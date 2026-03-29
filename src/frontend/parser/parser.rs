@@ -250,3 +250,16 @@ pub fn parse_generic_params(input: &str) -> IResult<&str, Vec<String>> {
     )
     .parse(input)
 }
+
+/// Parse an attribute like #[derive(Copy)] or #[inline]
+pub fn parse_attribute(input: &str) -> IResult<&str, String> {
+    let (input, _) = ws(tag("#[")).parse(input)?;
+    let (input, content) = take_until("]").parse(input)?;
+    let (input, _) = ws(tag("]")).parse(input)?;
+    Ok((input, content.trim().to_string()))
+}
+
+/// Parse zero or more attributes
+pub fn parse_attributes(input: &str) -> IResult<&str, Vec<String>> {
+    many0(ws(parse_attribute)).parse(input)
+}

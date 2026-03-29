@@ -22,6 +22,7 @@ pub enum AstNode {
         name: String,
         generics: Vec<String>,
         methods: Vec<AstNode>,
+        attrs: Vec<String>,
         doc: String,
     },
     /// Implementation block for a concept on a type.
@@ -30,6 +31,7 @@ pub enum AstNode {
         generics: Vec<String>,
         ty: String,
         body: Vec<AstNode>,
+        attrs: Vec<String>,
         doc: String,
     },
     /// Method signature within a concept or implementation.
@@ -38,6 +40,7 @@ pub enum AstNode {
         params: Vec<(String, String)>,
         ret: String,
         generics: Vec<String>,
+        attrs: Vec<String>,
         doc: String,
     },
     /// Function definition with parameters, return type, and body.
@@ -61,12 +64,14 @@ pub enum AstNode {
     EnumDef {
         name: String,
         variants: Vec<(String, Vec<String>)>,
+        attrs: Vec<String>,
         doc: String,
     },
     /// Structure definition with fields.
     StructDef {
         name: String,
         fields: Vec<(String, String)>,
+        attrs: Vec<String>,
         doc: String,
     },
     /// Method or function call, with optional receiver and structural dispatch flag.

@@ -2,7 +2,7 @@
 //! Migration from string-based types to algebraic types
 
 use crate::frontend::ast::AstNode;
-use crate::middle::types::{Substitution, Type, UnifyError};
+use crate::middle::types::{Substitution, Type, TypeVar, UnifyError};
 use std::collections::HashMap;
 
 /// Type inference context
@@ -391,6 +391,54 @@ impl InferContext {
                 } else {
                     return Err(format!("Unknown function: {}", method));
                 }
+            }
+
+            AstNode::StructDef { name, fields, .. } => {
+                // Register struct type in context
+                // For now, we'll just create a named type with no type parameters
+                let _struct_ty = Type::Named(name.clone(), Vec::new());
+
+                // Store field types for later use
+                // We need to parse field type strings to Type objects
+                let mut _field_types = Vec::new();
+                for (field_name, type_str) in fields {
+                    let field_ty = self.parse_type_string(type_str)?;
+                    // We could store this in a separate map for field access
+                    _field_types.push((field_name.clone(), field_ty));
+                }
+
+                // Store struct definition in context for later use
+                // For now, we'll just return unit type since struct definitions
+                // don't have a value type at the top level
+                Type::Tuple(vec![]) // Unit type
+            }
+
+            AstNode::StructLit { variant, fields } => {
+                // Look up struct type
+                let struct_ty = Type::Named(variant.clone(), Vec::new());
+
+                // Type check each field
+                for (_field_name, field_expr) in fields {
+                    let _field_ty = self.infer(field_expr)?;
+                    // TODO: Look up expected field type from struct definition
+                    // and constrain field_ty to match
+                }
+
+                struct_ty
+            }
+
+            AstNode::FieldAccess {
+                base,
+                field: _field,
+            } => {
+                let _base_ty = self.infer(base)?;
+
+                // For now, return a fresh type variable for field access
+                // In a complete implementation, we would look up the field type
+                // from the struct definition
+                let field_ty = Type::Variable(TypeVar::fresh());
+
+                field_ty
             }
 
             _ => {

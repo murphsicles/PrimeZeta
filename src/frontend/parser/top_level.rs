@@ -4,7 +4,8 @@
 //! without accidentally discarding them during implicit-return extraction.
 use super::expr::parse_full_expr;
 use super::parser::{
-    parse_generic_params, parse_ident, parse_path, parse_type, skip_ws_and_comments, ws,
+    parse_attributes, parse_generic_params, parse_ident, parse_path, parse_type,
+    skip_ws_and_comments, ws,
 };
 use super::stmt::parse_block_body;
 use crate::frontend::ast::AstNode;
@@ -12,23 +13,25 @@ use nom::IResult;
 use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::combinator::{map, opt, value};
+use nom::combinator::{map, not, opt, peek, value};
 use nom::multi::{many0, separated_list0};
 use nom::sequence::{delimited, preceded, terminated};
 
 fn parse_param(input: &str) -> IResult<&str, (String, String)> {
-    // Try to parse &self or &mut self first
+    // Try to parse &self or &mut self first (without type annotation)
     let parse_self = alt((
-        // &mut self
-        map((ws(tag("&mut")), ws(tag("self"))), |_| {
-            ("&mut self".to_string(), "Self".to_string())
-        }),
-        // &self
-        map((ws(tag("&")), ws(tag("self"))), |_| {
-            ("&self".to_string(), "Self".to_string())
-        }),
-        // self (without &)
-        map(ws(tag("self")), |_| {
+        // &mut self (must not be followed by :)
+        map(
+            (ws(tag("&mut")), ws(tag("self")), peek(not(ws(tag(":"))))),
+            |_| ("&mut self".to_string(), "Self".to_string()),
+        ),
+        // &self (must not be followed by :)
+        map(
+            (ws(tag("&")), ws(tag("self")), peek(not(ws(tag(":"))))),
+            |_| ("&self".to_string(), "Self".to_string()),
+        ),
+        // self (without &, must not be followed by :)
+        map((ws(tag("self")), peek(not(ws(tag(":"))))), |_| {
             ("self".to_string(), "Self".to_string())
         }),
     ));
@@ -85,6 +88,10 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
         "[PARSER DEBUG] parse_func input first 50 chars: {:?}",
         &input[..50.min(input.len())]
     );
+
+    // Parse attributes first
+    let (input, attrs) = parse_attributes(input)?;
+    println!("[PARSER DEBUG] parse_func: parsed attributes: {:?}", attrs);
 
     let (input, extern_opt) = opt(ws(tag("extern"))).parse(input)?;
     let (input, _) = ws(tag("fn")).parse(input)?;
@@ -144,7 +151,7 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
             params,
             ret,
             body,
-            attrs: vec![],
+            attrs,
             ret_expr,
             single_line,
             doc: "".to_string(),
@@ -163,6 +170,9 @@ pub fn parse_type_alias(input: &str) -> IResult<&str, AstNode> {
 }
 
 fn parse_concept(input: &str) -> IResult<&str, AstNode> {
+    // Parse attributes
+    let (input, attrs) = parse_attributes(input)?;
+
     let (input, _) = ws(tag("concept")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
@@ -175,12 +185,16 @@ fn parse_concept(input: &str) -> IResult<&str, AstNode> {
             name,
             generics,
             methods,
+            attrs,
             doc: "".to_string(),
         },
     ))
 }
 
 fn parse_method_sig(input: &str) -> IResult<&str, AstNode> {
+    // Parse attributes
+    let (input, attrs) = parse_attributes(input)?;
+
     let (input, _) = ws(tag("fn")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
@@ -204,6 +218,7 @@ fn parse_method_sig(input: &str) -> IResult<&str, AstNode> {
             generics,
             params,
             ret,
+            attrs,
             doc: "".to_string(),
         },
     ))
@@ -214,6 +229,10 @@ fn parse_impl(input: &str) -> IResult<&str, AstNode> {
         "[PARSER DEBUG] parse_impl called, input: {:?}",
         &input[..input.len().min(50)]
     );
+
+    // Parse attributes
+    let (input, attrs) = parse_attributes(input)?;
+
     let (input, _) = ws(tag("impl")).parse(input)?;
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
     println!(
@@ -268,6 +287,7 @@ fn parse_impl(input: &str) -> IResult<&str, AstNode> {
             generics,
             ty,
             body,
+            attrs,
             doc: "".to_string(),
         },
     ))
@@ -300,6 +320,9 @@ fn parse_variant(input: &str) -> IResult<&str, (String, Vec<String>)> {
 }
 
 fn parse_enum(input: &str) -> IResult<&str, AstNode> {
+    // Parse attributes
+    let (input, attrs) = parse_attributes(input)?;
+
     let (input, _) = ws(tag("enum")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
     // Parse generic parameters if present (e.g., <T> or <T, E>)
@@ -318,6 +341,7 @@ fn parse_enum(input: &str) -> IResult<&str, AstNode> {
         AstNode::EnumDef {
             name,
             variants,
+            attrs,
             doc: "".to_string(),
         },
     ))
@@ -331,6 +355,9 @@ fn parse_struct_field(input: &str) -> IResult<&str, (String, String)> {
 }
 
 fn parse_struct(input: &str) -> IResult<&str, AstNode> {
+    // Parse attributes
+    let (input, attrs) = parse_attributes(input)?;
+
     let (input, _) = ws(tag("struct")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
     // Parse generic parameters if present
@@ -349,6 +376,7 @@ fn parse_struct(input: &str) -> IResult<&str, AstNode> {
         AstNode::StructDef {
             name,
             fields,
+            attrs,
             doc: "".to_string(),
         },
     ))

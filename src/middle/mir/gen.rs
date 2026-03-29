@@ -756,12 +756,12 @@ impl MirGen {
             AstNode::FieldAccess { base: _, field } => {
                 // TODO-20260327-001: Implement proper field access
                 // Temporary implementation for testing
-                let value = match field.as_str() {
-                    "x" => 10,
-                    "y" => 20,
-                    _ => 0,
-                };
-                self.exprs.insert(id, MirExpr::Lit(value));
+                // For now, return 0 for all field accesses
+                // In a real implementation, we would need to:
+                // 1. Evaluate the base expression
+                // 2. Look up the field in the struct
+                // 3. Return the field value
+                self.exprs.insert(id, MirExpr::Lit(0));
                 self.type_map.insert(id, "i64".to_string());
             }
             AstNode::StructLit { variant: _, fields } => {
