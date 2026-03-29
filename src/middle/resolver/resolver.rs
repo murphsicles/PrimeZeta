@@ -171,6 +171,7 @@ impl Resolver {
                 ref name,
                 ref ty,
                 ref value,
+                pub_: _,
             } => {
                 // Register constant for compile-time evaluation
                 // For now, we'll store it in ctfe_consts if it's a simple literal

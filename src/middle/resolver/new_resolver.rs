@@ -203,6 +203,74 @@ impl InferContext {
             return Ok(Type::Named(type_name.to_string(), args));
         }
 
+        // Check for function type: fn(T) -> R or (T) -> R
+        if s.starts_with("fn(") || (s.starts_with('(') && s.contains("->")) {
+            // Parse function type
+            let s = s.trim();
+
+            // Remove "fn" prefix if present
+            let s = if s.starts_with("fn(") {
+                &s[2..] // Keep the '('
+            } else {
+                s
+            };
+
+            // Find the arrow
+            let arrow_pos = s.find("->").ok_or("Function type missing '->'")?;
+
+            // Parse parameter types (could be single type or tuple)
+            let params_str = &s[..arrow_pos].trim();
+
+            // Remove parentheses if present
+            let params_str = if params_str.starts_with('(') && params_str.ends_with(')') {
+                &params_str[1..params_str.len() - 1]
+            } else {
+                params_str
+            };
+
+            // Parse return type
+            let ret_str = &s[arrow_pos + 2..].trim();
+            let ret_ty = self.parse_type_string(ret_str)?;
+
+            // Parse parameter types
+            let param_types = if params_str.is_empty() {
+                Vec::new()
+            } else {
+                // Split by comma and parse each type
+                let mut types = Vec::new();
+                let mut current = String::new();
+                let mut depth = 0;
+
+                for ch in params_str.chars() {
+                    match ch {
+                        '(' | '<' | '[' => {
+                            depth += 1;
+                            current.push(ch);
+                        }
+                        ')' | '>' | ']' => {
+                            depth -= 1;
+                            current.push(ch);
+                        }
+                        ',' if depth == 0 => {
+                            if !current.is_empty() {
+                                types.push(self.parse_type_string(current.trim())?);
+                                current.clear();
+                            }
+                        }
+                        _ => current.push(ch),
+                    }
+                }
+
+                if !current.is_empty() {
+                    types.push(self.parse_type_string(current.trim())?);
+                }
+
+                types
+            };
+
+            return Ok(Type::Function(param_types, Box::new(ret_ty)));
+        }
+
         // Handle base types
         match s {
             "i64" => Ok(Type::I64),
@@ -221,6 +289,107 @@ impl InferContext {
                 // Named type
                 Ok(Type::Named(s.to_string(), Vec::new()))
             }
+        }
+    }
+
+    /// Check a pattern against a type, registering variables in the context
+    fn check_pattern(&mut self, pattern: &AstNode, expected_ty: &Type) -> Result<(), String> {
+        match pattern {
+            AstNode::Ignore => {
+                // Wildcard pattern matches anything, no variables to register
+                Ok(())
+            }
+            AstNode::Var(name) => {
+                // Variable pattern: register the variable with the expected type
+                self.declare(name.clone(), expected_ty.clone());
+                Ok(())
+            }
+            AstNode::Tuple(patterns) => {
+                // Tuple pattern: expected type must be a tuple
+                match expected_ty {
+                    Type::Tuple(element_types) => {
+                        if patterns.len() != element_types.len() {
+                            return Err(format!(
+                                "Tuple pattern has {} elements but type has {}",
+                                patterns.len(),
+                                element_types.len()
+                            ));
+                        }
+                        // Check each pattern against corresponding element type
+                        for (i, (pattern, elem_ty)) in
+                            patterns.iter().zip(element_types).enumerate()
+                        {
+                            self.check_pattern(pattern, elem_ty)
+                                .map_err(|e| format!("In tuple element {}: {}", i, e))?;
+                        }
+                        Ok(())
+                    }
+                    _ => Err(format!(
+                        "Tuple pattern used with non-tuple type: {:?}",
+                        expected_ty
+                    )),
+                }
+            }
+            AstNode::StructPattern {
+                variant,
+                fields,
+                rest: _,
+            } => {
+                // Struct pattern: we need to look up the struct definition
+                // For now, we'll create a placeholder - in a real implementation,
+                // we would look up the struct from the resolver
+
+                // Check if it's a tuple struct (fields are indexed by string numbers)
+                let is_tuple_struct = fields.iter().all(|(name, _)| name.parse::<usize>().is_ok());
+
+                if is_tuple_struct {
+                    // Tuple struct: create a tuple type
+                    let field_types: Vec<Type> = fields
+                        .iter()
+                        .map(|(_, _pat)| {
+                            // Create a fresh type variable for each field
+                            Type::Variable(TypeVar::fresh())
+                        })
+                        .collect();
+
+                    // Constrain the expected type to be a named type with the variant name
+                    // and field types as type arguments
+                    let struct_ty = Type::Named(variant.clone(), field_types.clone());
+                    self.constrain(expected_ty.clone(), struct_ty);
+
+                    // Check each pattern against its corresponding field type
+                    for (i, (_, pat)) in fields.iter().enumerate() {
+                        if i < field_types.len() {
+                            self.check_pattern(pat, &field_types[i])?;
+                        }
+                    }
+                } else {
+                    // Named struct: for now, just create a named type
+                    // In a real implementation, we would look up field types
+                    let struct_ty = Type::Named(variant.clone(), vec![]);
+                    self.constrain(expected_ty.clone(), struct_ty);
+
+                    // Check each field pattern
+                    for (_field_name, pat) in fields {
+                        // Create a fresh type variable for this field
+                        let field_ty = Type::Variable(TypeVar::fresh());
+                        self.check_pattern(pat, &field_ty)?;
+                    }
+                }
+
+                Ok(())
+            }
+            AstNode::Lit(_n) => {
+                // Literal pattern: expected type must be i64
+                self.constrain(expected_ty.clone(), Type::I64);
+                Ok(())
+            }
+            AstNode::Bool(_b) => {
+                // Boolean literal pattern
+                self.constrain(expected_ty.clone(), Type::Bool);
+                Ok(())
+            }
+            _ => Err(format!("Pattern type not supported yet: {:?}", pattern)),
         }
     }
 
@@ -326,19 +495,24 @@ impl InferContext {
                 // If type annotation provided, constrain to it
                 if let Some(type_str) = ty {
                     let annotated_ty = self.parse_type_string(type_str)?;
-                    self.constrain(expr_ty.clone(), annotated_ty);
-                }
-
-                // Register pattern variables
-                if let AstNode::Var(name) = &**pattern {
-                    self.declare(name.clone(), expr_ty.clone());
+                    self.constrain(expr_ty.clone(), annotated_ty.clone());
+                    // Check pattern against annotated type
+                    self.check_pattern(pattern, &annotated_ty)?;
+                } else {
+                    // Check pattern against inferred expression type
+                    self.check_pattern(pattern, &expr_ty)?;
                 }
 
                 // Let statements have unit type
                 Type::Tuple(vec![]) // Unit type
             }
 
-            AstNode::ConstDef { name, ty, value } => {
+            AstNode::ConstDef {
+                name,
+                ty,
+                value,
+                pub_: _,
+            } => {
                 // Parse the type string to Type
                 let const_ty = self.parse_type_string(ty)?;
 
@@ -489,6 +663,117 @@ impl InferContext {
                 // Impl blocks don't have a type, they're declarations
                 // Return unit type
                 Type::Tuple(vec![])
+            }
+
+            AstNode::Closure { params, body } => {
+                // Create fresh type variables for parameters
+                let param_types: Vec<Type> = params
+                    .iter()
+                    .map(|_| Type::Variable(TypeVar::fresh()))
+                    .collect();
+
+                // Create a fresh type variable for the return type
+                let return_type_var = Type::Variable(TypeVar::fresh());
+
+                // Enter a new scope for closure parameters
+                let mut inner_ctx = self.clone();
+
+                // Declare parameters in the inner context
+                for (param_name, param_ty) in params.iter().zip(param_types.iter()) {
+                    inner_ctx.declare(param_name.clone(), param_ty.clone());
+                }
+
+                // Infer the body type in the inner context
+                let body_ty = inner_ctx.infer(body)?;
+
+                // Constrain the body type to be the return type
+                inner_ctx.constrain(body_ty, return_type_var.clone());
+
+                // Solve constraints in the inner context
+                if let Err(errors) = inner_ctx.solve() {
+                    let error_msgs: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
+                    return Err(format!("Closure type error: {}", error_msgs.join(", ")));
+                }
+
+                // Apply substitution to get final parameter and return types
+                let final_param_types: Vec<Type> = param_types
+                    .iter()
+                    .map(|ty| inner_ctx.substitution.apply(ty))
+                    .collect();
+                let final_return_type = inner_ctx.substitution.apply(&return_type_var);
+
+                // The closure type is a function type
+                Type::Function(final_param_types, Box::new(final_return_type))
+            }
+
+            AstNode::IfLet {
+                pattern,
+                expr,
+                then,
+                else_,
+            } => {
+                // Type check the expression
+                let expr_ty = self.infer(expr)?;
+
+                // Check the pattern against the expression type
+                self.check_pattern(pattern, &expr_ty)?;
+
+                // Type check the then branch
+                let mut then_ty = Type::Tuple(vec![]); // Default to unit
+                for stmt in then {
+                    then_ty = self.infer(stmt)?;
+                }
+
+                // Type check the else branch if present
+                let mut else_ty = Type::Tuple(vec![]); // Default to unit
+                for stmt in else_ {
+                    else_ty = self.infer(stmt)?;
+                }
+
+                // Both branches must have the same type
+                self.constrain(then_ty.clone(), else_ty.clone());
+
+                // The if-let expression has the type of its branches
+                then_ty
+            }
+
+            AstNode::Match { scrutinee, arms } => {
+                // Type check the scrutinee
+                let scrutinee_ty = self.infer(scrutinee)?;
+
+                // Type check each arm
+                let mut arm_types = Vec::new();
+                for arm in arms {
+                    // Check pattern against scrutinee type
+                    self.check_pattern(&arm.pattern, &scrutinee_ty)?;
+
+                    // Type check guard if present
+                    if let Some(guard) = &arm.guard {
+                        let guard_ty = self.infer(guard)?;
+                        self.constrain(guard_ty, Type::Bool);
+                    }
+
+                    // Type check body
+                    let body_ty = self.infer(&arm.body)?;
+                    arm_types.push(body_ty);
+                }
+
+                // All arms must have the same type
+                if let Some(first_ty) = arm_types.first() {
+                    for other_ty in arm_types.iter().skip(1) {
+                        self.constrain(first_ty.clone(), other_ty.clone());
+                    }
+                    first_ty.clone()
+                } else {
+                    // Empty match - return unit type
+                    Type::Tuple(vec![])
+                }
+            }
+
+            AstNode::Use { .. } => {
+                // Use statements are processed by the resolver before type inference
+                // They don't have a type themselves
+                Type::Tuple(vec![]) // Unit type
             }
 
             _ => {

@@ -3,7 +3,8 @@ use super::parser::{
     parse_ident, parse_path, parse_type, parse_type_args, skip_ws_and_comments0, ws,
 };
 
-use super::stmt::{parse_block_body, parse_pattern};
+use super::pattern::parse_pattern;
+use super::stmt::parse_block_body;
 use crate::frontend::ast::{AstNode, MatchArm};
 use nom::IResult;
 use nom::Parser;
@@ -84,31 +85,24 @@ fn parse_float_lit(input: &str) -> IResult<&str, AstNode> {
 }
 
 pub fn parse_lit(input: &str) -> IResult<&str, AstNode> {
-    println!(
-        "[PARSER DEBUG] parse_lit called, input: {:?}",
-        &input[..20.min(input.len())]
-    );
     // Try float first, then integer
     match parse_float_lit(input) {
         Ok(result) => {
-            println!("[PARSER DEBUG] parse_float_lit succeeded: {:?}", result);
             return Ok(result);
         }
-        Err(e) => {
-            println!("[PARSER DEBUG] parse_float_lit failed: {:?}", e);
+        Err(_) => {
+            // Not a float, try integer
         }
     }
 
     let (input, num) = take_while(|c: char| c.is_ascii_digit()).parse(input)?;
     if num.is_empty() {
-        println!("[PARSER DEBUG] parse_lit: not a digit, returning error");
         return Err(nom::Err::Error(NomError::new(
             input,
             nom::error::ErrorKind::Digit,
         )));
     }
     let value = num.parse::<i64>().unwrap_or(0);
-    println!("[PARSER DEBUG] parse_lit returning integer: {}", value);
     Ok((input, AstNode::Lit(value)))
 }
 
@@ -314,15 +308,7 @@ fn parse_condition(input: &str) -> IResult<&str, AstNode> {
 }
 
 fn parse_if(input: &str) -> IResult<&str, AstNode> {
-    println!(
-        "[PARSER DEBUG] parse_if called, input: {:?}",
-        &input[..30.min(input.len())]
-    );
     let (input, _) = ws(tag("if")).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_if: parsed 'if', remaining: {:?}",
-        &input[..30.min(input.len())]
-    );
 
     // Parse condition with special handling
     let (input, cond) = if let Ok((i, expr)) = parse_condition(input) {
@@ -331,10 +317,6 @@ fn parse_if(input: &str) -> IResult<&str, AstNode> {
         // Fallback: parse any expression
         ws(parse_expr_no_if).parse(input)?
     };
-    println!(
-        "[PARSER DEBUG] parse_if: parsed condition, remaining: {:?}",
-        &input[..30.min(input.len())]
-    );
     let (input, then) = delimited(ws(tag("{")), parse_block_body, ws(tag("}"))).parse(input)?;
     let (input, else_opt) = opt(preceded(
         ws(tag("else")),
@@ -387,11 +369,6 @@ fn parse_bool(input: &str) -> IResult<&str, AstNode> {
 }
 
 fn parse_unary(input: &str) -> IResult<&str, AstNode> {
-    println!(
-        "[PARSER DEBUG] parse_unary called, input: {:?}",
-        &input[..20.min(input.len())]
-    );
-
     // Check for "!" but NOT followed by "=" (which would be != operator)
     let (input, op_opt) = if input.starts_with("!") && !input.starts_with("!=") {
         // It's a unary !, not !=
@@ -401,12 +378,6 @@ fn parse_unary(input: &str) -> IResult<&str, AstNode> {
         // Try other unary operators
         opt(alt((tag("&mut"), tag("&"), tag("-"), tag("*")))).parse(input)?
     };
-
-    println!(
-        "[PARSER DEBUG] parse_unary: op_opt = {:?}, remaining: {:?}",
-        op_opt,
-        &input[..20.min(input.len())]
-    );
 
     let (input, expr) = if op_opt.is_some() {
         ws(parse_unary).parse(input)?
@@ -433,11 +404,7 @@ fn parse_simple_ident(input: &str) -> IResult<&str, AstNode> {
 }
 
 fn parse_primary(input: &str) -> IResult<&str, AstNode> {
-    println!(
-        "[PARSER DEBUG] parse_primary called, input: {:?}",
-        &input[..20.min(input.len())]
-    );
-    let result = alt((
+    alt((
         parse_tuple_or_paren,
         parse_lit,
         parse_string_lit,
@@ -452,84 +419,28 @@ fn parse_primary(input: &str) -> IResult<&str, AstNode> {
         // parse_if_let and parse_if removed - they're not primary expressions
         // They should be parsed at a higher level
     ))
-    .parse(input);
-
-    match &result {
-        Ok((remaining, ast)) => {
-            println!(
-                "[PARSER DEBUG] parse_primary succeeded, remaining: {:?}, ast: {:?}",
-                &remaining[..20.min(remaining.len())],
-                ast
-            );
-        }
-        Err(e) => {
-            println!("[PARSER DEBUG] parse_primary failed: {:?}", e);
-        }
-    }
-
-    result
+    .parse(input)
 }
 
 fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
-    println!(
-        "[PARSER DEBUG] parse_postfix called, input: {:?}",
-        &input[..input.len().min(30)]
-    );
     let (mut input, mut expr) = parse_unary(input)?;
     loop {
-        println!(
-            "[PARSER DEBUG] parse_postfix loop, input: {:?}",
-            &input[..input.len().min(20)]
-        );
         let dot_result = ws(tag(".")).parse(input);
-        println!(
-            "[PARSER DEBUG] parse_postfix: ws(tag(\".\")) result: {:?}",
-            dot_result
-        );
         if let Ok((i, _)) = dot_result {
-            println!(
-                "[PARSER DEBUG] parse_postfix: matched '.', remaining: {:?}",
-                &i[..i.len().min(20)]
-            );
             let (j, field_or_method) = parse_ident(i)?;
-            println!(
-                "[PARSER DEBUG] parse_postfix: parsed ident '{}', remaining: {:?}",
-                field_or_method,
-                &j[..j.len().min(20)]
-            );
 
             // Check for type arguments first (e.g., ::<i32>)
-            println!(
-                "[PARSER DEBUG] parse_postfix: checking for type arguments at: {:?}",
-                &j[..j.len().min(20)]
-            );
             let (j2, type_args_opt) =
                 opt(ws(preceded(opt(tag("::")), parse_type_args))).parse(j)?;
             let type_args: Vec<String> = type_args_opt.unwrap_or_default();
 
-            println!(
-                "[PARSER DEBUG] parse_postfix: after type args check, remaining: {:?}",
-                &j2[..j2.len().min(20)]
-            );
-
             // Now check if this is a method call (has parentheses) or field access
-            println!(
-                "[PARSER DEBUG] parse_postfix: checking for parentheses at: {:?}",
-                &j2[..j2.len().min(20)]
-            );
-
             // Check if there's a '('
             let args_opt = if let Ok((after_paren, _)) = ws(tag("(")).parse(j2) {
-                println!("[PARSER DEBUG] parse_postfix: found '(', parsing argument list");
                 // Parse argument list
                 // Check if we have ')' immediately (empty argument list)
                 let close_paren_result = ws(tag(")")).parse(after_paren);
-                println!(
-                    "[PARSER DEBUG] parse_postfix: checking for ')', result: {:?}",
-                    close_paren_result
-                );
                 if let Ok((after_paren2, _)) = close_paren_result {
-                    println!("[PARSER DEBUG] parse_postfix: empty argument list");
                     (Some(vec![]), after_paren2)
                 } else {
                     // Parse non-empty argument list
@@ -541,15 +452,9 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
 
                     // Parse closing ')'
                     let (k, _) = ws(tag(")")).parse(after_args)?;
-                    println!(
-                        "[PARSER DEBUG] parse_postfix: parsed args: {:?}, remaining: {:?}",
-                        args,
-                        &k[..k.len().min(20)]
-                    );
                     (Some(args), k)
                 }
             } else {
-                println!("[PARSER DEBUG] parse_postfix: no '(', it's a field access");
                 (None, j2)
             };
 
@@ -622,10 +527,6 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
 
 // Parse expression without if (for use in if conditions to avoid left recursion)
 fn parse_expr_no_if(input: &str) -> IResult<&str, AstNode> {
-    println!(
-        "[PARSER DEBUG] parse_expr_no_if called, input: {:?}",
-        &input[..input.len().min(20)]
-    );
     let (mut input, mut term) = parse_postfix(input)?;
     loop {
         // Try to parse operator
@@ -771,16 +672,11 @@ fn parse_match_arm(input: &str) -> IResult<&str, MatchArm> {
 }
 
 pub fn parse_expr(input: &str) -> IResult<&str, AstNode> {
-    println!(
-        "[PARSER DEBUG] parse_expr called, input first 50 chars: {:?}",
-        &input[..50.min(input.len())]
-    );
-
     // Try if expression first
     match parse_if(input) {
         Ok((remaining, if_expr)) => return Ok((remaining, if_expr)),
-        Err(e) => {
-            println!("[PARSER DEBUG] parse_expr: parse_if failed: {:?}", e);
+        Err(_) => {
+            // Not an if expression, continue
         }
     }
 

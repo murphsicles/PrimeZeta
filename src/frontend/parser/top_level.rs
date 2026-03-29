@@ -82,40 +82,24 @@ fn parse_use_statement(input: &str) -> IResult<&str, Vec<AstNode>> {
     Ok((input, nodes))
 }
 
-fn parse_func(input: &str) -> IResult<&str, AstNode> {
-    println!("[PARSER DEBUG] parse_func called");
-    println!(
-        "[PARSER DEBUG] parse_func input first 50 chars: {:?}",
-        &input[..50.min(input.len())]
-    );
+/// Parse visibility modifier (pub keyword)
+fn parse_visibility(input: &str) -> IResult<&str, bool> {
+    let (input, pub_opt) = opt(ws(tag("pub"))).parse(input)?;
+    Ok((input, pub_opt.is_some()))
+}
 
+fn parse_func(input: &str) -> IResult<&str, AstNode> {
     // Parse attributes first
     let (input, attrs) = parse_attributes(input)?;
-    println!("[PARSER DEBUG] parse_func: parsed attributes: {:?}", attrs);
+
+    // Parse visibility
+    let (input, pub_) = parse_visibility(input)?;
 
     let (input, extern_opt) = opt(ws(tag("extern"))).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_func: about to parse 'fn', input: {:?}",
-        &input[..input.len().min(30)]
-    );
     let (input, _) = ws(tag("fn")).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_func: parsed 'fn', remaining: {:?}",
-        &input[..input.len().min(30)]
-    );
-    println!("[PARSER DEBUG] parse_func: about to parse path");
     let (input, path) = ws(parse_path).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_func: parsed path: {:?}, remaining: {:?}",
-        path,
-        &input[..input.len().min(30)]
-    );
     let name = path.join("::");
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_func: parsed generics, remaining: {:?}",
-        &input[..input.len().min(30)]
-    );
     let (input, params) = delimited(
         ws(tag("(")),
         terminated(
@@ -173,18 +157,25 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
             ret_expr,
             single_line,
             doc: "".to_string(),
+            pub_: false,
         }
     };
     Ok((input, ast))
 }
 
 pub fn parse_type_alias(input: &str) -> IResult<&str, AstNode> {
+    // Parse attributes
+    let (input, attrs) = parse_attributes(input)?;
+
+    // Parse visibility
+    let (input, pub_) = parse_visibility(input)?;
+
     let (input, _) = ws(tag("type")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
     let (input, _) = ws(tag("=")).parse(input)?;
     let (input, ty) = ws(parse_type).parse(input)?;
     let (input, _) = ws(tag(";")).parse(input)?;
-    Ok((input, AstNode::TypeAlias { name, ty }))
+    Ok((input, AstNode::TypeAlias { name, ty, pub_ }))
 }
 
 fn parse_concept(input: &str) -> IResult<&str, AstNode> {
@@ -205,6 +196,7 @@ fn parse_concept(input: &str) -> IResult<&str, AstNode> {
             methods,
             attrs,
             doc: "".to_string(),
+            pub_: false,
         },
     ))
 }
@@ -243,20 +235,11 @@ fn parse_method_sig(input: &str) -> IResult<&str, AstNode> {
 }
 
 fn parse_impl(input: &str) -> IResult<&str, AstNode> {
-    println!(
-        "[PARSER DEBUG] parse_impl called, input: {:?}",
-        &input[..input.len().min(50)]
-    );
-
     // Parse attributes
     let (input, attrs) = parse_attributes(input)?;
 
     let (input, _) = ws(tag("impl")).parse(input)?;
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_impl: parsed generics: {:?}",
-        generics_opt
-    );
 
     // Try to parse as inherent impl: impl<Generics> Type { ... }
     let parse_result = alt((
@@ -271,33 +254,14 @@ fn parse_impl(input: &str) -> IResult<&str, AstNode> {
     .parse(input);
 
     let (input, (concept, ty)) = match parse_result {
-        Ok((input, (concept, ty))) => {
-            println!(
-                "[PARSER DEBUG] parse_impl: successfully parsed concept: {:?}, ty: {:?}",
-                concept, ty
-            );
-            (input, (concept, ty))
-        }
+        Ok((input, (concept, ty))) => (input, (concept, ty)),
         Err(e) => {
-            println!(
-                "[PARSER DEBUG] parse_impl: failed to parse concept/type: {:?}",
-                e
-            );
             return Err(e);
         }
     };
-
-    println!(
-        "[PARSER DEBUG] parse_impl: trying to parse body, input starts with: {:?}",
-        &input[..input.len().min(50)]
-    );
     let (input, body) =
         delimited(ws(tag("{")), many0(ws(parse_func)), ws(tag("}"))).parse(input)?;
     let generics: Vec<String> = generics_opt.unwrap_or_default();
-    println!(
-        "[PARSER DEBUG] parse_impl: parsed {} functions in body, returning ImplBlock",
-        body.len()
-    );
     Ok((
         input,
         AstNode::ImplBlock {
@@ -341,6 +305,9 @@ fn parse_enum(input: &str) -> IResult<&str, AstNode> {
     // Parse attributes
     let (input, attrs) = parse_attributes(input)?;
 
+    // Parse visibility
+    let (input, pub_) = parse_visibility(input)?;
+
     let (input, _) = ws(tag("enum")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
     // Parse generic parameters if present (e.g., <T> or <T, E>)
@@ -361,6 +328,7 @@ fn parse_enum(input: &str) -> IResult<&str, AstNode> {
             variants,
             attrs,
             doc: "".to_string(),
+            pub_,
         },
     ))
 }
@@ -375,6 +343,9 @@ fn parse_struct_field(input: &str) -> IResult<&str, (String, String)> {
 fn parse_struct(input: &str) -> IResult<&str, AstNode> {
     // Parse attributes
     let (input, attrs) = parse_attributes(input)?;
+
+    // Parse visibility
+    let (input, pub_) = parse_visibility(input)?;
 
     let (input, _) = ws(tag("struct")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
@@ -396,42 +367,23 @@ fn parse_struct(input: &str) -> IResult<&str, AstNode> {
             fields,
             attrs,
             doc: "".to_string(),
+            pub_,
         },
     ))
 }
 
 fn parse_const(input: &str) -> IResult<&str, AstNode> {
-    println!(
-        "[PARSER DEBUG] parse_const called, input first 50 chars: {:?}",
-        &input[..input.len().min(50usize)]
-    );
+    // Parse attributes
+    let (input, attrs) = parse_attributes(input)?;
+
+    // Parse visibility
+    let (input, pub_) = parse_visibility(input)?;
+
     let (input, _) = ws(tag("const")).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_const: consumed 'const', remaining: {:?}",
-        &input[..input.len().min(50usize)]
-    );
     let (input, name) = ws(parse_ident).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_const: consumed identifier '{}', remaining: {:?}",
-        name,
-        &input[..input.len().min(50usize)]
-    );
     let (input, _) = ws(tag(":")).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_const: consumed ':', remaining: {:?}",
-        &input[..input.len().min(50usize)]
-    );
     let (input, ty) = ws(parse_type).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_const: consumed type '{}', remaining: {:?}",
-        ty,
-        &input[..input.len().min(50usize)]
-    );
     let (input, _) = ws(tag("=")).parse(input)?;
-    println!(
-        "[PARSER DEBUG] parse_const: consumed '=', remaining: {:?}",
-        &input[..input.len().min(50usize)]
-    );
     let (input, value) = ws(parse_full_expr).parse(input)?;
     let (input, _) = ws(tag(";")).parse(input)?;
 
@@ -441,6 +393,7 @@ fn parse_const(input: &str) -> IResult<&str, AstNode> {
             name,
             ty,
             value: Box::new(value),
+            pub_,
         },
     ))
 }
@@ -459,22 +412,7 @@ fn parse_top_level_item(input: &str) -> IResult<&str, AstNode> {
 }
 
 pub fn parse_zeta(input: &str) -> IResult<&str, Vec<AstNode>> {
-    println!("[PARSER DEBUG] parse_zeta called");
-    println!("[PARSER DEBUG] Input length: {}", input.len());
-    if input.len() < 100 {
-        println!("[PARSER DEBUG] Input: {:?}", input);
-    } else {
-        println!(
-            "[PARSER DEBUG] First 100 chars: {:?}",
-            &input[..100.min(input.len())]
-        );
-    }
-
     let (input, _) = skip_ws_and_comments(input)?;
-    println!(
-        "[PARSER DEBUG] After skipping whitespace/comments, remaining length: {}",
-        input.len()
-    );
 
     let parse_result = many0(ws(alt((
         parse_use_statement,
@@ -485,32 +423,11 @@ pub fn parse_zeta(input: &str) -> IResult<&str, Vec<AstNode>> {
     let (input, vec_vec) = match parse_result {
         Ok((i, v)) => (i, v),
         Err(e) => {
-            println!("[PARSER DEBUG] parse_zeta: Parser error type: {:?}", e);
-            println!(
-                "[PARSER DEBUG] parse_zeta: Is Failure? {}",
-                matches!(e, nom::Err::Failure(_))
-            );
-            println!(
-                "[PARSER DEBUG] parse_zeta: Is Error? {}",
-                matches!(e, nom::Err::Error(_))
-            );
             return Err(e);
         }
     };
 
-    println!("[PARSER DEBUG] Parsed {} top-level items", vec_vec.len());
     let asts: Vec<AstNode> = vec_vec.into_iter().flatten().collect::<Vec<AstNode>>();
-    println!("[PARSER DEBUG] Total ASTs: {}", asts.len());
-
-    if !input.is_empty() {
-        println!(
-            "[PARSER DEBUG] WARNING: {} characters remaining unparsed",
-            input.len()
-        );
-        if input.len() < 200 {
-            println!("[PARSER DEBUG] Remaining: {:?}", input);
-        }
-    }
 
     Ok((input, asts))
 }

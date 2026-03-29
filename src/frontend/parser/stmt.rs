@@ -1,8 +1,9 @@
 // src/frontend/parser/stmt.rs
-//! Module for parsing statements and patterns in the Zeta language.
+//! Module for parsing statements in the Zeta language.
 
-use super::expr::{parse_full_expr, parse_lit};
-use super::parser::{parse_ident, parse_path, parse_type, skip_ws_and_comments, ws};
+use super::expr::parse_full_expr;
+use super::parser::{parse_type, skip_ws_and_comments, ws};
+use super::pattern::parse_pattern;
 use super::top_level::parse_type_alias;
 use crate::frontend::ast::AstNode;
 use nom::IResult;
@@ -11,87 +12,9 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::{opt, peek};
 use nom::error::Error as NomError;
-use nom::multi::separated_list0;
-use nom::sequence::{delimited, preceded, terminated};
+use nom::sequence::{delimited, preceded};
 
-pub fn parse_pattern(input: &str) -> IResult<&str, AstNode> {
-    alt((
-        tag("_").map(|_| AstNode::Ignore),
-        delimited(
-            ws(tag("(")),
-            terminated(
-                separated_list0(ws(tag(",")), ws(parse_pattern)),
-                opt(ws(tag(","))),
-            ),
-            ws(tag(")")),
-        )
-        .map(AstNode::Tuple),
-        parse_path_pattern,
-        parse_lit,
-        parse_ident.map(AstNode::Var),
-    ))
-    .parse(input)
-}
 
-fn parse_path_pattern(input: &str) -> IResult<&str, AstNode> {
-    let (input, path) = parse_path(input)?;
-    let variant = path.join("::");
-
-    let (input, _) = skip_ws_and_comments(input)?;
-
-    if let Ok((_i, _)) = ws(tag("(")).parse(input) {
-        let (input, pats) = delimited(
-            ws(tag("(")),
-            terminated(
-                separated_list0(ws(tag(",")), ws(parse_pattern)),
-                opt(ws(tag(","))),
-            ),
-            ws(tag(")")),
-        )
-        .parse(input)?;
-        return Ok((
-            input,
-            AstNode::StructPattern {
-                variant,
-                fields: pats
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, p)| (i.to_string(), p))
-                    .collect(),
-                rest: false,
-            },
-        ));
-    }
-
-    if let Ok((_i, _)) = ws(tag("{")).parse(input) {
-        let (input, fields) = separated_list0(ws(tag(",")), ws(parse_field)).parse(input)?;
-        let (input, _) = opt(ws(tag(","))).parse(input)?;
-        let (input, has_rest) = opt(ws(tag(".."))).parse(input)?;
-        let (input, _) = opt(ws(tag(","))).parse(input)?;
-        let (input, _) = ws(tag("}")).parse(input)?;
-        return Ok((
-            input,
-            AstNode::StructPattern {
-                variant,
-                fields,
-                rest: has_rest.is_some(),
-            },
-        ));
-    }
-
-    Ok((input, AstNode::Var(variant)))
-}
-
-fn parse_field(input: &str) -> IResult<&str, (String, AstNode)> {
-    let (input, name) = ws(parse_ident).parse(input)?;
-    let (input, colon) = opt(ws(tag(":"))).parse(input)?;
-    let (input, pat) = if colon.is_some() {
-        ws(parse_pattern).parse(input)?
-    } else {
-        (input, AstNode::Var(name.clone()))
-    };
-    Ok((input, (name, pat)))
-}
 
 pub fn parse_block_body(input: &str) -> IResult<&str, Vec<AstNode>> {
     let mut body = vec![];

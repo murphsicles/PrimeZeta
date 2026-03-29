@@ -24,6 +24,8 @@ pub enum AstNode {
         methods: Vec<AstNode>,
         attrs: Vec<String>,
         doc: String,
+        /// Visibility: true for public, false for private (default)
+        pub_: bool,
     },
     /// Implementation block for a concept on a type.
     ImplBlock {
@@ -54,6 +56,8 @@ pub enum AstNode {
         ret_expr: Option<Box<AstNode>>,
         single_line: bool,
         doc: String,
+        /// Visibility: true for public, false for private (default)
+        pub_: bool,
     },
     ExternFunc {
         name: String,
@@ -66,6 +70,8 @@ pub enum AstNode {
         variants: Vec<(String, Vec<String>)>,
         attrs: Vec<String>,
         doc: String,
+        /// Visibility: true for public, false for private (default)
+        pub_: bool,
     },
     /// Structure definition with fields.
     StructDef {
@@ -73,6 +79,8 @@ pub enum AstNode {
         fields: Vec<(String, String)>,
         attrs: Vec<String>,
         doc: String,
+        /// Visibility: true for public, false for private (default)
+        pub_: bool,
     },
     /// Method or function call, with optional receiver and structural dispatch flag.
     Call {
@@ -136,7 +144,12 @@ pub enum AstNode {
     /// Use statement for importing paths.
     Use { path: Vec<String> },
     /// Type alias definition.
-    TypeAlias { name: String, ty: String },
+    TypeAlias {
+        name: String,
+        ty: String,
+        /// Visibility: true for public, false for private (default)
+        pub_: bool,
+    },
     /// Unary operation on an expression.
     UnaryOp { op: String, expr: Box<AstNode> },
     /// Type cast expression.
@@ -202,6 +215,8 @@ pub enum AstNode {
         name: String,
         ty: String,
         value: Box<AstNode>,
+        /// Visibility: true for public, false for private (default)
+        pub_: bool,
     },
     /// Match expression with scrutinee and arms.
     Match {
