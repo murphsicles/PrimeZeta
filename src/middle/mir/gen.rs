@@ -753,7 +753,7 @@ impl MirGen {
                 self.exprs.insert(id, MirExpr::Var(id));
                 self.type_map.insert(id, "i64".to_string());
             }
-            AstNode::FieldAccess { base: _, field } => {
+            AstNode::FieldAccess { base: _, field: _ } => {
                 // TODO-20260327-001: Implement proper field access
                 // Temporary implementation for testing
                 // For now, return 0 for all field accesses

@@ -13,12 +13,12 @@ use nom::IResult;
 use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::combinator::{map, not, opt, peek, value};
+use nom::combinator::{map, opt, value, peek, not};
 use nom::multi::{many0, separated_list0};
 use nom::sequence::{delimited, preceded, terminated};
 
 fn parse_param(input: &str) -> IResult<&str, (String, String)> {
-    // Try to parse &self or &mut self first (without type annotation)
+    // Try to parse &self or &mut self first (must not be followed by :)
     let parse_self = alt((
         // &mut self (must not be followed by :)
         map(
@@ -94,10 +94,28 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
     println!("[PARSER DEBUG] parse_func: parsed attributes: {:?}", attrs);
 
     let (input, extern_opt) = opt(ws(tag("extern"))).parse(input)?;
+    println!(
+        "[PARSER DEBUG] parse_func: about to parse 'fn', input: {:?}",
+        &input[..input.len().min(30)]
+    );
     let (input, _) = ws(tag("fn")).parse(input)?;
+    println!(
+        "[PARSER DEBUG] parse_func: parsed 'fn', remaining: {:?}",
+        &input[..input.len().min(30)]
+    );
+    println!("[PARSER DEBUG] parse_func: about to parse path");
     let (input, path) = ws(parse_path).parse(input)?;
+    println!(
+        "[PARSER DEBUG] parse_func: parsed path: {:?}, remaining: {:?}",
+        path,
+        &input[..input.len().min(30)]
+    );
     let name = path.join("::");
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
+    println!(
+        "[PARSER DEBUG] parse_func: parsed generics, remaining: {:?}",
+        &input[..input.len().min(30)]
+    );
     let (input, params) = delimited(
         ws(tag("(")),
         terminated(

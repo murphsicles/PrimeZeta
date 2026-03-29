@@ -3,7 +3,7 @@
 //! Tests that generic types like Result<T, E> can be instantiated
 //! with concrete types like Result<i64, String>
 
-use zetac::middle::types::{Substitution, Type, TypeVar};
+use zetac::middle::types::{Type, TypeVar};
 
 #[test]
 fn test_generic_instantiation_basic() {
@@ -57,7 +57,7 @@ fn test_generic_instantiation_nested() {
 
     // Instantiate with Option<i32>
     let option_type = Type::Named("Option".to_string(), vec![Type::I32]);
-    let instantiated = vec_type.instantiate_generic(&[option_type.clone()]);
+    let instantiated = vec_type.instantiate_generic(std::slice::from_ref(&option_type));
 
     assert!(instantiated.is_ok());
     let instantiated_type = instantiated.unwrap();
@@ -117,7 +117,7 @@ fn test_generic_instantiation_in_function_type() {
     let concrete_func = Type::Function(vec![Type::I64], Box::new(Type::I64));
 
     // Instantiate Wrapper<F> with F = fn(i64) -> i64
-    let instantiated = wrapper_type.instantiate_generic(&[concrete_func.clone()]);
+    let instantiated = wrapper_type.instantiate_generic(std::slice::from_ref(&concrete_func));
 
     assert!(instantiated.is_ok());
     let instantiated_type = instantiated.unwrap();

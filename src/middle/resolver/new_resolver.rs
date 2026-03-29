@@ -394,13 +394,13 @@ impl InferContext {
             AstNode::Call {
                 receiver,
                 method,
-                args,
+                args: _,
                 ..
             } => {
                 if let Some(receiver_expr) = receiver {
                     // Method call: type check receiver and look up method
-                    let receiver_ty = self.infer(receiver_expr)?;
-                    
+                    let _receiver_ty = self.infer(receiver_expr)?;
+
                     // For now, just return a fresh type variable for method calls
                     // In a complete implementation, we would look up the method
                     // from the receiver type's method table

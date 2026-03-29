@@ -466,40 +466,81 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
             &input[..input.len().min(20)]
         );
         let dot_result = ws(tag(".")).parse(input);
-        println!("[PARSER DEBUG] parse_postfix: ws(tag(\".\")) result: {:?}", dot_result);
+        println!(
+            "[PARSER DEBUG] parse_postfix: ws(tag(\".\")) result: {:?}",
+            dot_result
+        );
         if let Ok((i, _)) = dot_result {
-            println!("[PARSER DEBUG] parse_postfix: matched '.', remaining: {:?}", &i[..i.len().min(20)]);
+            println!(
+                "[PARSER DEBUG] parse_postfix: matched '.', remaining: {:?}",
+                &i[..i.len().min(20)]
+            );
             let (j, field_or_method) = parse_ident(i)?;
-            println!("[PARSER DEBUG] parse_postfix: parsed ident '{}', remaining: {:?}", field_or_method, &j[..j.len().min(20)]);
+            println!(
+                "[PARSER DEBUG] parse_postfix: parsed ident '{}', remaining: {:?}",
+                field_or_method,
+                &j[..j.len().min(20)]
+            );
 
-            // Check if this is a method call (has parentheses) or field access
-            println!("[PARSER DEBUG] parse_postfix: checking for parentheses at: {:?}", &j[..j.len().min(20)]);
+            // Check for type arguments first (e.g., ::<i32>)
+            println!(
+                "[PARSER DEBUG] parse_postfix: checking for type arguments at: {:?}",
+                &j[..j.len().min(20)]
+            );
+            let (j2, type_args_opt) =
+                opt(ws(preceded(opt(tag("::")), parse_type_args))).parse(j)?;
+            let type_args: Vec<String> = type_args_opt.unwrap_or_default();
             
-            // First check if there's a '('
-            let args_opt = if let Ok((after_paren, _)) = ws(tag("(")).parse(j) {
+            println!(
+                "[PARSER DEBUG] parse_postfix: after type args check, remaining: {:?}",
+                &j2[..j2.len().min(20)]
+            );
+
+            // Now check if this is a method call (has parentheses) or field access
+            println!(
+                "[PARSER DEBUG] parse_postfix: checking for parentheses at: {:?}",
+                &j2[..j2.len().min(20)]
+            );
+
+            // Check if there's a '('
+            let args_opt = if let Ok((after_paren, _)) = ws(tag("(")).parse(j2) {
                 println!("[PARSER DEBUG] parse_postfix: found '(', parsing argument list");
                 // Parse argument list
-                let (after_args, args) = terminated(
-                    separated_list0(ws(tag(",")), ws(parse_expr)),
-                    opt(ws(tag(","))),
-                ).parse(after_paren)?;
-                
-                // Parse closing ')'
-                let (k, _) = ws(tag(")")).parse(after_args)?;
-                println!("[PARSER DEBUG] parse_postfix: parsed args: {:?}, remaining: {:?}", args, &k[..k.len().min(20)]);
-                (Some(args), k)
+                // Check if we have ')' immediately (empty argument list)
+                let close_paren_result = ws(tag(")")).parse(after_paren);
+                println!(
+                    "[PARSER DEBUG] parse_postfix: checking for ')', result: {:?}",
+                    close_paren_result
+                );
+                if let Ok((after_paren2, _)) = close_paren_result {
+                    println!("[PARSER DEBUG] parse_postfix: empty argument list");
+                    (Some(vec![]), after_paren2)
+                } else {
+                    // Parse non-empty argument list
+                    let (after_args, args) = terminated(
+                        separated_list1(ws(tag(",")), ws(parse_expr)),
+                        opt(ws(tag(","))),
+                    )
+                    .parse(after_paren)?;
+
+                    // Parse closing ')'
+                    let (k, _) = ws(tag(")")).parse(after_args)?;
+                    println!(
+                        "[PARSER DEBUG] parse_postfix: parsed args: {:?}, remaining: {:?}",
+                        args,
+                        &k[..k.len().min(20)]
+                    );
+                    (Some(args), k)
+                }
             } else {
                 println!("[PARSER DEBUG] parse_postfix: no '(', it's a field access");
-                (None, j)
+                (None, j2)
             };
-            
+
             let (args_opt_result, k) = args_opt;
 
             if let Some(args) = args_opt_result {
-                // It's a method call
-                let (k2, type_args_opt) =
-                    opt(ws(preceded(opt(tag("::")), parse_type_args))).parse(k)?;
-                let type_args: Vec<String> = type_args_opt.unwrap_or_default();
+                // It's a method call (with or without type arguments)
                 expr = AstNode::Call {
                     receiver: Some(Box::new(expr)),
                     method: field_or_method,
@@ -507,9 +548,10 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
                     type_args,
                     structural: false,
                 };
-                input = k2;
+                input = k;
             } else {
-                // It's field access
+                // It's field access (type arguments would be invalid here, but we parsed them anyway)
+                // For now, we'll ignore type_args for field access
                 expr = AstNode::FieldAccess {
                     base: Box::new(expr),
                     field: field_or_method,
@@ -564,6 +606,10 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
 
 // Parse expression without if (for use in if conditions to avoid left recursion)
 fn parse_expr_no_if(input: &str) -> IResult<&str, AstNode> {
+    println!(
+        "[PARSER DEBUG] parse_expr_no_if called, input: {:?}",
+        &input[..input.len().min(20)]
+    );
     let (mut input, mut term) = parse_postfix(input)?;
     loop {
         // Try to parse operator
@@ -715,8 +761,11 @@ pub fn parse_expr(input: &str) -> IResult<&str, AstNode> {
     );
 
     // Try if expression first
-    if let Ok((remaining, if_expr)) = parse_if(input) {
-        return Ok((remaining, if_expr));
+    match parse_if(input) {
+        Ok((remaining, if_expr)) => return Ok((remaining, if_expr)),
+        Err(e) => {
+            println!("[PARSER DEBUG] parse_expr: parse_if failed: {:?}", e);
+        }
     }
 
     // Otherwise parse normal expression

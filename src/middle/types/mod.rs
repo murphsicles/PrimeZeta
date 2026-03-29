@@ -241,38 +241,47 @@ pub fn handle_derive_attribute(attr: &str, type_name: &str) -> Result<Vec<String
     if !attr.starts_with("derive(") || !attr.ends_with(')') {
         return Err(format!("Not a derive attribute: {}", attr));
     }
-    
+
     let content = &attr[7..attr.len() - 1]; // Remove "derive(" and ")"
     let traits: Vec<&str> = content.split(',').map(|s| s.trim()).collect();
-    
+
     let mut implementations = Vec::new();
-    
+
     for trait_name in traits {
         match trait_name {
             "Copy" => {
                 implementations.push(format!("impl Copy for {} {{}}", type_name));
             }
             "Clone" => {
-                implementations.push(format!("impl Clone for {} {{
+                implementations.push(format!(
+                    "impl Clone for {} {{
     fn clone(&self) -> Self {{
         *self
     }}
-}}", type_name));
+}}",
+                    type_name
+                ));
             }
             "Debug" => {
-                implementations.push(format!("impl Debug for {} {{
+                implementations.push(format!(
+                    "impl Debug for {} {{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {{
         write!(f, \"{{:?}}\", self)
     }}
-}}", type_name));
+}}",
+                    type_name
+                ));
             }
             "PartialEq" => {
-                implementations.push(format!("impl PartialEq for {} {{
+                implementations.push(format!(
+                    "impl PartialEq for {} {{
     fn eq(&self, other: &Self) -> bool {{
         // Default implementation - would need field-by-field comparison
         true
     }}
-}}", type_name));
+}}",
+                    type_name
+                ));
             }
             "Eq" => {
                 implementations.push("// Eq is a marker trait with no methods".to_string());
@@ -282,7 +291,7 @@ pub fn handle_derive_attribute(attr: &str, type_name: &str) -> Result<Vec<String
             }
         }
     }
-    
+
     Ok(implementations)
 }
 

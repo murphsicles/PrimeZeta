@@ -1,5 +1,5 @@
 //! Integration test for generic instantiation with attributes
-//! 
+//!
 //! Tests that we can parse code with attributes and generic types
 
 use zetac::frontend::parser::top_level::parse_zeta;
@@ -18,14 +18,14 @@ fn test_generic_struct_with_attributes() {
             0
         }
     "#;
-    
+
     let result = parse_zeta(source);
     assert!(result.is_ok());
-    
+
     let (remaining, asts) = result.unwrap();
     assert!(remaining.is_empty());
     assert_eq!(asts.len(), 2);
-    
+
     // Check struct definition
     match &asts[0] {
         zetac::frontend::ast::AstNode::StructDef { name, attrs, .. } => {
@@ -35,7 +35,7 @@ fn test_generic_struct_with_attributes() {
         }
         _ => panic!("Expected StructDef, got {:?}", asts[0]),
     }
-    
+
     // Check function
     match &asts[1] {
         zetac::frontend::ast::AstNode::FuncDef { name, .. } => {
@@ -59,14 +59,14 @@ fn test_generic_enum_with_attributes() {
             Result::Ok(42)
         }
     "#;
-    
+
     let result = parse_zeta(source);
     assert!(result.is_ok());
-    
+
     let (remaining, asts) = result.unwrap();
     assert!(remaining.is_empty());
     assert_eq!(asts.len(), 2);
-    
+
     // Check enum definition
     match &asts[0] {
         zetac::frontend::ast::AstNode::EnumDef { name, attrs, .. } => {
@@ -76,7 +76,7 @@ fn test_generic_enum_with_attributes() {
         }
         _ => panic!("Expected EnumDef, got {:?}", asts[0]),
     }
-    
+
     // Check function with attribute
     match &asts[1] {
         zetac::frontend::ast::AstNode::FuncDef { name, attrs, .. } => {
@@ -102,21 +102,26 @@ fn test_concept_with_attributes() {
             value: i64,
         }
     "#;
-    
+
     let result = parse_zeta(source);
     assert!(result.is_ok());
-    
+
     let (remaining, asts) = result.unwrap();
     assert!(remaining.is_empty());
     assert_eq!(asts.len(), 2);
-    
+
     // Check concept definition
     match &asts[0] {
-        zetac::frontend::ast::AstNode::ConceptDef { name, attrs, methods, .. } => {
+        zetac::frontend::ast::AstNode::ConceptDef {
+            name,
+            attrs,
+            methods,
+            ..
+        } => {
             assert_eq!(name, "Copy");
             assert_eq!(attrs.len(), 1);
             assert_eq!(attrs[0], "marker");
-            
+
             // Check method attribute
             assert_eq!(methods.len(), 1);
             match &methods[0] {
@@ -130,7 +135,7 @@ fn test_concept_with_attributes() {
         }
         _ => panic!("Expected ConceptDef, got {:?}", asts[0]),
     }
-    
+
     // Check struct with derive attribute
     match &asts[1] {
         zetac::frontend::ast::AstNode::StructDef { name, attrs, .. } => {
@@ -153,20 +158,20 @@ fn test_impl_with_attributes() {
             }
         }
     "#;
-    
+
     let result = parse_zeta(source);
     assert!(result.is_ok());
-    
+
     let (remaining, asts) = result.unwrap();
     assert!(remaining.is_empty());
     assert_eq!(asts.len(), 1);
-    
+
     // Check impl block with attribute
     match &asts[0] {
         zetac::frontend::ast::AstNode::ImplBlock { attrs, body, .. } => {
             assert_eq!(attrs.len(), 1);
             assert_eq!(attrs[0], "allow(unused_variables)");
-            
+
             // Check method in impl with attribute
             assert_eq!(body.len(), 1);
             match &body[0] {
@@ -191,16 +196,21 @@ fn test_complex_attribute_syntax() {
             value
         }
     "#;
-    
+
     let result = parse_zeta(source);
     assert!(result.is_ok());
-    
+
     let (remaining, asts) = result.unwrap();
     assert!(remaining.is_empty());
     assert_eq!(asts.len(), 1);
-    
+
     match &asts[0] {
-        zetac::frontend::ast::AstNode::FuncDef { name, attrs, generics, .. } => {
+        zetac::frontend::ast::AstNode::FuncDef {
+            name,
+            attrs,
+            generics,
+            ..
+        } => {
             assert_eq!(name, "linux_only");
             assert_eq!(attrs.len(), 2);
             assert_eq!(attrs[0], "cfg(target_os = \"linux\")");

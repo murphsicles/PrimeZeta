@@ -21,16 +21,15 @@ pub enum OptLevel {
 pub fn dead_code_elimination(mir: &mut Mir) {
     let mut used = HashMap::new();
 
-    // Mark all expressions used in statements
+    // First pass: mark all expressions that are directly used
+    // (in returns, as arguments, etc.)
     for stmt in &mir.stmts {
         match stmt {
-            MirStmt::Assign { lhs: _, rhs } => {
-                // lhs is being defined, not used here
-                // Only mark it as used if something else uses it
-                mark_expr_used(*rhs, &mut used, &mir.exprs);
+            MirStmt::Assign { lhs: _, rhs: _ } => {
+                // Don't mark rhs yet - we'll handle it in the second pass
+                // after we know which variables are used
             }
             MirStmt::Call { args, dest: _, .. } => {
-                // dest is being defined (result of call), not used here
                 for arg in args {
                     mark_expr_used(*arg, &mut used, &mir.exprs);
                 }
@@ -68,7 +67,6 @@ pub fn dead_code_elimination(mir: &mut Mir) {
                 dest: _,
             } => {
                 mark_expr_used(*cond, &mut used, &mir.exprs);
-                // dest is being defined (result of if expression), not used here
                 // Recursively process nested statements
                 let mut nested_mir = Mir {
                     stmts: then.clone(),
@@ -88,7 +86,6 @@ pub fn dead_code_elimination(mir: &mut Mir) {
                 err_dest: _,
             } => {
                 mark_expr_used(*expr_id, &mut used, &mir.exprs);
-                // ok_dest and err_dest are being defined (results of try), not used here
             }
             MirStmt::DictInsert {
                 map_id,
@@ -106,10 +103,20 @@ pub fn dead_code_elimination(mir: &mut Mir) {
             } => {
                 mark_expr_used(*map_id, &mut used, &mir.exprs);
                 mark_expr_used(*key_id, &mut used, &mir.exprs);
-                // dest is being defined (retrieved value), not used here
             }
             MirStmt::MapNew { dest: _ } => {
-                // dest is being defined (new map), not used here
+                // Nothing to mark
+            }
+        }
+    }
+
+    // Second pass: propagate usage through assignments
+    // We need to iterate backwards because usage flows from later statements to earlier ones
+    for stmt in mir.stmts.iter().rev() {
+        if let MirStmt::Assign { lhs, rhs } = stmt {
+            // If the lhs is used, then mark the rhs as used
+            if used.contains_key(lhs) {
+                mark_expr_used(*rhs, &mut used, &mir.exprs);
             }
         }
     }
@@ -235,7 +242,6 @@ mod tests {
     use crate::middle::mir::mir::{Mir, MirExpr, MirStmt};
 
     #[test]
-    #[ignore = "Test needs debugging - assertion failure"]
     fn test_dead_code_elimination() {
         let mut mir = Mir {
             stmts: vec![
