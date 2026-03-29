@@ -244,6 +244,8 @@ fn parse_variant(input: &str) -> IResult<&str, (String, Vec<String>)> {
 fn parse_enum(input: &str) -> IResult<&str, AstNode> {
     let (input, _) = ws(tag("enum")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
+    // Parse generic parameters if present (e.g., <T> or <T, E>)
+    let (input, _) = opt(ws(parse_generic_params)).parse(input)?;
     let (input, variants) = delimited(
         ws(tag("{")),
         terminated(
@@ -273,6 +275,8 @@ fn parse_struct_field(input: &str) -> IResult<&str, (String, String)> {
 fn parse_struct(input: &str) -> IResult<&str, AstNode> {
     let (input, _) = ws(tag("struct")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
+    // Parse generic parameters if present
+    let (input, _) = opt(ws(parse_generic_params)).parse(input)?;
     let (input, fields) = delimited(
         ws(tag("{")),
         terminated(

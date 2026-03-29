@@ -14,17 +14,18 @@ pub struct OptionPtr(*mut u8);
 /// The returned pointer must be freed with `option_free` to avoid memory leaks.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn option_make_some(data: i64) -> *mut u8 {
-    // Allocate space for tag (1 byte) + data (8 bytes)
-    let layout = Layout::from_size_align(9, 8).unwrap();
+    // Allocate space for tag (1 byte) + padding (7 bytes) + data (8 bytes)
+    // Total 16 bytes with 8-byte alignment
+    let layout = Layout::from_size_align(16, 8).unwrap();
     let ptr = unsafe { alloc(layout) };
 
-    // Set tag to 1 (Some)
+    // Set tag to 1 (Some) at offset 0
     unsafe {
         *ptr = 1;
     }
 
-    // Store data
-    let data_ptr = unsafe { ptr.add(1) as *mut i64 };
+    // Store data at offset 8 (8-byte aligned)
+    let data_ptr = unsafe { ptr.add(8) as *mut i64 };
     unsafe {
         *data_ptr = data;
     }
