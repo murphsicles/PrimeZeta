@@ -235,6 +235,57 @@ impl Type {
     }
 }
 
+/// Simple derive attribute handler
+/// This is a basic implementation that recognizes common derive attributes
+pub fn handle_derive_attribute(attr: &str, type_name: &str) -> Result<Vec<String>, String> {
+    if !attr.starts_with("derive(") || !attr.ends_with(')') {
+        return Err(format!("Not a derive attribute: {}", attr));
+    }
+    
+    let content = &attr[7..attr.len() - 1]; // Remove "derive(" and ")"
+    let traits: Vec<&str> = content.split(',').map(|s| s.trim()).collect();
+    
+    let mut implementations = Vec::new();
+    
+    for trait_name in traits {
+        match trait_name {
+            "Copy" => {
+                implementations.push(format!("impl Copy for {} {{}}", type_name));
+            }
+            "Clone" => {
+                implementations.push(format!("impl Clone for {} {{
+    fn clone(&self) -> Self {{
+        *self
+    }}
+}}", type_name));
+            }
+            "Debug" => {
+                implementations.push(format!("impl Debug for {} {{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {{
+        write!(f, \"{{:?}}\", self)
+    }}
+}}", type_name));
+            }
+            "PartialEq" => {
+                implementations.push(format!("impl PartialEq for {} {{
+    fn eq(&self, other: &Self) -> bool {{
+        // Default implementation - would need field-by-field comparison
+        true
+    }}
+}}", type_name));
+            }
+            "Eq" => {
+                implementations.push("// Eq is a marker trait with no methods".to_string());
+            }
+            _ => {
+                return Err(format!("Unsupported derive trait: {}", trait_name));
+            }
+        }
+    }
+    
+    Ok(implementations)
+}
+
 /// Substitution mapping type variables to types
 #[derive(Debug, Clone, Default)]
 pub struct Substitution {

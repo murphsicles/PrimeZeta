@@ -465,23 +465,39 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
             "[PARSER DEBUG] parse_postfix loop, input: {:?}",
             &input[..input.len().min(20)]
         );
-        if let Ok((i, _)) = ws(tag(".")).parse(input) {
+        let dot_result = ws(tag(".")).parse(input);
+        println!("[PARSER DEBUG] parse_postfix: ws(tag(\".\")) result: {:?}", dot_result);
+        if let Ok((i, _)) = dot_result {
+            println!("[PARSER DEBUG] parse_postfix: matched '.', remaining: {:?}", &i[..i.len().min(20)]);
             let (j, field_or_method) = parse_ident(i)?;
+            println!("[PARSER DEBUG] parse_postfix: parsed ident '{}', remaining: {:?}", field_or_method, &j[..j.len().min(20)]);
 
             // Check if this is a method call (has parentheses) or field access
-            let (k, args_opt) = opt(delimited(
-                ws(tag("(")),
-                terminated(
+            println!("[PARSER DEBUG] parse_postfix: checking for parentheses at: {:?}", &j[..j.len().min(20)]);
+            
+            // First check if there's a '('
+            let args_opt = if let Ok((after_paren, _)) = ws(tag("(")).parse(j) {
+                println!("[PARSER DEBUG] parse_postfix: found '(', parsing argument list");
+                // Parse argument list
+                let (after_args, args) = terminated(
                     separated_list0(ws(tag(",")), ws(parse_expr)),
                     opt(ws(tag(","))),
-                ),
-                ws(tag(")")),
-            ))
-            .parse(j)?;
+                ).parse(after_paren)?;
+                
+                // Parse closing ')'
+                let (k, _) = ws(tag(")")).parse(after_args)?;
+                println!("[PARSER DEBUG] parse_postfix: parsed args: {:?}, remaining: {:?}", args, &k[..k.len().min(20)]);
+                (Some(args), k)
+            } else {
+                println!("[PARSER DEBUG] parse_postfix: no '(', it's a field access");
+                (None, j)
+            };
+            
+            let (args_opt_result, k) = args_opt;
 
-            if let Some(args) = args_opt {
+            if let Some(args) = args_opt_result {
                 // It's a method call
-                let (k, type_args_opt) =
+                let (k2, type_args_opt) =
                     opt(ws(preceded(opt(tag("::")), parse_type_args))).parse(k)?;
                 let type_args: Vec<String> = type_args_opt.unwrap_or_default();
                 expr = AstNode::Call {
@@ -491,14 +507,14 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
                     type_args,
                     structural: false,
                 };
-                input = k;
+                input = k2;
             } else {
                 // It's field access
                 expr = AstNode::FieldAccess {
                     base: Box::new(expr),
                     field: field_or_method,
                 };
-                input = j;
+                input = k;
             }
         } else if let Ok((i, index)) =
             delimited(ws(tag("[")), ws(parse_expr), ws(tag("]"))).parse(input)
