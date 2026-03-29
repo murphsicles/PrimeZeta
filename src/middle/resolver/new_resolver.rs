@@ -357,6 +357,7 @@ impl InferContext {
 
             AstNode::FuncDef {
                 name,
+                params,
                 ret,
                 body,
                 ret_expr,
@@ -367,6 +368,12 @@ impl InferContext {
 
                 // Register function signature
                 self.functions.insert(name.clone(), return_ty.clone());
+
+                // Add parameters to variable context
+                for (param_name, param_type_str) in params {
+                    let param_ty = self.parse_type_string(param_type_str)?;
+                    self.declare(param_name.clone(), param_ty);
+                }
 
                 // Type check function body
                 for stmt in body {
@@ -384,12 +391,27 @@ impl InferContext {
                 Type::Tuple(vec![]) // Unit type
             }
 
-            AstNode::Call { method, .. } => {
-                // Look up function return type
-                if let Some(return_ty) = self.functions.get(method) {
-                    return_ty.clone()
+            AstNode::Call {
+                receiver,
+                method,
+                args,
+                ..
+            } => {
+                if let Some(receiver_expr) = receiver {
+                    // Method call: type check receiver and look up method
+                    let receiver_ty = self.infer(receiver_expr)?;
+                    
+                    // For now, just return a fresh type variable for method calls
+                    // In a complete implementation, we would look up the method
+                    // from the receiver type's method table
+                    Type::Variable(TypeVar::fresh())
                 } else {
-                    return Err(format!("Unknown function: {}", method));
+                    // Function call: look up function return type
+                    if let Some(return_ty) = self.functions.get(method) {
+                        return_ty.clone()
+                    } else {
+                        return Err(format!("Unknown function: {}", method));
+                    }
                 }
             }
 
@@ -436,9 +458,7 @@ impl InferContext {
                 // For now, return a fresh type variable for field access
                 // In a complete implementation, we would look up the field type
                 // from the struct definition
-                let field_ty = Type::Variable(TypeVar::fresh());
-
-                field_ty
+                Type::Variable(TypeVar::fresh())
             }
 
             _ => {
