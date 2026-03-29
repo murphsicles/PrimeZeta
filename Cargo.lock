@@ -2592,7 +2592,7 @@ dependencies = [
 
 [[package]]
 name = "zetac"
-version = "0.3.14"
+version = "0.3.15"
 dependencies = [
  "chalk-ir",
  "chalk-recursive",

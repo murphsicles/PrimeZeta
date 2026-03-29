@@ -60,10 +60,23 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
     // Generate MIR for all function definitions, not just main
     let mut mirs = Vec::new();
     for ast in &asts {
-        if let AstNode::FuncDef { name, .. } = ast {
-            let mir = resolver.lower_to_mir(ast);
-            mirs.push(mir);
-            println!("[DEBUG] Generated MIR for function: {}", name);
+        match ast {
+            AstNode::FuncDef { name, .. } => {
+                let mir = resolver.lower_to_mir(ast);
+                mirs.push(mir);
+                println!("[DEBUG] Generated MIR for function: {}", name);
+            }
+            AstNode::ImplBlock { body, .. } => {
+                // Generate MIR for functions inside impl blocks
+                for func in body {
+                    if let AstNode::FuncDef { name, .. } = func {
+                        let mir = resolver.lower_to_mir(func);
+                        mirs.push(mir);
+                        println!("[DEBUG] Generated MIR for impl function: {}", name);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 

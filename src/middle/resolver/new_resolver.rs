@@ -462,23 +462,30 @@ impl InferContext {
             }
 
             AstNode::PathCall {
-                path: _,
+                path,
                 method,
                 args: _,
             } => {
                 // Path call like Point::new(10, 20)
-                // For now, use simple method name
-                // TODO: Handle qualified names properly
+                // Try qualified name first: Type::method
+                let qualified_name = format!("{}::{}", path.join("::"), method);
 
-                // Look up function by simple name
-                if let Some(return_ty) = self.functions.get(method.as_str()) {
+                // Try qualified name first
+                if let Some(return_ty) = self.functions.get(&qualified_name) {
+                    return_ty.clone()
+                } else if let Some(return_ty) = self.functions.get(method.as_str()) {
+                    // Fall back to simple name
                     return_ty.clone()
                 } else {
-                    return Err(format!("Unknown function: {}", method));
+                    return Err(format!("Unknown function: {}", qualified_name));
                 }
             }
 
-            AstNode::ImplBlock { .. } => {
+            AstNode::ImplBlock { body, .. } => {
+                // Process functions in impl block to register them
+                for func in body {
+                    self.infer(func)?;
+                }
                 // Impl blocks don't have a type, they're declarations
                 // Return unit type
                 Type::Tuple(vec![])
