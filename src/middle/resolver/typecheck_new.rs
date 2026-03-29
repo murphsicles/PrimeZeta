@@ -151,6 +151,48 @@ impl NewTypeCheck for Resolver {
             return Type::Tuple(types);
         }
         
+        // Check for generic type: Vec<i32>, Option<T>, Result<T, E>
+        // Look for < followed by > with content in between
+        if let Some(open_angle) = s.find('<') {
+            if let Some(close_angle) = s.rfind('>') {
+                if open_angle < close_angle {
+                    let type_name = &s[..open_angle];
+                    let inner = &s[open_angle + 1..close_angle];
+                    
+                    // Parse type arguments, handling nested generics
+                    let mut args = Vec::new();
+                    let mut current = String::new();
+                    let mut depth = 0;
+                    
+                    for ch in inner.chars() {
+                        match ch {
+                            '<' => {
+                                depth += 1;
+                                current.push(ch);
+                            }
+                            '>' => {
+                                depth -= 1;
+                                current.push(ch);
+                            }
+                            ',' if depth == 0 => {
+                                if !current.is_empty() {
+                                    args.push(self.string_to_type(current.trim()));
+                                    current.clear();
+                                }
+                            }
+                            _ => current.push(ch),
+                        }
+                    }
+                    
+                    if !current.is_empty() {
+                        args.push(self.string_to_type(current.trim()));
+                    }
+                    
+                    return Type::Named(type_name.to_string(), args);
+                }
+            }
+        }
+        
         // Handle base types
         match s {
             "i64" => Type::I64,
@@ -350,6 +392,71 @@ mod tests {
             Type::Bool
         ]);
         assert_eq!(resolver.type_to_string(&complex_tuple), "(i64, &str, bool)");
+        
+        // Test generic types
+        assert_eq!(
+            resolver.string_to_type("Vec<i32>"),
+            Type::Named("Vec".to_string(), vec![Type::I32])
+        );
+        
+        assert_eq!(
+            resolver.string_to_type("Option<bool>"),
+            Type::Named("Option".to_string(), vec![Type::Bool])
+        );
+        
+        assert_eq!(
+            resolver.string_to_type("Result<i32, String>"),
+            Type::Named("Result".to_string(), vec![Type::I32, Type::Named("String".to_string(), Vec::new())])
+        );
+        
+        // Test nested generic types
+        assert_eq!(
+            resolver.string_to_type("Vec<Vec<i32>>"),
+            Type::Named("Vec".to_string(), vec![
+                Type::Named("Vec".to_string(), vec![Type::I32])
+            ])
+        );
+        
+        assert_eq!(
+            resolver.string_to_type("Option<Vec<bool>>"),
+            Type::Named("Option".to_string(), vec![
+                Type::Named("Vec".to_string(), vec![Type::Bool])
+            ])
+        );
+        
+        // Test generic types with complex type arguments
+        assert_eq!(
+            resolver.string_to_type("Vec<&str>"),
+            Type::Named("Vec".to_string(), vec![
+                Type::Ref(Box::new(Type::Str), crate::middle::types::Mutability::Immutable)
+            ])
+        );
+        
+        assert_eq!(
+            resolver.string_to_type("HashMap<String, i32>"),
+            Type::Named("HashMap".to_string(), vec![
+                Type::Named("String".to_string(), Vec::new()),
+                Type::I32
+            ])
+        );
+        
+        // Test generic type display
+        let vec_i32 = Type::Named("Vec".to_string(), vec![Type::I32]);
+        assert_eq!(resolver.type_to_string(&vec_i32), "Vec<i32>");
+        
+        let option_bool = Type::Named("Option".to_string(), vec![Type::Bool]);
+        assert_eq!(resolver.type_to_string(&option_bool), "Option<bool>");
+        
+        let result_i32_string = Type::Named("Result".to_string(), vec![
+            Type::I32,
+            Type::Named("String".to_string(), Vec::new())
+        ]);
+        assert_eq!(resolver.type_to_string(&result_i32_string), "Result<i32, String>");
+        
+        let nested_vec = Type::Named("Vec".to_string(), vec![
+            Type::Named("Vec".to_string(), vec![Type::I32])
+        ]);
+        assert_eq!(resolver.type_to_string(&nested_vec), "Vec<Vec<i32>>");
     }
 
     #[test]
