@@ -10,6 +10,7 @@
 //! This is the **foundational bedrock** for all future Zeta self-hosting.
 
 #![allow(clippy::missing_safety_doc)]
+#![allow(unused_variables)]
 //! Every line is optimized for speed, simplicity, and clarity.
 
 pub mod backend;
@@ -40,12 +41,6 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
 
     let (_, asts) = parse_zeta(code).map_err(|e| format!("Parse error: {:?}", e))?;
 
-    // DEBUG: Print ASTs
-    println!("[DEBUG] Parsed {} ASTs", asts.len());
-    for (i, ast) in asts.iter().enumerate() {
-        println!("[DEBUG] AST {}: {:?}", i, ast);
-    }
-
     let mut resolver = Resolver::new();
     for ast in &asts {
         resolver.register(ast.clone());
@@ -61,18 +56,16 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
     let mut mirs = Vec::new();
     for ast in &asts {
         match ast {
-            AstNode::FuncDef { name, .. } => {
+            AstNode::FuncDef { name: _, .. } => {
                 let mir = resolver.lower_to_mir(ast);
                 mirs.push(mir);
-                println!("[DEBUG] Generated MIR for function: {}", name);
             }
             AstNode::ImplBlock { body, .. } => {
                 // Generate MIR for functions inside impl blocks
                 for func in body {
-                    if let AstNode::FuncDef { name, .. } = func {
+                    if let AstNode::FuncDef { name: _, .. } = func {
                         let mir = resolver.lower_to_mir(func);
                         mirs.push(mir);
-                        println!("[DEBUG] Generated MIR for impl function: {}", name);
                     }
                 }
             }

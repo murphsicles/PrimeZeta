@@ -74,7 +74,7 @@ impl MirGen {
             self.stmts.push(MirStmt::Return { val: ret_val });
         }
 
-        let mir = Mir {
+        Mir {
             name: if let AstNode::FuncDef { name, .. } = ast {
                 Some(name.clone())
             } else {
@@ -93,19 +93,7 @@ impl MirGen {
             exprs: std::mem::take(&mut self.exprs),
             ctfe_consts: std::mem::take(&mut self.ctfe_consts),
             type_map: std::mem::take(&mut self.type_map),
-        };
-
-        println!("[MIR DEBUG] Generated MIR for function: {:?}", mir.name);
-        println!("[MIR DEBUG]   Statements: {}", mir.stmts.len());
-        for (i, stmt) in mir.stmts.iter().enumerate() {
-            println!("[MIR DEBUG]     Stmt[{}]: {:?}", i, stmt);
         }
-        println!("[MIR DEBUG]   Expressions: {}", mir.exprs.len());
-        for (id, expr) in &mir.exprs {
-            println!("[MIR DEBUG]     Expr[{}]: {:?}", id, expr);
-        }
-
-        mir
     }
 
     fn lower_ast(&mut self, ast: &AstNode) {
@@ -198,10 +186,7 @@ impl MirGen {
                 }
             }
             AstNode::If { cond, then, else_ } => {
-                println!("[MIR DEBUG] Processing If statement");
-                println!("[MIR DEBUG]   Condition expression: {:?}", cond);
                 let cond_id = self.lower_expr(cond);
-                println!("[MIR DEBUG]   Condition ID: {}", cond_id);
 
                 // Check if this is expression if (branches produce values) or statement if
                 // Simple heuristic: if any branch contains return, treat as statement
@@ -210,40 +195,23 @@ impl MirGen {
                 let mut else_has_return = false;
 
                 // Scan branches for returns
-                println!(
-                    "[MIR DEBUG]   Scanning then branch ({} statements)",
-                    then.len()
-                );
-                for (i, s) in then.iter().enumerate() {
-                    println!("[MIR DEBUG]     Then[{}]: {:?}", i, s);
+                for s in then.iter() {
                     if let AstNode::Return(_) = s {
                         then_has_return = true;
                         is_statement_if = true;
-                        println!("[MIR DEBUG]     Found return in then branch");
                         break;
                     }
                 }
-                println!(
-                    "[MIR DEBUG]   Scanning else branch ({} statements)",
-                    else_.len()
-                );
-                for (i, s) in else_.iter().enumerate() {
-                    println!("[MIR DEBUG]     Else[{}]: {:?}", i, s);
+                for s in else_.iter() {
                     if let AstNode::Return(_) = s {
                         else_has_return = true;
                         is_statement_if = true;
-                        println!("[MIR DEBUG]     Found return in else branch");
                         break;
                     }
                 }
-                println!(
-                    "[MIR DEBUG]   then_has_return: {}, else_has_return: {}, is_statement_if: {}",
-                    then_has_return, else_has_return, is_statement_if
-                );
 
                 let dest_id = if is_statement_if {
                     // Statement if: no destination needed
-                    println!("[MIR DEBUG]   Statement if -> dest: None");
                     None
                 } else {
                     // Expression if: create destination
@@ -374,7 +342,6 @@ impl MirGen {
 
     fn lower_expr(&mut self, expr: &AstNode) -> u32 {
         let id = self.next_id();
-        println!("[MIR DEBUG] lower_expr: ID={}, expr={:?}", id, expr);
         match expr {
             AstNode::Var(name) => {
                 if let Some(&existing) = self.name_to_id.get(name) {

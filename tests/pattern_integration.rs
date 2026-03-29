@@ -21,12 +21,12 @@ fn main() -> i64 {
     }
 }
 "#;
-    
+
     let result = compile_and_run_zeta(code);
     // This might fail because we don't have full enum support yet,
     // but the parsing should work
     println!("If-let integration test result: {:?}", result);
-    
+
     // Test match expression with tuple patterns
     let code = r#"
 fn main() -> i64 {
@@ -38,10 +38,10 @@ fn main() -> i64 {
     }
 }
 "#;
-    
+
     let result = compile_and_run_zeta(code);
     println!("Tuple pattern match test result: {:?}", result);
-    
+
     // Test pattern guards
     let code = r#"
 fn main() -> i64 {
@@ -54,7 +54,7 @@ fn main() -> i64 {
     }
 }
 "#;
-    
+
     let result = compile_and_run_zeta(code);
     println!("Pattern guard test result: {:?}", result);
 }

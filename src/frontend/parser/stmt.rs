@@ -14,8 +14,6 @@ use nom::combinator::{opt, peek};
 use nom::error::Error as NomError;
 use nom::sequence::{delimited, preceded};
 
-
-
 pub fn parse_block_body(input: &str) -> IResult<&str, Vec<AstNode>> {
     let mut body = vec![];
     let mut current = input;

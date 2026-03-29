@@ -1,9 +1,9 @@
 //! Comprehensive tests for pattern matching features
 
+use zetac::AstNode;
+use zetac::Resolver;
 use zetac::frontend::parser::expr::parse_expr;
 use zetac::frontend::parser::stmt::parse_stmt;
-use zetac::Resolver;
-use zetac::AstNode;
 
 #[test]
 fn test_if_let_syntax() {
@@ -12,20 +12,31 @@ if let Ok(value) = result {
     println!("Got value: {}", value);
 }
 "#;
-    
+
     // Parse the if-let statement
     let result = parse_stmt(code);
     assert!(result.is_ok(), "Failed to parse if-let: {:?}", result);
-    
+
     let (remaining, ast) = result.unwrap();
-    assert!(remaining.is_empty() || remaining.trim().is_empty(), "Didn't parse entire input: '{}'", remaining);
-    
+    assert!(
+        remaining.is_empty() || remaining.trim().is_empty(),
+        "Didn't parse entire input: '{}'",
+        remaining
+    );
+
     // Check it's an IfLet node
     match ast {
-        AstNode::IfLet { pattern, expr, then, else_ } => {
+        AstNode::IfLet {
+            pattern,
+            expr,
+            then,
+            else_,
+        } => {
             // Pattern should be a struct pattern for Result::Ok
             match &*pattern {
-                AstNode::StructPattern { variant, fields, .. } => {
+                AstNode::StructPattern {
+                    variant, fields, ..
+                } => {
                     assert_eq!(variant, "Ok");
                     assert_eq!(fields.len(), 1);
                     // The field should be a variable pattern "value"
@@ -37,7 +48,7 @@ if let Ok(value) = result {
                 }
                 _ => panic!("Expected StructPattern for Ok variant"),
             }
-            
+
             // Expression should be a variable "result"
             match &*expr {
                 AstNode::Var(name) => {
@@ -45,10 +56,10 @@ if let Ok(value) = result {
                 }
                 _ => panic!("Expected variable 'result'"),
             }
-            
+
             // Then block should not be empty
             assert!(!then.is_empty());
-            
+
             // Else should be empty (no else clause)
             assert!(else_.is_empty());
         }
@@ -65,13 +76,21 @@ match point {
     _ => 0,
 }
 "#;
-    
+
     let result = parse_expr(code);
-    assert!(result.is_ok(), "Failed to parse match with struct pattern: {:?}", result);
-    
+    assert!(
+        result.is_ok(),
+        "Failed to parse match with struct pattern: {:?}",
+        result
+    );
+
     let (remaining, ast) = result.unwrap();
-    assert!(remaining.is_empty() || remaining.trim().is_empty(), "Didn't parse entire input: '{}'", remaining);
-    
+    assert!(
+        remaining.is_empty() || remaining.trim().is_empty(),
+        "Didn't parse entire input: '{}'",
+        remaining
+    );
+
     // Check it's a Match node
     match ast {
         AstNode::Match { scrutinee, arms } => {
@@ -82,15 +101,18 @@ match point {
                 }
                 _ => panic!("Expected variable 'point'"),
             }
-            
+
             // Should have 3 arms
             assert_eq!(arms.len(), 3);
-            
+
             // First arm: Point { x, y }
-            if let AstNode::StructPattern { variant, fields, .. } = &*arms[0].pattern {
+            if let AstNode::StructPattern {
+                variant, fields, ..
+            } = &*arms[0].pattern
+            {
                 assert_eq!(variant, "Point");
                 assert_eq!(fields.len(), 2);
-                
+
                 // Check field names
                 let field_names: Vec<&String> = fields.iter().map(|(name, _)| name).collect();
                 assert!(field_names.contains(&&"x".to_string()));
@@ -98,12 +120,15 @@ match point {
             } else {
                 panic!("Expected StructPattern for first arm");
             }
-            
+
             // Second arm: Point { x: 0, y }
-            if let AstNode::StructPattern { variant, fields, .. } = &*arms[1].pattern {
+            if let AstNode::StructPattern {
+                variant, fields, ..
+            } = &*arms[1].pattern
+            {
                 assert_eq!(variant, "Point");
                 assert_eq!(fields.len(), 2);
-                
+
                 // One field should have a literal pattern
                 let mut found_literal = false;
                 let mut found_variable = false;
@@ -112,11 +137,11 @@ match point {
                         if let AstNode::Lit(0) = pat {
                             found_literal = true;
                         }
-                    } else if name == "y" {
-                        if let AstNode::Var(var_name) = pat {
-                            assert_eq!(var_name, "y");
-                            found_variable = true;
-                        }
+                    } else if name == "y"
+                        && let AstNode::Var(var_name) = pat
+                    {
+                        assert_eq!(var_name, "y");
+                        found_variable = true;
                     }
                 }
                 assert!(found_literal, "Expected literal pattern for x: 0");
@@ -124,7 +149,7 @@ match point {
             } else {
                 panic!("Expected StructPattern for second arm");
             }
-            
+
             // Third arm: wildcard
             match &*arms[2].pattern {
                 AstNode::Ignore => {
@@ -147,13 +172,21 @@ match coordinates {
     _ => 0,
 }
 "#;
-    
+
     let result = parse_expr(code);
-    assert!(result.is_ok(), "Failed to parse match with tuple pattern: {:?}", result);
-    
+    assert!(
+        result.is_ok(),
+        "Failed to parse match with tuple pattern: {:?}",
+        result
+    );
+
     let (remaining, ast) = result.unwrap();
-    assert!(remaining.is_empty() || remaining.trim().is_empty(), "Didn't parse entire input: '{}'", remaining);
-    
+    assert!(
+        remaining.is_empty() || remaining.trim().is_empty(),
+        "Didn't parse entire input: '{}'",
+        remaining
+    );
+
     match ast {
         AstNode::Match { scrutinee, arms } => {
             match &*scrutinee {
@@ -162,9 +195,9 @@ match coordinates {
                 }
                 _ => panic!("Expected variable 'coordinates'"),
             }
-            
+
             assert_eq!(arms.len(), 4);
-            
+
             // First arm: (x, y) tuple pattern
             match &*arms[0].pattern {
                 AstNode::Tuple(patterns) => {
@@ -180,13 +213,13 @@ match coordinates {
                 }
                 _ => panic!("Expected tuple pattern for first arm"),
             }
-            
+
             // Second arm: (0, y)
             match &*arms[1].pattern {
                 AstNode::Tuple(patterns) => {
                     assert_eq!(patterns.len(), 2);
                     match &patterns[0] {
-                        AstNode::Lit(0) => {}, // Good
+                        AstNode::Lit(0) => {} // Good
                         _ => panic!("Expected literal 0"),
                     }
                     match &patterns[1] {
@@ -210,26 +243,34 @@ match value {
     _ => "zero",
 }
 "#;
-    
+
     let result = parse_expr(code);
-    assert!(result.is_ok(), "Failed to parse match with pattern guards: {:?}", result);
-    
+    assert!(
+        result.is_ok(),
+        "Failed to parse match with pattern guards: {:?}",
+        result
+    );
+
     let (remaining, ast) = result.unwrap();
-    assert!(remaining.is_empty() || remaining.trim().is_empty(), "Didn't parse entire input: '{}'", remaining);
-    
+    assert!(
+        remaining.is_empty() || remaining.trim().is_empty(),
+        "Didn't parse entire input: '{}'",
+        remaining
+    );
+
     match ast {
         AstNode::Match { arms, .. } => {
             assert_eq!(arms.len(), 3);
-            
+
             // First arm should have a guard
             assert!(arms[0].guard.is_some());
-            
+
             // Second arm should have a guard
             assert!(arms[1].guard.is_some());
-            
+
             // Third arm should not have a guard
             assert!(arms[2].guard.is_none());
-            
+
             // Check the guard expressions
             if let Some(guard) = &arms[0].guard {
                 // Should be a binary operation x > 0
@@ -241,7 +282,7 @@ match value {
                             _ => panic!("Expected variable 'x' in guard"),
                         }
                         match &**right {
-                            AstNode::Lit(0) => {}, // Good
+                            AstNode::Lit(0) => {} // Good
                             _ => panic!("Expected literal 0 in guard"),
                         }
                     }
@@ -261,20 +302,30 @@ match result {
     Err(msg) => 0,
 }
 "#;
-    
+
     let result = parse_expr(code);
-    assert!(result.is_ok(), "Failed to parse match with tuple struct pattern: {:?}", result);
-    
+    assert!(
+        result.is_ok(),
+        "Failed to parse match with tuple struct pattern: {:?}",
+        result
+    );
+
     let (remaining, ast) = result.unwrap();
-    assert!(remaining.is_empty() || remaining.trim().is_empty(), "Didn't parse entire input: '{}'", remaining);
-    
+    assert!(
+        remaining.is_empty() || remaining.trim().is_empty(),
+        "Didn't parse entire input: '{}'",
+        remaining
+    );
+
     match ast {
         AstNode::Match { arms, .. } => {
             assert_eq!(arms.len(), 2);
-            
+
             // First arm: Ok(value) - tuple struct pattern
             match &*arms[0].pattern {
-                AstNode::StructPattern { variant, fields, .. } => {
+                AstNode::StructPattern {
+                    variant, fields, ..
+                } => {
                     assert_eq!(variant, "Ok");
                     assert_eq!(fields.len(), 1);
                     // Should be indexed as "0" for tuple struct
@@ -295,26 +346,32 @@ match result {
 fn test_pattern_type_checking() {
     // This test requires a resolver to type check patterns
     let mut resolver = Resolver::new();
-    
+
     // Test simple variable pattern
     let code = "let x = 42;";
     let result = parse_stmt(code);
     assert!(result.is_ok());
-    
+
     let (_, ast) = result.unwrap();
     let typecheck_result = resolver.typecheck(&[ast]);
-    assert!(typecheck_result, "Type checking should succeed for simple let");
-    
+    assert!(
+        typecheck_result,
+        "Type checking should succeed for simple let"
+    );
+
     // Test tuple pattern
     let code = "let (x, y) = (1, 2);";
     let result = parse_stmt(code);
     assert!(result.is_ok());
-    
+
     let (_, ast) = result.unwrap();
     resolver = Resolver::new(); // Fresh resolver
     let typecheck_result = resolver.typecheck(&[ast]);
-    assert!(typecheck_result, "Type checking should succeed for tuple pattern");
-    
+    assert!(
+        typecheck_result,
+        "Type checking should succeed for tuple pattern"
+    );
+
     // Test if-let
     let code = r#"
 if let Some(value) = maybe_value {
@@ -323,7 +380,7 @@ if let Some(value) = maybe_value {
 "#;
     let result = parse_stmt(code);
     assert!(result.is_ok());
-    
+
     let (_, ast) = result.unwrap();
     resolver = Resolver::new(); // Fresh resolver
     let typecheck_result = resolver.typecheck(&[ast]);

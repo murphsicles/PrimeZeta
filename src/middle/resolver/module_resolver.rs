@@ -49,6 +49,47 @@ impl ModuleResolver {
             return Err("Empty path".to_string());
         }
 
+        // Check for standard library imports: `use zorb::std::option::Option;`
+        if path.len() >= 2 && path[0] == "zorb" && path[1] == "std" {
+            // This is a standard library import
+            // For `use zorb::std::option::Option`, path is ["zorb", "std", "option", "Option"]
+            // We need to resolve ["zorb", "std", "option"] to zorb/std/option.z
+
+            let module_path = if path.len() > 2 {
+                &path[..path.len() - 1] // Remove the last component (the item name)
+            } else {
+                path // Keep all if only 2 components
+            };
+
+            let mut stdlib_path = PathBuf::from("zorb/std");
+
+            // Add module path components (skip "zorb" and "std" which we already handled)
+            for component in module_path.iter().skip(2) {
+                stdlib_path.push(component);
+            }
+
+            // Try with .z extension
+            let mut z_path = stdlib_path.clone();
+            z_path.set_extension("z");
+
+            if z_path.exists() {
+                return Ok(z_path);
+            }
+
+            // Try as directory with mod.z
+            let mut mod_path = stdlib_path.clone();
+            mod_path.push("mod.z");
+
+            if mod_path.exists() {
+                return Ok(mod_path);
+            }
+
+            return Err(format!(
+                "Standard library module not found: {}",
+                path.join("::")
+            ));
+        }
+
         // Try to resolve the path without the last component
         let module_path = if path.len() > 1 {
             &path[..path.len() - 1]
@@ -138,25 +179,60 @@ impl ModuleResolver {
         let mut exports = HashMap::new();
         for ast in &asts {
             match ast {
-                AstNode::EnumDef { name, .. } => {
-                    println!("[MODULE RESOLVER] Found enum export: {}", name);
-                    exports.insert(name.clone(), ast.clone());
+                AstNode::EnumDef { name, pub_, .. } => {
+                    if *pub_ {
+                        println!("[MODULE RESOLVER] Found public enum export: {}", name);
+                        exports.insert(name.clone(), ast.clone());
+                    } else {
+                        println!(
+                            "[MODULE RESOLVER] Found private enum (not exported): {}",
+                            name
+                        );
+                    }
                 }
-                AstNode::StructDef { name, .. } => {
-                    println!("[MODULE RESOLVER] Found struct export: {}", name);
-                    exports.insert(name.clone(), ast.clone());
+                AstNode::StructDef { name, pub_, .. } => {
+                    if *pub_ {
+                        println!("[MODULE RESOLVER] Found public struct export: {}", name);
+                        exports.insert(name.clone(), ast.clone());
+                    } else {
+                        println!(
+                            "[MODULE RESOLVER] Found private struct (not exported): {}",
+                            name
+                        );
+                    }
                 }
-                AstNode::FuncDef { name, .. } => {
-                    println!("[MODULE RESOLVER] Found func export: {}", name);
-                    exports.insert(name.clone(), ast.clone());
+                AstNode::FuncDef { name, pub_, .. } => {
+                    if *pub_ {
+                        println!("[MODULE RESOLVER] Found public func export: {}", name);
+                        exports.insert(name.clone(), ast.clone());
+                    } else {
+                        println!(
+                            "[MODULE RESOLVER] Found private func (not exported): {}",
+                            name
+                        );
+                    }
                 }
-                AstNode::TypeAlias { name, .. } => {
-                    println!("[MODULE RESOLVER] Found type alias export: {}", name);
-                    exports.insert(name.clone(), ast.clone());
+                AstNode::TypeAlias { name, pub_, .. } => {
+                    if *pub_ {
+                        println!("[MODULE RESOLVER] Found public type alias export: {}", name);
+                        exports.insert(name.clone(), ast.clone());
+                    } else {
+                        println!(
+                            "[MODULE RESOLVER] Found private type alias (not exported): {}",
+                            name
+                        );
+                    }
                 }
-                AstNode::ConstDef { name, .. } => {
-                    println!("[MODULE RESOLVER] Found const export: {}", name);
-                    exports.insert(name.clone(), ast.clone());
+                AstNode::ConstDef { name, pub_, .. } => {
+                    if *pub_ {
+                        println!("[MODULE RESOLVER] Found public const export: {}", name);
+                        exports.insert(name.clone(), ast.clone());
+                    } else {
+                        println!(
+                            "[MODULE RESOLVER] Found private const (not exported): {}",
+                            name
+                        );
+                    }
                 }
                 _ => {}
             }

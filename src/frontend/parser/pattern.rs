@@ -1,8 +1,8 @@
 // src/frontend/parser/pattern.rs
 //! Module for parsing patterns in the Zeta language.
 
-use super::parser::{parse_ident, parse_path, skip_ws_and_comments, ws};
 use super::expr::parse_lit;
+use super::parser::{parse_ident, parse_path, skip_ws_and_comments, ws};
 use crate::frontend::ast::AstNode;
 use nom::IResult;
 use nom::Parser;
@@ -75,7 +75,7 @@ fn parse_tuple_struct_pattern(input: &str, variant: String) -> IResult<&str, Ast
         ws(tag(")")),
     )
     .parse(input)?;
-    
+
     Ok((
         input,
         AstNode::StructPattern {
@@ -101,9 +101,9 @@ fn parse_named_struct_pattern(input: &str, variant: String) -> IResult<&str, Ast
         ws(tag("}")),
     )
     .parse(input)?;
-    
+
     let (input, has_rest) = opt(preceded(ws(tag(",")), ws(tag("..")))).parse(input)?;
-    
+
     Ok((
         input,
         AstNode::StructPattern {
@@ -118,7 +118,7 @@ fn parse_named_struct_pattern(input: &str, variant: String) -> IResult<&str, Ast
 fn parse_field_pattern(input: &str) -> IResult<&str, (String, AstNode)> {
     let (input, name) = ws(parse_ident).parse(input)?;
     let (input, colon) = opt(ws(tag(":"))).parse(input)?;
-    
+
     let (input, pat) = if colon.is_some() {
         // Field with explicit pattern: `field: pattern`
         ws(parse_pattern).parse(input)?
@@ -126,6 +126,6 @@ fn parse_field_pattern(input: &str) -> IResult<&str, (String, AstNode)> {
         // Field shorthand: `field` is equivalent to `field: field`
         (input, AstNode::Var(name.clone()))
     };
-    
+
     Ok((input, (name, pat)))
 }

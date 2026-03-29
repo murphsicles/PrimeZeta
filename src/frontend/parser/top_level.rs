@@ -2,6 +2,7 @@
 //! Top-level parser for Zeta language constructs (functions, concepts, impls, etc.).
 //! Updated to correctly handle explicit `return` statements in function bodies
 //! without accidentally discarding them during implicit-return extraction.
+#![allow(unused_variables)]
 use super::expr::parse_full_expr;
 use super::parser::{
     parse_attributes, parse_generic_params, parse_ident, parse_path, parse_type,
@@ -93,7 +94,7 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
     let (input, attrs) = parse_attributes(input)?;
 
     // Parse visibility
-    let (input, pub_) = parse_visibility(input)?;
+    let (input, _pub_) = parse_visibility(input)?;
 
     let (input, extern_opt) = opt(ws(tag("extern"))).parse(input)?;
     let (input, _) = ws(tag("fn")).parse(input)?;
@@ -165,7 +166,7 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
 
 pub fn parse_type_alias(input: &str) -> IResult<&str, AstNode> {
     // Parse attributes
-    let (input, attrs) = parse_attributes(input)?;
+    let (input, _attrs) = parse_attributes(input)?;
 
     // Parse visibility
     let (input, pub_) = parse_visibility(input)?;
@@ -374,7 +375,7 @@ fn parse_struct(input: &str) -> IResult<&str, AstNode> {
 
 fn parse_const(input: &str) -> IResult<&str, AstNode> {
     // Parse attributes
-    let (input, attrs) = parse_attributes(input)?;
+    let (input, _attrs) = parse_attributes(input)?;
 
     // Parse visibility
     let (input, pub_) = parse_visibility(input)?;
