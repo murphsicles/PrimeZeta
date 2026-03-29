@@ -118,24 +118,29 @@
 4. Generic type instantiation
 
 ### v0.3.12 IMPLEMENTATION STARTED: Generic Type Support
-**Status: IMPLEMENTATION STARTED - Planning and initial analysis**
-**Current Time: 2026-03-29 04:00 GMT**
+**Status: IMPLEMENTATION STARTED - Planning and initial analysis complete**
+**Current Time: 2026-03-29 04:03 GMT**
 **Urgency: MEDIUM - Begin implementation**
 
+### Analysis Complete:
+1. **AST already supports generics**: `FuncDef`, `ConceptDef`, `ImplBlock` already have `generics: Vec<String>` fields
+2. **Type system ready**: `Type::Named(String, Vec<Type>)` variant already supports generic type arguments
+3. **Parser has foundation**: `parse_generic_params` and `parse_type_args` functions exist
+4. **Missing piece**: `string_to_type` and `parse_type_string` don't parse generic type syntax (e.g., `Vec<i32>`)
+
 ### v0.3.12 Implementation Plan:
-1. **Phase 1**: Extend AST for generic type parameters
-2. **Phase 2**: Update type parser to handle generic syntax
-3. **Phase 3**: Implement type inference for generics
-4. **Phase 4**: Add generic struct support
+1. **Phase 1**: Update `string_to_type` in `typecheck_new.rs` to parse generic type syntax
+2. **Phase 2**: Update `parse_type_string` in `new_resolver.rs` to parse generic type syntax  
+3. **Phase 3**: Add tests for generic type parsing
+4. **Phase 4**: Update type inference to handle generic type variables
 5. **Phase 5**: Create comprehensive test suite
 6. **Phase 6**: Update documentation and release
 
 ### v0.3.12 Implementation Actions:
-- [ ] **Extend AST** - Add generic type parameter nodes
-- [ ] **Update type parser** - Handle `fn foo<T>(x: T) -> T` syntax
-- [ ] **Implement type inference** - Generic type variable substitution
-- [ ] **Add generic structs** - `struct Pair<T, U> { first: T, second: U }`
-- [ ] **Create test suite** - Tests for generic type parsing and inference
+- [ ] **Update string_to_type** - Add parsing for `Vec<i32>`, `Option<T>`, etc.
+- [ ] **Update parse_type_string** - Add same parsing logic with error handling
+- [ ] **Add generic type tests** - Tests for parsing generic types
+- [ ] **Test type inference** - Ensure generic types work with type inference
 - [ ] **Update version** - Change Cargo.toml to 0.3.12
 - [ ] **Create release tag** - Tag v0.3.12
 - [ ] **Push to GitHub** - Commit and push changes
