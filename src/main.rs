@@ -74,15 +74,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if !remaining.is_empty() {
                     println!("Incomplete parse. Remaining: {}", remaining);
                 }
-                println!("Parsed {} asts", asts.len());
-
                 let mut resolver = Resolver::new();
                 for ast in &asts {
                     resolver.register(ast.clone());
                 }
 
                 let type_ok = resolver.typecheck(&asts);
-                println!("Typecheck ok: {}", type_ok);
                 if !type_ok {
                     return Err("Typecheck failed".into());
                 }
@@ -98,8 +95,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     })
                     .collect();
-
-                println!("mir_map len: {}", mir_map.len());
 
                 let mut used_specs = resolver.collect_used_specializations(&asts);
 
@@ -154,8 +149,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     final_mirs.insert(name, mir.clone());
                 }
                 let all_mirs: Vec<Mir> = final_mirs.values().cloned().collect();
-
-                println!("Total MIRs for codegen: {}", all_mirs.len());
 
                 let context = Context::create();
                 let mut codegen = LLVMCodegen::new(&context, "module");
