@@ -294,6 +294,23 @@ impl Substitution {
                 self.unify(inner1, inner2)
             }
 
+            // Named types (structs, enums, concepts)
+            (Type::Named(name1, args1), Type::Named(name2, args2)) => {
+                // Type names must match
+                if name1 != name2 {
+                    return Err(UnifyError::Mismatch(t1, t2));
+                }
+                // Arity must match
+                if args1.len() != args2.len() {
+                    return Err(UnifyError::ArityMismatch(args1.len(), args2.len()));
+                }
+                // Unify each type argument
+                for (arg1, arg2) in args1.iter().zip(args2) {
+                    self.unify(arg1, arg2)?;
+                }
+                Ok(())
+            }
+
             // Mismatch
             _ => Err(UnifyError::Mismatch(t1, t2)),
         }
