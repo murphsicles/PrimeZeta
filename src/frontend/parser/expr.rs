@@ -490,7 +490,7 @@ fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
             let (j2, type_args_opt) =
                 opt(ws(preceded(opt(tag("::")), parse_type_args))).parse(j)?;
             let type_args: Vec<String> = type_args_opt.unwrap_or_default();
-            
+
             println!(
                 "[PARSER DEBUG] parse_postfix: after type args check, remaining: {:?}",
                 &j2[..j2.len().min(20)]

@@ -13,7 +13,7 @@ use nom::IResult;
 use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::combinator::{map, opt, value, peek, not};
+use nom::combinator::{map, not, opt, peek, value};
 use nom::multi::{many0, separated_list0};
 use nom::sequence::{delimited, preceded, terminated};
 
