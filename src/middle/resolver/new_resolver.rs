@@ -228,12 +228,9 @@ impl InferContext {
     pub fn infer(&mut self, node: &AstNode) -> Result<Type, String> {
         let ty = match node {
             AstNode::Lit(n) => {
-                // Infer integer literal type
-                if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
-                    Type::I32
-                } else {
-                    Type::I64
-                }
+                // Integer literals default to i64 (Zeta v0.5.0 standard)
+                // This avoids type mismatches with const annotations
+                Type::I64
             }
 
             AstNode::FloatLit(_) => {
