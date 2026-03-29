@@ -227,7 +227,7 @@ impl InferContext {
     /// Infer type for AST node
     pub fn infer(&mut self, node: &AstNode) -> Result<Type, String> {
         let ty = match node {
-            AstNode::Lit(n) => {
+            AstNode::Lit(_n) => {
                 // Integer literals default to i64 (Zeta v0.5.0 standard)
                 // This avoids type mismatches with const annotations
                 Type::I64
@@ -481,9 +481,9 @@ mod tests {
     fn test_literal_inference() {
         let mut ctx = InferContext::new();
 
-        // Integer literal
+        // Integer literal - now defaults to i64 (Zeta v0.5.0 standard)
         let lit = AstNode::Lit(42);
-        assert_eq!(ctx.infer(&lit).unwrap(), Type::I32);
+        assert_eq!(ctx.infer(&lit).unwrap(), Type::I64);
 
         // Large integer
         let big_lit = AstNode::Lit(1_000_000_000_000);
@@ -502,13 +502,13 @@ mod tests {
     fn test_binary_operations() {
         let mut ctx = InferContext::new();
 
-        // 1 + 2
+        // 1 + 2 - now defaults to i64 (Zeta v0.5.0 standard)
         let add = AstNode::BinaryOp {
             op: "+".to_string(),
             left: Box::new(AstNode::Lit(1)),
             right: Box::new(AstNode::Lit(2)),
         };
-        assert_eq!(ctx.infer(&add).unwrap(), Type::I32);
+        assert_eq!(ctx.infer(&add).unwrap(), Type::I64);
 
         // 1 == 2
         let eq = AstNode::BinaryOp {
@@ -531,16 +531,16 @@ mod tests {
     fn test_variable_assignment() {
         let mut ctx = InferContext::new();
 
-        // x = 42
+        // x = 42 - now defaults to i64 (Zeta v0.5.0 standard)
         let assign = AstNode::Assign(
             Box::new(AstNode::Var("x".to_string())),
             Box::new(AstNode::Lit(42)),
         );
-        assert_eq!(ctx.infer(&assign).unwrap(), Type::I32);
+        assert_eq!(ctx.infer(&assign).unwrap(), Type::I64);
 
         // Now x should be defined
         let var = AstNode::Var("x".to_string());
-        assert_eq!(ctx.infer(&var).unwrap(), Type::I32);
+        assert_eq!(ctx.infer(&var).unwrap(), Type::I64);
     }
 
     #[test]

@@ -119,8 +119,8 @@
 
 ### v0.3.12 IMPLEMENTATION IN PROGRESS: Generic Type Support
 **Status: IMPLEMENTATION IN PROGRESS - Generic type parsing, module resolver, Option/Result runtime implemented**
-**Current Time: 2026-03-29 07:12 GMT**
-**Urgency: MEDIUM - Continue implementation**
+**Current Time: 2026-03-29 08:15 GMT**
+**Urgency: MEDIUM - Fix test failures and continue implementation**
 
 ### Progress Made:
 1. **Generic type parsing implemented**: ✅ `string_to_type` and `parse_type_string` now parse `Vec<i32>`, `Option<T>`, `Result<T, E>` syntax
@@ -131,6 +131,10 @@
 6. **Test suite expanded**: ✅ Comprehensive tests for generic types, borrow checking, and dereferencing
 7. **Parser improvements**: ✅ Enhanced unary operator parsing for `&`, `&mut`, `*` operators
 
+### Issues Identified:
+1. **Test failures**: 3 tests failing due to integer literal default type change (now i64 instead of i32)
+2. **Type inference tests**: Need to be updated to match new i64 default for integer literals
+
 ### v0.3.12 Implementation Plan:
 1. **Phase 1**: Update `string_to_type` in `typecheck_new.rs` to parse generic type syntax ✅
 2. **Phase 2**: Update `parse_type_string` in `new_resolver.rs` to parse generic type syntax ✅  
@@ -138,7 +142,7 @@
 4. **Phase 4**: Implement Zorb module resolver for `use` statements ✅
 5. **Phase 5**: Add Option/Result runtime support ✅
 6. **Phase 6**: Update MIR generation for enum variant matching ✅
-7. **Phase 7**: Update type inference to handle generic type variables
+7. **Phase 7**: Fix test failures - Update type inference tests to expect i64 for integer literals
 8. **Phase 8**: Create comprehensive test suite ✅
 9. **Phase 9**: Update documentation and release
 
@@ -152,7 +156,7 @@
 - [x] **Update MIR generation** - Support for enum variant matching
 - [x] **Update codegen** - LLVM codegen for Option/Result functions
 - [x] **Expand test suite** - Tests for borrow checking, dereferencing, reference types
-- [ ] **Test type inference** - Ensure generic types work with type inference
+- [ ] **Fix test failures** - Update type inference tests to expect i64 for integer literals
 - [ ] **Update version** - Change Cargo.toml to 0.3.12
 - [ ] **Create release tag** - Tag v0.3.12
 - [ ] **Push to GitHub** - Commit and push changes
