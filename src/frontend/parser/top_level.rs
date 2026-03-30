@@ -371,11 +371,11 @@ fn parse_struct(input: &str) -> IResult<&str, AstNode> {
     // Parse generic parameters if present
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
     let (lifetimes, type_generics) = generics_opt.unwrap_or((Vec::new(), Vec::new()));
-    
+
     // Parse where clause if present
     let (input, where_clauses_opt) = opt(ws(parse_where_clause)).parse(input)?;
     let where_clauses = where_clauses_opt.unwrap_or_default();
-    
+
     let (input, fields) = delimited(
         ws(tag("{")),
         terminated(
@@ -385,14 +385,14 @@ fn parse_struct(input: &str) -> IResult<&str, AstNode> {
         ws(tag("}")),
     )
     .parse(input)?;
-    
+
     // Note: where clauses are parsed but not yet stored in AST
     // This is a placeholder for future integration
     let _where_clauses_str: Vec<String> = where_clauses
         .into_iter()
         .map(|(param, bounds)| format!("{}: {}", param, bounds.join(" + ")))
         .collect();
-    
+
     Ok((
         input,
         AstNode::StructDef {

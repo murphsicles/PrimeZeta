@@ -33,11 +33,11 @@ pub struct LLVMCodegen<'ctx> {
     pub ptr_type: PointerType<'ctx>,
     pub locals: HashMap<u32, PointerValue<'ctx>>,
     pub fns: HashMap<String, FunctionValue<'ctx>>,
-    
+
     // NEW: Caches for monomorphized functions and types
     pub specialized_fns: HashMap<String, FunctionValue<'ctx>>,
     pub specialized_types: HashMap<String, inkwell::types::StructType<'ctx>>,
-    
+
     // NEW: Map from generic function names to their MIR definitions
     pub generic_defs: HashMap<String, crate::middle::mir::mir::Mir>,
 }
@@ -381,29 +381,33 @@ impl<'ctx> LLVMCodegen<'ctx> {
 
 impl<'ctx> LLVMCodegen<'ctx> {
     /// Mangle a function name with type arguments for monomorphization
-    fn mangle_function_name(&self, base_name: &str, type_args: &[crate::middle::types::Type]) -> String {
+    fn mangle_function_name(
+        &self,
+        base_name: &str,
+        type_args: &[crate::middle::types::Type],
+    ) -> String {
         if type_args.is_empty() {
             return base_name.to_string();
         }
-        
+
         let mut mangled = base_name.to_string();
         mangled.push_str("_inst");
-        
+
         for ty in type_args {
             mangled.push('_');
             mangled.push_str(&ty.mangled_name());
         }
-        
+
         mangled
     }
     pub fn gen_mirs(&mut self, mirs: &[Mir]) {
         // First pass: collect all functions
         for mir in mirs {
             let fn_name = mir.name.as_ref().cloned().unwrap_or("anon".to_string());
-            
+
             // Check if this is a generic function
             let is_generic = self.is_generic_function(mir);
-            
+
             if is_generic {
                 // Store generic definition for later instantiation
                 self.generic_defs.insert(fn_name.clone(), mir.clone());
@@ -417,7 +421,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 self.fns.insert(fn_name.clone(), fn_val);
             }
         }
-        
+
         // Second pass: generate non-generic function bodies
         for mir in mirs {
             if !self.is_generic_function(mir) {
@@ -737,32 +741,37 @@ impl<'ctx> LLVMCodegen<'ctx> {
     }
 
     /// Get function with type arguments for monomorphization
-    fn get_function_with_types(&mut self, name: &str, type_args: &[crate::middle::types::Type]) -> FunctionValue<'ctx> {
+    fn get_function_with_types(
+        &mut self,
+        name: &str,
+        type_args: &[crate::middle::types::Type],
+    ) -> FunctionValue<'ctx> {
         // If no type arguments, use regular lookup
         if type_args.is_empty() {
             return self.get_function(name);
         }
-        
+
         // Generate mangled name
         let mangled_name = self.mangle_function_name(name, type_args);
-        
+
         // Check cache first
         if let Some(&f) = self.specialized_fns.get(&mangled_name) {
             return f;
         }
-        
+
         // Check if we have a generic definition
         if let Some(generic_mir) = self.generic_defs.get(name) {
             // Clone the MIR to avoid borrowing issues
             let generic_mir_clone = generic_mir.clone();
             // Monomorphize the generic function
             let monomorphized_fn = self.monomorphize_function(&generic_mir_clone, name, type_args);
-            self.specialized_fns.insert(mangled_name.clone(), monomorphized_fn);
+            self.specialized_fns
+                .insert(mangled_name.clone(), monomorphized_fn);
             // Also add to regular functions map for future lookups
             self.fns.insert(mangled_name, monomorphized_fn);
             return monomorphized_fn;
         }
-        
+
         // Fallback: try regular lookup (for non-generic functions called with empty type_args)
         self.get_function(name)
     }
@@ -779,33 +788,33 @@ impl<'ctx> LLVMCodegen<'ctx> {
 
     /// Basic monomorphization implementation
     fn monomorphize_function(
-        &mut self, 
-        generic_mir: &crate::middle::mir::mir::Mir, 
-        name: &str, 
-        type_args: &[crate::middle::types::Type]
+        &mut self,
+        generic_mir: &crate::middle::mir::mir::Mir,
+        name: &str,
+        type_args: &[crate::middle::types::Type],
     ) -> FunctionValue<'ctx> {
         let mangled_name = self.mangle_function_name(name, type_args);
-        
+
         // Create function with mangled name
         let param_types: Vec<_> = (0..generic_mir.param_indices.len())
             .map(|_| self.i64_type.into())
             .collect();
         let fn_type = self.i64_type.fn_type(&param_types, false);
         let fn_val = self.module.add_function(&mangled_name, fn_type, None);
-        
+
         // Generate function body (simplified - just copy for now)
         // TODO: Implement proper type substitution
         // For now, we'll just generate the function as-is
         // In a real implementation, we would need to:
         // 1. Create a copy of the MIR with type substitutions
         // 2. Generate code from the substituted MIR
-        
+
         // Store the function in our maps
         self.fns.insert(mangled_name.clone(), fn_val);
-        
+
         // Note: We're not actually generating the body here yet
         // This is a placeholder that will need to be implemented properly
-        
+
         fn_val
     }
 
@@ -817,7 +826,10 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 self.builder.build_store(alloca, val).unwrap();
             }
             MirStmt::Call {
-                func, args, dest, type_args
+                func,
+                args,
+                dest,
+                type_args,
             } => {
                 // Handle call_i64 - actual function call dispatch
                 if func == "call_i64" && args.len() >= 2 {
