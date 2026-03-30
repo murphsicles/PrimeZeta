@@ -115,6 +115,9 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
     )
     .parse(input)?;
     let (input, ret_opt) = opt(preceded(ws(tag("->")), ws(parse_type))).parse(input)?;
+    // Parse where clause if present
+    let (input, where_clauses_opt) = opt(ws(parse_where_clause)).parse(input)?;
+    let where_clauses = where_clauses_opt.unwrap_or_default();
     let (input, (body, ret_expr, single_line)) = if extern_opt.is_some() {
         let (input, _) = ws(tag(";")).parse(input)?;
         (input, (vec![], None, false))
@@ -155,6 +158,7 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
             lifetimes,
             params,
             ret,
+            where_clauses,
         }
     } else {
         AstNode::FuncDef {
@@ -171,6 +175,7 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
             pub_: false,
             async_: async_opt.is_some(),
             const_: const_opt.is_some(),
+            where_clauses,
         }
     };
     Ok((input, ast))
@@ -199,6 +204,9 @@ fn parse_concept(input: &str) -> IResult<&str, AstNode> {
     let (input, name) = ws(parse_ident).parse(input)?;
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
     let (lifetimes, type_generics) = generics_opt.unwrap_or((Vec::new(), Vec::new()));
+    // Parse where clause if present
+    let (input, where_clauses_opt) = opt(ws(parse_where_clause)).parse(input)?;
+    let where_clauses = where_clauses_opt.unwrap_or_default();
     let (input, methods) =
         delimited(ws(tag("{")), many0(ws(parse_method_sig)), ws(tag("}"))).parse(input)?;
     Ok((
@@ -211,6 +219,7 @@ fn parse_concept(input: &str) -> IResult<&str, AstNode> {
             attrs,
             doc: "".to_string(),
             pub_: false,
+            where_clauses,
         },
     ))
 }
@@ -233,6 +242,9 @@ fn parse_method_sig(input: &str) -> IResult<&str, AstNode> {
     )
     .parse(input)?;
     let (input, ret_opt) = opt(preceded(ws(tag("->")), ws(parse_type))).parse(input)?;
+    // Parse where clause if present
+    let (input, where_clauses_opt) = opt(ws(parse_where_clause)).parse(input)?;
+    let where_clauses = where_clauses_opt.unwrap_or_default();
     let (input, _) = ws(tag(";")).parse(input)?;
     let ret = ret_opt.unwrap_or_else(|| "i64".to_string());
     Ok((
@@ -245,6 +257,7 @@ fn parse_method_sig(input: &str) -> IResult<&str, AstNode> {
             lifetimes,
             attrs,
             doc: "".to_string(),
+            where_clauses,
         },
     ))
 }
@@ -274,6 +287,9 @@ fn parse_impl(input: &str) -> IResult<&str, AstNode> {
             return Err(e);
         }
     };
+    // Parse where clause if present
+    let (input, where_clauses_opt) = opt(ws(parse_where_clause)).parse(input)?;
+    let where_clauses = where_clauses_opt.unwrap_or_default();
     let (input, body) =
         delimited(ws(tag("{")), many0(ws(parse_func)), ws(tag("}"))).parse(input)?;
     let (lifetimes, type_generics) = generics_opt.unwrap_or((Vec::new(), Vec::new()));
@@ -287,6 +303,7 @@ fn parse_impl(input: &str) -> IResult<&str, AstNode> {
             body,
             attrs,
             doc: "".to_string(),
+            where_clauses,
         },
     ))
 }
@@ -329,6 +346,9 @@ fn parse_enum(input: &str) -> IResult<&str, AstNode> {
     // Parse generic parameters if present (e.g., <T> or <T, E>)
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
     let (lifetimes, type_generics) = generics_opt.unwrap_or((Vec::new(), Vec::new()));
+    // Parse where clause if present
+    let (input, where_clauses_opt) = opt(ws(parse_where_clause)).parse(input)?;
+    let where_clauses = where_clauses_opt.unwrap_or_default();
     let (input, variants) = delimited(
         ws(tag("{")),
         terminated(
@@ -348,6 +368,7 @@ fn parse_enum(input: &str) -> IResult<&str, AstNode> {
             attrs,
             doc: "".to_string(),
             pub_,
+            where_clauses,
         },
     ))
 }
@@ -386,13 +407,6 @@ fn parse_struct(input: &str) -> IResult<&str, AstNode> {
     )
     .parse(input)?;
 
-    // Note: where clauses are parsed but not yet stored in AST
-    // This is a placeholder for future integration
-    let _where_clauses_str: Vec<String> = where_clauses
-        .into_iter()
-        .map(|(param, bounds)| format!("{}: {}", param, bounds.join(" + ")))
-        .collect();
-
     Ok((
         input,
         AstNode::StructDef {
@@ -403,6 +417,7 @@ fn parse_struct(input: &str) -> IResult<&str, AstNode> {
             attrs,
             doc: "".to_string(),
             pub_,
+            where_clauses,
         },
     ))
 }

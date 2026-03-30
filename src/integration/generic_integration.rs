@@ -279,7 +279,7 @@ impl GenericIntegration {
                 // Create a type variable for this generic parameter
                 // We need to track the mapping between param names and type vars
                 // For now, we'll create a fresh variable and assume it maps to the arg
-                let type_var = Type::Variable(TypeVar::fresh());
+                let type_var = TypeVar::fresh();
                 substitution.mapping.insert(type_var, arg.clone());
             }
         }

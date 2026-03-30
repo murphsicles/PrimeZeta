@@ -13,31 +13,31 @@ use zetac::middle::types::{Type, TypeVar};
 #[test]
 fn test_parser_type_system_integration() {
     println!("=== Test 1: Parser ↔ Type System Integration ===");
-    
+
     // Test 1.1: Parse generic struct
     let code = r#"
     struct Point<T> { x: T, y: T }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse generic struct");
-    
+
     let (remaining, ast) = result.unwrap();
     assert!(remaining.is_empty(), "Should parse entire input");
     assert!(!ast.is_empty(), "Should have AST nodes");
-    
+
     println!("✓ Generic struct parsed successfully");
-    
+
     // Test 1.2: Parse generic function
     let code = r#"
     fn identity<T>(x: T) -> T { x }
     "#;
-    
+
     let result = parse_zeta(code);
     assert!(result.is_ok(), "Should parse generic function");
-    
+
     println!("✓ Generic function parsed successfully");
-    
+
     // Test 1.3: Parse Vec::<i32>::new() syntax
     let code = r#"
     fn main() -> i64 {
@@ -45,7 +45,7 @@ fn test_parser_type_system_integration() {
         0
     }
     "#;
-    
+
     let result = parse_zeta(code);
     // This might fail if lt() syntax isn't fully supported
     if result.is_ok() {
@@ -60,15 +60,15 @@ fn test_parser_type_system_integration() {
 #[test]
 fn test_type_checker_integration() {
     println!("=== Test 2: Type Checker Integration ===");
-    
+
     // Create a simple generic type and test instantiation
     let t_var = Type::Variable(TypeVar::fresh());
     let vec_type = Type::Named("Vec".to_string(), vec![t_var.clone()]);
-    
+
     // Test instantiation with i32
     let instantiated = vec_type.instantiate_generic(&[Type::I32]);
     assert!(instantiated.is_ok(), "Should instantiate Vec<T> with i32");
-    
+
     let instantiated_type = instantiated.unwrap();
     match instantiated_type {
         Type::Named(name, args) => {
@@ -78,19 +78,19 @@ fn test_type_checker_integration() {
         }
         _ => panic!("Expected Named type"),
     }
-    
+
     println!("✓ Type checker accepts generic instantiation");
-    
+
     // Test generic function type unification
     let mut subst = zetac::middle::types::Substitution::new();
-    
+
     let t_var2 = Type::Variable(TypeVar::fresh());
     let generic_func = Type::Function(vec![t_var2.clone()], Box::new(t_var2.clone()));
     let concrete_func = Type::Function(vec![Type::I32], Box::new(Type::I32));
-    
+
     assert!(subst.unify(&generic_func, &concrete_func).is_ok());
     assert_eq!(subst.apply(&t_var2), Type::I32);
-    
+
     println!("✓ Type checker unifies generic function types");
 }
 
@@ -99,10 +99,10 @@ fn test_type_checker_integration() {
 #[test]
 fn test_basic_end_to_end() {
     println!("=== Test 3: Basic End-to-End Compilation ===");
-    
+
     // Note: This test might fail if codegen isn't fully integrated yet
     // We'll test what we can
-    
+
     // Test parsing and type checking of a simple generic program
     let code = r#"
     // Simple generic struct definition
@@ -115,11 +115,11 @@ fn test_basic_end_to_end() {
         c.value
     }
     "#;
-    
+
     let result = parse_zeta(code);
     if result.is_ok() {
         println!("✓ Simple generic program parsed successfully");
-        
+
         // Try to compile and run if possible
         // This might fail if codegen isn't ready for generics
         // Note: Full compilation test disabled for now
@@ -141,28 +141,31 @@ fn test_basic_end_to_end() {
 #[test]
 fn test_error_reporting_integration() {
     println!("=== Test 4: Error Reporting Integration ===");
-    
+
     // Test parsing error
     let bad_code = r#"
     struct Bad< { // Missing closing >
     "#;
-    
+
     let result = parse_zeta(bad_code);
     assert!(result.is_err(), "Should fail to parse malformed generic");
-    
+
     println!("✓ Parser reports syntax errors for malformed generics");
-    
+
     // Test type error (wrong number of type arguments)
     let t_var = Type::Variable(TypeVar::fresh());
     let e_var = Type::Variable(TypeVar::fresh());
     let result_type = Type::Named("Result".to_string(), vec![t_var, e_var]);
-    
+
     let instantiated = result_type.instantiate_generic(&[Type::I32]); // Only one arg, should fail
-    assert!(instantiated.is_err(), "Should fail with wrong number of type arguments");
-    
+    assert!(
+        instantiated.is_err(),
+        "Should fail with wrong number of type arguments"
+    );
+
     let error = instantiated.unwrap_err();
     assert!(error.contains("Wrong number of type arguments") || error.contains("arity"));
-    
+
     println!("✓ Type system reports wrong number of type arguments");
 }
 
@@ -171,10 +174,10 @@ fn test_error_reporting_integration() {
 #[test]
 fn test_integration_matrix() {
     println!("=== Test 5: Integration Test Matrix ===");
-    
+
     let mut passed = 0;
     let mut total = 0;
-    
+
     // Test matrix from INTEGRATION_TEST_PLAN.md
     let test_cases: Vec<(&str, fn())> = vec![
         ("Basic Generics", test_basic_generics as fn()),
@@ -182,16 +185,16 @@ fn test_integration_matrix() {
         ("Type Inference", test_type_inference as fn()),
         ("Error Messages", test_error_messages as fn()),
     ];
-    
+
     for (name, test_fn) in test_cases {
         total += 1;
         println!("Testing: {}", name);
-        
+
         // Run test in a separate thread to catch panics
         let result = std::panic::catch_unwind(|| {
             test_fn();
         });
-        
+
         if result.is_ok() {
             passed += 1;
             println!("  ✓ {}", name);
@@ -199,7 +202,7 @@ fn test_integration_matrix() {
             println!("  ✗ {} (panicked)", name);
         }
     }
-    
+
     println!("Integration test matrix: {}/{} passed", passed, total);
     assert!(passed > 0, "At least some integration tests should pass");
 }
@@ -208,7 +211,7 @@ fn test_integration_matrix() {
 fn test_basic_generics() {
     let t_var = Type::Variable(TypeVar::fresh());
     let vec_type = Type::Named("Vec".to_string(), vec![t_var]);
-    
+
     let instantiated = vec_type.instantiate_generic(&[Type::I32]);
     assert!(instantiated.is_ok());
 }
@@ -218,7 +221,7 @@ fn test_generic_functions() {
     let t_var = Type::Variable(TypeVar::fresh());
     let generic_func = Type::Function(vec![t_var.clone()], Box::new(t_var.clone()));
     let concrete_func = Type::Function(vec![Type::I32], Box::new(Type::I32));
-    
+
     assert!(subst.unify(&generic_func, &concrete_func).is_ok());
 }
 
@@ -226,7 +229,7 @@ fn test_type_inference() {
     // Simple type variable unification
     let mut subst = zetac::middle::types::Substitution::new();
     let t_var = Type::Variable(TypeVar::fresh());
-    
+
     assert!(subst.unify(&t_var, &Type::I32).is_ok());
     assert_eq!(subst.apply(&t_var), Type::I32);
 }
@@ -235,7 +238,7 @@ fn test_error_messages() {
     let t_var = Type::Variable(TypeVar::fresh());
     let e_var = Type::Variable(TypeVar::fresh());
     let result_type = Type::Named("Result".to_string(), vec![t_var, e_var]);
-    
+
     let instantiated = result_type.instantiate_generic(&[Type::I32]);
     assert!(instantiated.is_err());
 }
@@ -266,7 +269,7 @@ fn test_integration_progress_report() {
     println!("2. Test monomorphization in codegen");
     println!("3. Add integration tests for error flow");
     println!("\nNext 15-minute checkpoint: 22:30 GMT");
-    
+
     // This test always passes - it's just a report
     assert!(true);
 }

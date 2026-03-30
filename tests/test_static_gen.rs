@@ -14,7 +14,7 @@ fn main() {
             p.x + p.y
         }
     "#;
-    
+
     println!("Testing with standalone function...");
     match parse_zeta(code) {
         Ok((remaining, ast)) => {
@@ -23,7 +23,7 @@ fn main() {
                 return;
             }
             println!("Parse successful!");
-            
+
             // Try to compile and run
             match compile_and_run(&ast) {
                 Ok(result) => println!("Result: {}", result),
@@ -34,9 +34,9 @@ fn main() {
             println!("Parse error: {:?}", e);
         }
     }
-    
+
     println!("\n---\n");
-    
+
     let code2 = r#"
         struct Point { x: i64, y: i64 }
         
@@ -51,7 +51,7 @@ fn main() {
             p.x + p.y
         }
     "#;
-    
+
     println!("Testing with static method in impl block...");
     match parse_zeta(code2) {
         Ok((remaining, ast)) => {
@@ -60,7 +60,7 @@ fn main() {
                 return;
             }
             println!("Parse successful!");
-            
+
             // Try to compile and run
             match compile_and_run(&ast) {
                 Ok(result) => println!("Result: {}", result),

@@ -79,7 +79,8 @@ pub struct CoordinationManager {
     /// Integration bridge
     integration: Arc<Mutex<GenericIntegration>>,
     
-    /// Callback registry
+    /// Callback registry (reserved for future use)
+    #[allow(dead_code)]
     callbacks: HashMap<String, Box<dyn Fn(CoordinationMessage) + Send + Sync>>,
 }
 

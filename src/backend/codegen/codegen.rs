@@ -779,11 +779,23 @@ impl<'ctx> LLVMCodegen<'ctx> {
 
     /// Check if a function is generic
     fn is_generic_function(&self, mir: &crate::middle::mir::mir::Mir) -> bool {
-        // Check if function has type parameters in its signature
-        // For now, we can check if any call in the function has type_args
-        mir.stmts.iter().any(|stmt| match stmt {
-            crate::middle::mir::mir::MirStmt::Call { type_args, .. } => !type_args.is_empty(),
-            _ => false,
+        // Check if function has type parameters
+        // We need a better heuristic. For now, check if the function name
+        // contains generic type parameters in its type map.
+        // This is a temporary hack - we should store type parameters in MIR.
+        
+        // Look for type variables in the type map
+        mir.type_map.values().any(|ty| {
+            match ty {
+                crate::middle::types::Type::Variable(_) => true,
+                crate::middle::types::Type::Named(_, args) => {
+                    args.iter().any(|arg| match arg {
+                        crate::middle::types::Type::Variable(_) => true,
+                        _ => false,
+                    })
+                }
+                _ => false,
+            }
         })
     }
 

@@ -27,6 +27,8 @@ pub enum AstNode {
         doc: String,
         /// Visibility: true for public, false for private (default)
         pub_: bool,
+        /// Where clauses: e.g., where T: Clone, U: Debug + Display
+        where_clauses: Vec<(String, Vec<String>)>,
     },
     /// Implementation block for a concept on a type.
     ImplBlock {
@@ -37,6 +39,8 @@ pub enum AstNode {
         body: Vec<AstNode>,
         attrs: Vec<String>,
         doc: String,
+        /// Where clauses: e.g., where T: Clone, U: Debug + Display
+        where_clauses: Vec<(String, Vec<String>)>,
     },
     /// Method signature within a concept or implementation.
     Method {
@@ -47,6 +51,8 @@ pub enum AstNode {
         lifetimes: Vec<String>, // Lifetime parameters like 'a, 'b
         attrs: Vec<String>,
         doc: String,
+        /// Where clauses: e.g., where T: Clone, U: Debug + Display
+        where_clauses: Vec<(String, Vec<String>)>,
     },
     /// Function definition with parameters, return type, and body.
     FuncDef {
@@ -66,6 +72,8 @@ pub enum AstNode {
         async_: bool,
         /// Const flag: true for const functions (compile-time evaluable)
         const_: bool,
+        /// Where clauses: e.g., where T: Clone, U: Debug + Display
+        where_clauses: Vec<(String, Vec<String>)>,
     },
     ExternFunc {
         name: String,
@@ -73,6 +81,8 @@ pub enum AstNode {
         lifetimes: Vec<String>, // Lifetime parameters like 'a, 'b
         params: Vec<(String, String)>,
         ret: String,
+        /// Where clauses: e.g., where T: Clone, U: Debug + Display
+        where_clauses: Vec<(String, Vec<String>)>,
     },
     /// Enumeration definition with variants.
     EnumDef {
@@ -84,6 +94,8 @@ pub enum AstNode {
         doc: String,
         /// Visibility: true for public, false for private (default)
         pub_: bool,
+        /// Where clauses: e.g., where T: Clone, U: Debug + Display
+        where_clauses: Vec<(String, Vec<String>)>,
     },
     /// Structure definition with fields.
     StructDef {
@@ -95,6 +107,8 @@ pub enum AstNode {
         doc: String,
         /// Visibility: true for public, false for private (default)
         pub_: bool,
+        /// Where clauses: e.g., where T: Clone, U: Debug + Display
+        where_clauses: Vec<(String, Vec<String>)>,
     },
     /// Method or function call, with optional receiver and structural dispatch flag.
     Call {

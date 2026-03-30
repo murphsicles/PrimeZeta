@@ -146,6 +146,7 @@ impl Resolver {
                                             pub_: true, // Variant constructors are always public
                                             async_: false, // Variant constructors are not async
                                             const_: false, // Variant constructors are not const
+                                            where_clauses: vec![],
                                         };
 
                                         // Register the variant constructor
@@ -203,6 +204,7 @@ impl Resolver {
                 lifetimes: _,
                 params,
                 ret,
+                where_clauses: _,
             } => {
                 // Convert string types to Type enum
                 let typed_params: Vec<(String, Type)> = params

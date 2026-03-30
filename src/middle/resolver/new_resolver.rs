@@ -1393,6 +1393,7 @@ mod tests {
             attrs: Vec::new(),
             doc: "".to_string(),
             pub_: false,
+            where_clauses: vec![],
         };
 
         // Create an impl block with a static method
@@ -1412,9 +1413,11 @@ mod tests {
                 lifetimes: Vec::new(),
                 attrs: Vec::new(),
                 doc: "".to_string(),
+                where_clauses: Vec::new(),
             }],
             attrs: Vec::new(),
             doc: "".to_string(),
+            where_clauses: vec![],
         };
 
         // Process struct definition

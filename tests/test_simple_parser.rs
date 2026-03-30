@@ -22,7 +22,7 @@ fn main() {
             let v2 = v.push(42);
         }
     "#;
-    
+
     println!("Parsing code...");
     match parse_zeta(code) {
         Ok((remaining, ast)) => {

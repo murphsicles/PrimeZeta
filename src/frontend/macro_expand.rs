@@ -417,6 +417,7 @@ fn create_test_function(node: &AstNode) -> Result<AstNode, String> {
                 pub_: false,
                 async_: *async_,
                 const_: *const_,
+                where_clauses: Vec::new(),
             })
         }
         _ => Err("#[test] can only be used on functions".to_string()),
