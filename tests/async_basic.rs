@@ -9,7 +9,7 @@ mod tests {
     fn test_async_function_parsing() {
         let code = r#"
             async fn fetch() -> Result<i64, String> {
-                return Ok(42);
+                return Result::Ok(42);
             }
             
             fn main() -> i64 {
