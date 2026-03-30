@@ -1,0 +1,21 @@
+// Integration test for static method support
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+impl Point {
+    fn new(x: i32, y: i32) -> Point {
+        Point { x, y }
+    }
+    
+    fn sum(&self) -> i32 {
+        self.x + self.y
+    }
+}
+
+fn main() -> i32 {
+    // Test static method call
+    let p = Point::new(10, 20);
+    p.sum()
+}

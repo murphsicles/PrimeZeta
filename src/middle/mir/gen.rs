@@ -8,6 +8,7 @@
 use crate::frontend::ast::AstNode;
 use crate::middle::mir::mir::{Mir, MirExpr, MirStmt, SemiringOp};
 use crate::middle::specialization::MonoKey;
+use crate::middle::types::Type;
 use std::collections::HashMap;
 
 pub struct MirGen {
@@ -15,7 +16,7 @@ pub struct MirGen {
     stmts: Vec<MirStmt>,
     exprs: HashMap<u32, MirExpr>,
     ctfe_consts: HashMap<u32, i64>,
-    type_map: HashMap<u32, String>,
+    type_map: HashMap<u32, Type>,
     name_to_id: HashMap<String, u32>,
 }
 
@@ -42,7 +43,7 @@ impl MirGen {
                 let id = self.next_id();
                 self.name_to_id.insert(name.clone(), id);
                 self.exprs.insert(id, MirExpr::Var(id));
-                self.type_map.insert(id, "i64".to_string());
+                self.type_map.insert(id, Type::I64);
                 self.stmts.push(MirStmt::ParamInit {
                     param_id: id,
                     arg_index: i as u32,
@@ -108,7 +109,7 @@ impl MirGen {
                     });
                     self.name_to_id.insert(name.clone(), lhs_id);
                     self.exprs.insert(lhs_id, MirExpr::Var(lhs_id));
-                    self.type_map.insert(lhs_id, "i64".to_string());
+                    self.type_map.insert(lhs_id, Type::I64);
                 }
             }
             AstNode::Assign(lhs, rhs) => {
@@ -163,7 +164,7 @@ impl MirGen {
                     });
                 }
                 self.exprs.insert(map_id, MirExpr::Var(map_id));
-                self.type_map.insert(map_id, "map".to_string());
+                self.type_map.insert(map_id, Type::Named("map".to_string(), vec![]));
             }
             AstNode::Subscript { base, index } => {
                 let bid = self.lower_expr(base);
@@ -174,7 +175,7 @@ impl MirGen {
                     key_id: iid,
                     dest,
                 });
-                self.type_map.insert(dest, "i64".to_string());
+                self.type_map.insert(dest, Type::I64);
             }
             AstNode::FuncDef { body, ret_expr, .. } => {
                 for stmt in body {
@@ -218,7 +219,7 @@ impl MirGen {
                     let id = self.next_id();
 
                     self.exprs.insert(id, MirExpr::Var(id));
-                    self.type_map.insert(id, "i64".to_string());
+                    self.type_map.insert(id, Type::I64);
                     Some(id)
                 };
 
@@ -333,7 +334,7 @@ impl MirGen {
                     });
                     // Store the temp ID for implicit return to find
                     self.exprs.insert(temp_id, MirExpr::Var(temp_id));
-                    self.type_map.insert(temp_id, "i64".to_string());
+                    self.type_map.insert(temp_id, Type::I64);
                 }
             }
             _ => {}
@@ -348,20 +349,20 @@ impl MirGen {
                     return existing;
                 }
                 self.exprs.insert(id, MirExpr::Var(id));
-                self.type_map.insert(id, "i64".to_string());
+                self.type_map.insert(id, Type::I64);
             }
             AstNode::Lit(n) => {
                 self.exprs.insert(id, MirExpr::Lit(*n));
-                self.type_map.insert(id, "i64".to_string());
+                self.type_map.insert(id, Type::I32);
             }
             AstNode::StringLit(s) => {
                 self.exprs.insert(id, MirExpr::StringLit(s.clone()));
-                self.type_map.insert(id, "str".to_string());
+                self.type_map.insert(id, Type::Str);
             }
             AstNode::FString(parts) => {
                 let part_ids: Vec<_> = parts.iter().map(|p| self.lower_expr(p)).collect();
                 self.exprs.insert(id, MirExpr::FString(part_ids));
-                self.type_map.insert(id, "str".to_string());
+                self.type_map.insert(id, Type::Str);
             }
             AstNode::BinaryOp { op, left, right } => {
                 let left_id = self.lower_expr(left);
@@ -388,7 +389,7 @@ impl MirGen {
                     });
                 }
                 self.exprs.insert(dest, MirExpr::Var(dest));
-                self.type_map.insert(dest, "i64".to_string());
+                self.type_map.insert(dest, Type::I64);
                 return dest;
             }
             AstNode::Call {
@@ -426,7 +427,7 @@ impl MirGen {
                             });
 
                             self.exprs.insert(id, MirExpr::Var(id));
-                            self.type_map.insert(id, "i64".to_string());
+                            self.type_map.insert(id, Type::I64);
                             return id;
                         }
                         // Not a variable, fall through
@@ -441,7 +442,7 @@ impl MirGen {
                         self.type_map
                             .get(&rid)
                             .cloned()
-                            .unwrap_or_else(|| "i64".to_string()),
+                            .unwrap_or_else(|| Type::I64),
                     )
                 } else {
                     None
@@ -452,7 +453,7 @@ impl MirGen {
                 let func = if let Some(ref rty) = receiver_ty {
                     let key = MonoKey {
                         func_name: method.clone(),
-                        type_args: vec![rty.clone()],
+                        type_args: vec![rty.display_name()],
                     };
                     let mangled = key.mangle();
                     println!("[MIR GEN DEBUG] Method call, mangled to: {}", mangled);
@@ -468,7 +469,7 @@ impl MirGen {
                     type_args: receiver_ty.map(|t| vec![t]).unwrap_or_default(),
                 });
                 self.exprs.insert(id, MirExpr::Var(id));
-                self.type_map.insert(id, "i64".to_string());
+                self.type_map.insert(id, Type::I64);
             }
             AstNode::Match { scrutinee, arms } => {
                 // Lower the scrutinee expression
@@ -490,7 +491,7 @@ impl MirGen {
                             // For literal patterns, generate equality check
                             let pattern_id = self.next_id();
                             self.exprs.insert(pattern_id, MirExpr::Lit(*pattern_value));
-                            self.type_map.insert(pattern_id, "i64".to_string());
+                            self.type_map.insert(pattern_id, Type::I64);
 
                             // Create equality comparison: scrutinee == pattern
                             // This creates a call to the "==" operator
@@ -501,12 +502,12 @@ impl MirGen {
                                 type_args: vec![],
                             });
                             self.exprs.insert(cond_id, MirExpr::Var(cond_id));
-                            self.type_map.insert(cond_id, "bool".to_string());
+                            self.type_map.insert(cond_id, Type::Bool);
                         }
                         AstNode::Var(var_name) if var_name == "_" => {
                             // Wildcard pattern - always true
                             self.exprs.insert(cond_id, MirExpr::Lit(1));
-                            self.type_map.insert(cond_id, "bool".to_string());
+                            self.type_map.insert(cond_id, Type::Bool);
                         }
                         AstNode::Var(var_name) => {
                             // Check if this is an enum variant name like Option::None
@@ -519,7 +520,7 @@ impl MirGen {
                                 } else {
                                     // Should not happen
                                     self.exprs.insert(cond_id, MirExpr::Lit(0));
-                                    self.type_map.insert(cond_id, "bool".to_string());
+                                    self.type_map.insert(cond_id, Type::Bool);
                                     continue;
                                 };
 
@@ -533,7 +534,7 @@ impl MirGen {
                                 });
                                 self.exprs
                                     .insert(check_result_id, MirExpr::Var(check_result_id));
-                                self.type_map.insert(check_result_id, "bool".to_string());
+                                self.type_map.insert(check_result_id, Type::Bool);
 
                                 // Invert the check (None is not Some, Err is not Ok)
                                 let inverted_id = self.next_id();
@@ -544,20 +545,20 @@ impl MirGen {
                                     type_args: vec![],
                                 });
                                 self.exprs.insert(inverted_id, MirExpr::Var(inverted_id));
-                                self.type_map.insert(inverted_id, "bool".to_string());
+                                self.type_map.insert(inverted_id, Type::Bool);
 
                                 self.exprs.insert(cond_id, MirExpr::Var(inverted_id));
-                                self.type_map.insert(cond_id, "bool".to_string());
+                                self.type_map.insert(cond_id, Type::Bool);
                             } else if var_name == "_" {
                                 // Wildcard pattern - always true
                                 self.exprs.insert(cond_id, MirExpr::Lit(1));
-                                self.type_map.insert(cond_id, "bool".to_string());
+                                self.type_map.insert(cond_id, Type::Bool);
                             } else {
                                 // Regular variable binding pattern - always matches
                                 // Add binding to name_to_id so the arm body can reference it
                                 self.name_to_id.insert(var_name.clone(), scrutinee_id);
                                 self.exprs.insert(cond_id, MirExpr::Lit(1));
-                                self.type_map.insert(cond_id, "bool".to_string());
+                                self.type_map.insert(cond_id, Type::Bool);
                             }
                         }
                         AstNode::StructPattern {
@@ -582,7 +583,7 @@ impl MirGen {
                                 } else {
                                     // Unknown variant, treat as false
                                     self.exprs.insert(cond_id, MirExpr::Lit(0));
-                                    self.type_map.insert(cond_id, "bool".to_string());
+                                    self.type_map.insert(cond_id, Type::Bool);
                                     continue;
                                 };
 
@@ -596,7 +597,7 @@ impl MirGen {
                                 });
                                 self.exprs
                                     .insert(check_result_id, MirExpr::Var(check_result_id));
-                                self.type_map.insert(check_result_id, "bool".to_string());
+                                self.type_map.insert(check_result_id, Type::Bool);
 
                                 // For None and Err, we need to invert the check
                                 let final_check_id =
@@ -609,7 +610,7 @@ impl MirGen {
                                             type_args: vec![],
                                         });
                                         self.exprs.insert(inverted_id, MirExpr::Var(inverted_id));
-                                        self.type_map.insert(inverted_id, "bool".to_string());
+                                        self.type_map.insert(inverted_id, Type::Bool);
                                         inverted_id
                                     } else {
                                         check_result_id
@@ -639,13 +640,13 @@ impl MirGen {
                                             type_args: vec![],
                                         });
                                         self.exprs.insert(field_id, MirExpr::Var(field_id));
-                                        self.type_map.insert(field_id, "i64".to_string());
+                                        self.type_map.insert(field_id, Type::I64);
                                         self.name_to_id.insert(var_name.clone(), field_id);
                                     }
                                 }
 
                                 self.exprs.insert(cond_id, MirExpr::Var(final_check_id));
-                                self.type_map.insert(cond_id, "bool".to_string());
+                                self.type_map.insert(cond_id, Type::Bool);
                             } else {
                                 // For regular struct patterns, treat as always matching for now
                                 // Set up bindings for the field patterns
@@ -655,17 +656,17 @@ impl MirGen {
                                         let field_id = self.next_id();
                                         self.name_to_id.insert(var_name.clone(), field_id);
                                         self.exprs.insert(field_id, MirExpr::Lit(0)); // Placeholder
-                                        self.type_map.insert(field_id, "i64".to_string());
+                                        self.type_map.insert(field_id, Type::I64);
                                     }
                                 }
                                 self.exprs.insert(cond_id, MirExpr::Lit(1));
-                                self.type_map.insert(cond_id, "bool".to_string());
+                                self.type_map.insert(cond_id, Type::Bool);
                             }
                         }
                         _ => {
                             // For now, treat other patterns as always false
                             self.exprs.insert(cond_id, MirExpr::Lit(0));
-                            self.type_map.insert(cond_id, "bool".to_string());
+                            self.type_map.insert(cond_id, Type::Bool);
                         }
                     }
 
@@ -683,7 +684,7 @@ impl MirGen {
                             type_args: vec![],
                         });
                         self.exprs.insert(and_cond_id, MirExpr::Var(and_cond_id));
-                        self.type_map.insert(and_cond_id, "bool".to_string());
+                        self.type_map.insert(and_cond_id, Type::Bool);
 
                         and_cond_id
                     } else {
@@ -718,7 +719,7 @@ impl MirGen {
                 }
 
                 self.exprs.insert(id, MirExpr::Var(id));
-                self.type_map.insert(id, "i64".to_string());
+                self.type_map.insert(id, Type::I64);
             }
             AstNode::FieldAccess { base: _, field: _ } => {
                 // TODO-20260327-001: Implement proper field access
@@ -729,7 +730,7 @@ impl MirGen {
                 // 2. Look up the field in the struct
                 // 3. Return the field value
                 self.exprs.insert(id, MirExpr::Lit(0));
-                self.type_map.insert(id, "i64".to_string());
+                self.type_map.insert(id, Type::I64);
             }
             AstNode::StructLit { variant: _, fields } => {
                 // TODO-20260327-002: Implement proper struct literal creation
@@ -742,7 +743,7 @@ impl MirGen {
                     }
                 }
                 self.exprs.insert(id, MirExpr::Lit(sum));
-                self.type_map.insert(id, "i64".to_string());
+                self.type_map.insert(id, Type::I64);
             }
             AstNode::PathCall { path, method, args } => {
                 println!(
@@ -777,11 +778,11 @@ impl MirGen {
                 });
 
                 self.exprs.insert(id, MirExpr::Var(id));
-                self.type_map.insert(id, "i64".to_string());
+                self.type_map.insert(id, Type::I64);
             }
             _ => {
                 self.exprs.insert(id, MirExpr::Lit(0));
-                self.type_map.insert(id, "i64".to_string());
+                self.type_map.insert(id, Type::I64);
             }
         }
         id
@@ -796,7 +797,7 @@ impl MirGen {
     fn next_id_with_lit(&mut self, n: i64) -> u32 {
         let id = self.next_id();
         self.exprs.insert(id, MirExpr::Lit(n));
-        self.type_map.insert(id, "i64".to_string());
+        self.type_map.insert(id, Type::I64);
         id
     }
 }

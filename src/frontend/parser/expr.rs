@@ -199,19 +199,39 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
             opt(ws(preceded(opt(tag("::")), parse_type_args))).parse(input)?;
         let type_args: Vec<String> = type_args_opt.unwrap_or_default();
 
-        // Check if there's another :: for a method call after type arguments
+        // Check if there's another :: for a method call
+        // This can happen in two cases:
+        // 1. After type arguments: Vec::<i32>::new()
+        // 2. In a path without type arguments: Point::new()
         let (input, method_name) = if !type_args.is_empty() {
-            // After type arguments, we might have ::method
+            // Case 1: After type arguments, we must have ::method
             match opt(ws(tag("::"))).parse(input) {
                 Ok((i, Some(_))) => {
                     // Parse method name after ::
                     let (i, name) = parse_ident(i)?;
                     (i, Some(name))
                 }
-                _ => (input, None),
+                _ => {
+                    // No :: after type arguments, this is just a type reference
+                    return Ok((input, AstNode::Var(method)));
+                }
             }
         } else {
-            (input, None)
+            // Case 2: Check if this is a path call like Point::new()
+            // If path has multiple segments (e.g., ["Point", "new"]), it's already a path call
+            // If path has single segment but we have :: followed by identifier, parse it
+            let (i, has_sep) = match opt(ws(tag("::"))).parse(input) {
+                Ok((i, sep)) => (i, sep.is_some()),
+                Err(_) => (input, false),
+            };
+            
+            if has_sep {
+                // Parse method name after ::
+                let (i, name) = parse_ident(i)?;
+                (i, Some(name))
+            } else {
+                (input, None)
+            }
         };
 
         let (input, args_opt) = opt(delimited(
@@ -226,7 +246,8 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
 
         if let Some(args) = args_opt {
             if let Some(method_name) = method_name {
-                // This is a call with type arguments: Vec::<i32>::new(args)
+                // This is a call with a method name after ::
+                // Could be with or without type arguments
                 Ok((
                     input,
                     AstNode::Call {
@@ -238,7 +259,7 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
                     },
                 ))
             } else if path.len() >= 2 {
-                // Split into path and method (no type arguments case)
+                // Split into path and method (no type arguments case, path already has method)
                 let (method_path, method_name) = path.split_at(path.len() - 1);
                 Ok((
                     input,
@@ -262,6 +283,7 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
                 ))
             }
         } else {
+            // No arguments, check for struct literal
             let (input, fields_opt) = opt(delimited(
                 ws(tag("{")),
                 terminated(
@@ -280,7 +302,22 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
                         fields,
                     },
                 ))
+            } else if method_name.is_some() {
+                // We parsed ::ident after type arguments or path separator
+                // This could be:
+                // 1. A variant without arguments (e.g., Option::None)
+                // 2. A method call without parentheses (error)
+                // For now, treat it as a Var with the full path
+                let full_path = if !type_args.is_empty() {
+                    // With type arguments: Option::<bool>::None
+                    format!("{}::<{}>::{}", method, type_args.join(", "), method_name.unwrap())
+                } else {
+                    // Without type arguments: Option::None
+                    format!("{}::{}", method, method_name.unwrap())
+                };
+                Ok((input, AstNode::Var(full_path)))
             } else {
+                // Just a variable reference
                 Ok((input, AstNode::Var(method)))
             }
         }

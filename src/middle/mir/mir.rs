@@ -1,5 +1,6 @@
 // src/middle/mir/mir.rs
 use std::collections::HashMap;
+use crate::middle::types::Type;
 
 #[derive(Debug, Clone, Default)]
 pub struct Mir {
@@ -8,7 +9,7 @@ pub struct Mir {
     pub stmts: Vec<MirStmt>,
     pub exprs: HashMap<u32, MirExpr>,
     pub ctfe_consts: HashMap<u32, i64>,
-    pub type_map: HashMap<u32, String>,
+    pub type_map: HashMap<u32, Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -21,7 +22,7 @@ pub enum MirStmt {
         func: String,
         args: Vec<u32>,
         dest: u32,
-        type_args: Vec<String>,
+        type_args: Vec<Type>,
     },
     VoidCall {
         func: String,

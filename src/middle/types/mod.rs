@@ -414,6 +414,10 @@ impl Substitution {
             (Type::F32, Type::F32) => Ok(()),
             (Type::F64, Type::F64) => Ok(()),
 
+            // Safe numeric coercions (i32 can be coerced to i64, no precision loss)
+            (Type::I32, Type::I64) => Ok(()),
+            // Note: i64 to i32 is NOT safe (can overflow), so not allowed here
+
             // Type variable cases
             (Type::Variable(a), Type::Variable(b)) if a == b => Ok(()),
             (Type::Variable(a), _) => {

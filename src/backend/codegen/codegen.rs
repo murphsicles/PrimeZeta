@@ -617,6 +617,21 @@ impl<'ctx> LLVMCodegen<'ctx> {
         if let Some(&f) = self.fns.get(name) {
             return f;
         }
+        
+        // Handle Type::method names (static methods)
+        if name.contains("::") {
+            let mangled = name.replace("::", "_");
+            println!("[CODEGEN DEBUG] Mangled {} to {}", name, mangled);
+            if let Some(&f) = self.fns.get(&mangled) {
+                return f;
+            }
+            // Also try just the method name (function might be compiled as just "new")
+            let method_name = name.split("::").last().unwrap_or(name);
+            if let Some(&f) = self.fns.get(method_name) {
+                return f;
+            }
+        }
+        
         let mangled = if name.contains('_') {
             name.to_string()
         } else {
