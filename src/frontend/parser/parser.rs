@@ -115,6 +115,29 @@ pub fn parse_tuple_type(input: &str) -> IResult<&str, String> {
     Ok((input, s))
 }
 
+/// Parse array type: [T] or [T; N]
+pub fn parse_array_type(input: &str) -> IResult<&str, String> {
+    let (input, _) = ws(tag("[")).parse(input)?;
+    let (input, elem_type) = ws(parse_type).parse(input)?;
+    
+    // Check for fixed size array: [T; N]
+    let (input, size_opt) = opt(preceded(
+        ws(tag(";")),
+        ws(nom::character::complete::digit1),
+    ))
+    .parse(input)?;
+    
+    let (input, _) = ws(tag("]")).parse(input)?;
+    
+    let result = if let Some(size) = size_opt {
+        format!("[{}; {}]", elem_type, size)
+    } else {
+        format!("[{}]", elem_type)
+    };
+    
+    Ok((input, result))
+}
+
 pub fn parse_fn_type(input: &str) -> IResult<&str, String> {
     let (input, extern_opt) = opt(delimited(
         ws(tag("extern")),
@@ -146,23 +169,57 @@ pub fn parse_fn_type(input: &str) -> IResult<&str, String> {
     ))
 }
 
+/// Parse pointer types: *const T, *mut T
+pub fn parse_pointer_type(input: &str) -> IResult<&str, String> {
+    let (input, pointer_type) = alt((
+        ws(tag("*const")).map(|_| "*const"),
+        ws(tag("*mut")).map(|_| "*mut"),
+    ))
+    .parse(input)?;
+    
+    let (input, inner_type) = ws(parse_type).parse(input)?;
+    Ok((input, format!("{} {}", pointer_type, inner_type)))
+}
+
 pub fn parse_type(input: &str) -> IResult<&str, String> {
     let (mut input, mut s) = (input, String::new());
+    
+    // Parse references (can be multiple: &&T)
     loop {
+        // Try to parse &mut
         if let Ok((i, _)) = ws(tag("&mut")).parse(input) {
             s.push_str("&mut ");
             input = i;
-        } else if let Ok((i, _)) = ws(tag("&")).parse(input) {
+        } 
+        // Try to parse & with optional lifetime
+        else if let Ok((i, _)) = ws(tag("&")).parse(input) {
+            // Check for lifetime after &
+            let (i, lifetime_opt) = opt(parse_lifetime_param).parse(i)?;
+            
             s.push('&');
+            if let Some(lifetime) = lifetime_opt {
+                s.push_str(&lifetime);
+                s.push(' ');
+            }
+            
+            // Check for mut after lifetime
+            let (i, is_mut) = opt(ws(tag("mut"))).parse(i)?;
+            if is_mut.is_some() {
+                s.push_str("mut ");
+            }
+            
             input = i;
         } else {
             break;
         }
     }
+    
     let (input, base) = alt((
         tag("_").map(|_| "_".to_string()),
         parse_tuple_type,
         parse_fn_type,
+        parse_array_type,
+        parse_pointer_type,
         preceded(ws(tag("dyn")), ws(parse_type_path)).map(|p| format!("dyn {}", p)),
         // Built-in types
         tag("i64").map(|_| "i64".to_string()),
@@ -224,25 +281,46 @@ pub fn parse_lifetime_param(input: &str) -> IResult<&str, String> {
     Ok((input, format!("'{}", lifetime_name)))
 }
 
+/// Parse trait bounds: T: Clone + Display
+pub fn parse_trait_bounds(input: &str) -> IResult<&str, Vec<String>> {
+    let (input, _) = ws(tag(":")).parse(input)?;
+    
+    // Parse first bound
+    let (input, first_bound) = ws(parse_type_path).parse(input)?;
+    let mut bounds = vec![first_bound];
+    
+    // Parse additional bounds with +
+    let mut input = input;
+    while let Ok((new_input, _)) = ws(tag("+")).parse(input) {
+        let (new_input, bound) = ws(parse_type_path).parse(new_input)?;
+        bounds.push(bound);
+        input = new_input;
+    }
+    
+    Ok((input, bounds))
+}
+
+/// Parse where clause: where T: Clone, U: Debug
+pub fn parse_where_clause(input: &str) -> IResult<&str, Vec<(String, Vec<String>)>> {
+    let (input, _) = ws(tag("where")).parse(input)?;
+    
+    separated_list0(
+        ws(tag(",")),
+        ws(|input| {
+            let (input, param) = parse_ident(input)?;
+            let (input, bounds) = parse_trait_bounds(input)?;
+            Ok((input, (param, bounds)))
+        }),
+    ).parse(input)
+}
+
 /// Parse a single generic parameter with optional trait bounds
 /// Examples: "T", "T: Display", "T: Display + Debug"
 pub fn parse_generic_param(input: &str) -> IResult<&str, String> {
     let (input, param_name) = ws(parse_ident).parse(input)?;
 
     // Check for trait bounds
-    let (input, bounds_str) = if let Ok((input, _)) = ws(tag(":")).parse(input) {
-        // Parse first bound
-        let (input, first_bound) = ws(parse_ident).parse(input)?;
-        let mut bounds = vec![first_bound];
-
-        // Parse additional bounds with +
-        let mut input = input;
-        while let Ok((new_input, _)) = ws(tag("+")).parse(input) {
-            let (new_input, bound) = ws(parse_ident).parse(new_input)?;
-            bounds.push(bound);
-            input = new_input;
-        }
-
+    let (input, bounds_str) = if let Ok((input, bounds)) = parse_trait_bounds(input) {
         (input, format!(": {}", bounds.join(" + ")))
     } else {
         (input, String::new())

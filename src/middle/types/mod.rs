@@ -69,6 +69,64 @@ pub enum Type {
     Error,
 }
 
+/// Trait bounds for generic type parameters
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TraitBound {
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    // Add more as needed
+}
+
+/// Generic type parameter with optional trait bounds
+#[derive(Debug, Clone)]
+pub struct TypeParam {
+    pub name: String,
+    pub bounds: Vec<TraitBound>,
+}
+
+/// Context for generic type parameters (scoping)
+#[derive(Debug, Clone)]
+pub struct GenericContext {
+    pub type_params: Vec<TypeParam>,
+    pub parent: Option<Box<GenericContext>>,
+}
+
+impl GenericContext {
+    /// Create empty generic context
+    pub fn new() -> Self {
+        GenericContext {
+            type_params: Vec::new(),
+            parent: None,
+        }
+    }
+    
+    /// Create context with parent
+    pub fn with_parent(parent: GenericContext) -> Self {
+        GenericContext {
+            type_params: Vec::new(),
+            parent: Some(Box::new(parent)),
+        }
+    }
+    
+    /// Find type parameter by name (searching up parent chain)
+    pub fn find_type_param(&self, name: &str) -> Option<&TypeParam> {
+        self.type_params.iter().find(|p| p.name == name)
+            .or_else(|| self.parent.as_ref().and_then(|p| p.find_type_param(name)))
+    }
+    
+    /// Add a type parameter to this context
+    pub fn add_type_param(&mut self, param: TypeParam) {
+        self.type_params.push(param);
+    }
+}
+
 impl Type {
     /// Check if type contains any type variables
     pub fn contains_vars(&self) -> bool {
@@ -142,6 +200,70 @@ impl Type {
             }
             Type::Variable(var) => format!("T{}", var.0),
             Type::Error => "<?>".to_string(),
+        }
+    }
+
+    /// Get mangled name for type (used in codegen for monomorphization)
+    pub fn mangled_name(&self) -> String {
+        match self {
+            Type::I8 => "i8".to_string(),
+            Type::I16 => "i16".to_string(),
+            Type::I32 => "i32".to_string(),
+            Type::I64 => "i64".to_string(),
+            Type::U8 => "u8".to_string(),
+            Type::U16 => "u16".to_string(),
+            Type::U32 => "u32".to_string(),
+            Type::U64 => "u64".to_string(),
+            Type::F32 => "f32".to_string(),
+            Type::F64 => "f64".to_string(),
+            Type::Bool => "bool".to_string(),
+            Type::Char => "char".to_string(),
+            Type::Str => "str".to_string(),
+            Type::Array(inner, size) => format!("Array_{}_{}", inner.mangled_name(), size),
+            Type::Slice(inner) => format!("Slice_{}", inner.mangled_name()),
+            Type::Tuple(types) => {
+                let mut name = "Tuple".to_string();
+                for ty in types {
+                    name.push('_');
+                    name.push_str(&ty.mangled_name());
+                }
+                name
+            }
+            Type::Ptr(inner) => format!("Ptr_{}", inner.mangled_name()),
+            Type::Ref(inner, lifetime, mutability) => {
+                let mut_str = match mutability {
+                    Mutability::Immutable => "immut",
+                    Mutability::Mutable => "mut",
+                };
+                format!("Ref_{}_{}_{}", lifetime.mangled_name(), inner.mangled_name(), mut_str)
+            }
+            Type::Named(name, args) => {
+                if args.is_empty() {
+                    name.clone()
+                } else {
+                    let mut mangled = name.clone();
+                    mangled.push('_');
+                    for (i, arg) in args.iter().enumerate() {
+                        if i > 0 {
+                            mangled.push('_');
+                        }
+                        mangled.push_str(&arg.mangled_name());
+                    }
+                    mangled
+                }
+            }
+            Type::Function(params, ret) => {
+                let mut name = "Fn".to_string();
+                for param in params {
+                    name.push('_');
+                    name.push_str(&param.mangled_name());
+                }
+                name.push_str("_to_");
+                name.push_str(&ret.mangled_name());
+                name
+            }
+            Type::Variable(var) => format!("Var_{}", var.0),
+            Type::Error => "Error".to_string(),
         }
     }
 
@@ -373,6 +495,7 @@ pub enum UnifyError {
     Mismatch(Type, Type),
     OccursCheck(TypeVar, Type),
     ArityMismatch(usize, usize),
+    MissingBound(Type, TraitBound),  // Type doesn't satisfy trait bound
 }
 
 impl std::fmt::Display for UnifyError {
@@ -394,6 +517,12 @@ impl std::fmt::Display for UnifyError {
                 f,
                 "Arity mismatch: expected {} arguments, got {}",
                 expected, actual
+            ),
+            UnifyError::MissingBound(ty, bound) => write!(
+                f,
+                "Missing trait bound: {} doesn't implement {:?}",
+                ty.display_name(),
+                bound
             ),
         }
     }
@@ -548,6 +677,206 @@ impl Substitution {
             _ => Err(UnifyError::Mismatch(t1, t2)),
         }
     }
+    
+    /// Improved generic instantiation with bounds checking
+    pub fn instantiate_generic_with_bounds(
+        &self,
+        generic_ty: &Type,
+        type_args: &[Type],
+        context: &GenericContext,
+    ) -> Result<Type, String> {
+        match generic_ty {
+            Type::Named(name, generic_params) => {
+                // Check arity
+                if generic_params.len() != type_args.len() {
+                    return Err(format!(
+                        "Wrong number of type arguments for {}: expected {}, got {}",
+                        name,
+                        generic_params.len(),
+                        type_args.len()
+                    ));
+                }
+                
+                // Create substitution mapping
+                let mut substitution = Substitution::new();
+                
+                // Map type parameters to arguments
+                for (param, arg) in generic_params.iter().zip(type_args.iter()) {
+                    if let Type::Variable(var) = param {
+                        // TODO: Check bounds when we have proper TypeVar -> TypeParam mapping
+                        // For now, just substitute
+                        substitution.mapping.insert(var.clone(), arg.clone());
+                    } else {
+                        // Complex parameter - recursively instantiate
+                        let instantiated_param = self.instantiate_generic_with_bounds(param, type_args, context)?;
+                        // For now, require exact match for non-variable parameters
+                        if &instantiated_param != arg {
+                            return Err(format!(
+                                "Type argument mismatch: expected {}, got {}",
+                                instantiated_param.display_name(),
+                                arg.display_name()
+                            ));
+                        }
+                    }
+                }
+                
+                // Apply substitution
+                Ok(substitution.apply(generic_ty))
+            }
+            
+            // Handle other type constructors recursively
+            Type::Array(inner, size) => {
+                let instantiated_inner = self.instantiate_generic_with_bounds(inner, type_args, context)?;
+                Ok(Type::Array(Box::new(instantiated_inner), *size))
+            }
+            
+            Type::Slice(inner) => {
+                let instantiated_inner = self.instantiate_generic_with_bounds(inner, type_args, context)?;
+                Ok(Type::Slice(Box::new(instantiated_inner)))
+            }
+            
+            Type::Tuple(types) => {
+                let instantiated_types: Result<Vec<Type>, String> = types
+                    .iter()
+                    .map(|t| self.instantiate_generic_with_bounds(t, type_args, context))
+                    .collect();
+                Ok(Type::Tuple(instantiated_types?))
+            }
+            
+            Type::Ref(inner, lifetime, mutability) => {
+                let instantiated_inner = self.instantiate_generic_with_bounds(inner, type_args, context)?;
+                Ok(Type::Ref(
+                    Box::new(instantiated_inner),
+                    lifetime.clone(),
+                    *mutability,
+                ))
+            }
+            
+            Type::Function(params, ret) => {
+                let instantiated_params: Result<Vec<Type>, String> = params
+                    .iter()
+                    .map(|p| self.instantiate_generic_with_bounds(p, type_args, context))
+                    .collect();
+                let instantiated_ret = self.instantiate_generic_with_bounds(ret, type_args, context)?;
+                Ok(Type::Function(
+                    instantiated_params?,
+                    Box::new(instantiated_ret),
+                ))
+            }
+            
+            // Type variables get replaced via substitution
+            Type::Variable(var) => {
+                if let Some(ty) = self.mapping.get(var) {
+                    Ok(ty.clone())
+                } else {
+                    // Unbound type variable remains
+                    Ok(Type::Variable(var.clone()))
+                }
+            }
+            
+            // Primitive types remain unchanged
+            _ => Ok(generic_ty.clone()),
+        }
+    }
+    
+    /// Check if a type satisfies a trait bound
+    pub fn satisfies_bound(&self, ty: &Type, bound: &TraitBound) -> bool {
+        let ty = self.apply(ty);
+        
+        match bound {
+            TraitBound::Copy => self.is_copy(&ty),
+            TraitBound::Clone => self.is_clone(&ty),
+            TraitBound::Debug => self.is_debug(&ty),
+            TraitBound::Default => self.is_default(&ty),
+            TraitBound::PartialEq => self.is_partial_eq(&ty),
+            TraitBound::Eq => self.is_eq(&ty),
+            TraitBound::PartialOrd => self.is_partial_ord(&ty),
+            TraitBound::Ord => self.is_ord(&ty),
+            TraitBound::Hash => self.is_hash(&ty),
+        }
+    }
+    
+    /// Helper methods for trait checks
+    fn is_copy(&self, ty: &Type) -> bool {
+        match ty {
+            Type::I8 | Type::I16 | Type::I32 | Type::I64 |
+            Type::U8 | Type::U16 | Type::U32 | Type::U64 |
+            Type::F32 | Type::F64 | Type::Bool | Type::Char => true,
+            
+            Type::Ref(_, _, Mutability::Immutable) => true, // Shared references are Copy
+            
+            Type::Tuple(types) => types.iter().all(|t| self.is_copy(t)),
+            
+            Type::Named(name, args) => {
+                // Check if this is a known Copy type
+                match name.as_str() {
+                    "Option" if args.len() == 1 => self.is_copy(&args[0]),
+                    "Result" if args.len() == 2 => self.is_copy(&args[0]) && self.is_copy(&args[1]),
+                    _ => false,
+                }
+            }
+            
+            _ => false,
+        }
+    }
+    
+    fn is_clone(&self, ty: &Type) -> bool {
+        // For now, assume all types are Clone
+        // In a real implementation, we'd track which types implement Clone
+        true
+    }
+    
+    fn is_debug(&self, ty: &Type) -> bool {
+        // Assume all types are Debug for now
+        true
+    }
+    
+    fn is_default(&self, ty: &Type) -> bool {
+        match ty {
+            Type::I8 | Type::I16 | Type::I32 | Type::I64 |
+            Type::U8 | Type::U16 | Type::U32 | Type::U64 |
+            Type::F32 | Type::F64 | Type::Bool | Type::Char => true,
+            
+            Type::Tuple(types) => types.iter().all(|t| self.is_default(t)),
+            
+            Type::Named(name, args) => {
+                match name.as_str() {
+                    "Option" if args.len() == 1 => self.is_default(&args[0]),
+                    "Vec" if args.len() == 1 => self.is_default(&args[0]),
+                    _ => false,
+                }
+            }
+            
+            _ => false,
+        }
+    }
+    
+    fn is_partial_eq(&self, ty: &Type) -> bool {
+        // Most types are PartialEq
+        !matches!(ty, Type::Error)
+    }
+    
+    fn is_eq(&self, ty: &Type) -> bool {
+        self.is_partial_eq(ty) // For now, same as PartialEq
+    }
+    
+    fn is_partial_ord(&self, ty: &Type) -> bool {
+        match ty {
+            Type::I8 | Type::I16 | Type::I32 | Type::I64 |
+            Type::U8 | Type::U16 | Type::U32 | Type::U64 |
+            Type::F32 | Type::F64 | Type::Bool | Type::Char => true,
+            _ => false,
+        }
+    }
+    
+    fn is_ord(&self, ty: &Type) -> bool {
+        self.is_partial_ord(ty) // For now, same as PartialOrd
+    }
+    
+    fn is_hash(&self, ty: &Type) -> bool {
+        // Assume all types are Hash for now
+        true
+    }
 }
 
 #[cfg(test)]
@@ -613,5 +942,137 @@ mod tests {
 
         assert!(subst.unify(&func1, &func2).is_ok());
         assert_eq!(subst.apply(&a), Type::I64);
+    }
+    
+    #[test]
+    fn test_trait_bounds() {
+        let subst = Substitution::new();
+        
+        // i32 should satisfy Copy, Clone, Debug
+        assert!(subst.satisfies_bound(&Type::I32, &TraitBound::Copy));
+        assert!(subst.satisfies_bound(&Type::I32, &TraitBound::Clone));
+        assert!(subst.satisfies_bound(&Type::I32, &TraitBound::Debug));
+        
+        // &i32 should be Copy (shared reference)
+        let ref_i32 = Type::Ref(
+            Box::new(Type::I32),
+            Lifetime::Static,
+            Mutability::Immutable,
+        );
+        assert!(subst.satisfies_bound(&ref_i32, &TraitBound::Copy));
+        
+        // &mut i32 should NOT be Copy
+        let mut_ref_i32 = Type::Ref(
+            Box::new(Type::I32),
+            Lifetime::Static,
+            Mutability::Mutable,
+        );
+        assert!(!subst.satisfies_bound(&mut_ref_i32, &TraitBound::Copy));
+        
+        // Tuple of Copy types should be Copy
+        let tuple = Type::Tuple(vec![Type::I32, Type::Bool]);
+        assert!(subst.satisfies_bound(&tuple, &TraitBound::Copy));
+    }
+    
+    #[test]
+    fn test_generic_context() {
+        let mut context = GenericContext::new();
+        
+        // Add a type parameter with bounds
+        let type_param = TypeParam {
+            name: "T".to_string(),
+            bounds: vec![TraitBound::Clone, TraitBound::Debug],
+        };
+        context.add_type_param(type_param);
+        
+        // Should find the type parameter
+        assert!(context.find_type_param("T").is_some());
+        let found = context.find_type_param("T").unwrap();
+        assert_eq!(found.name, "T");
+        assert_eq!(found.bounds.len(), 2);
+        assert!(found.bounds.contains(&TraitBound::Clone));
+        assert!(found.bounds.contains(&TraitBound::Debug));
+        
+        // Should not find non-existent parameter
+        assert!(context.find_type_param("U").is_none());
+    }
+    
+    #[test]
+    fn test_generic_instantiation_with_bounds() {
+        let context = GenericContext::new();
+        let subst = Substitution::new();
+        
+        // Create a generic type Vec<T>
+        let t_var = Type::Variable(TypeVar::fresh());
+        let vec_t = Type::Named("Vec".to_string(), vec![t_var.clone()]);
+        
+        // Instantiate with i32
+        let result = subst.instantiate_generic_with_bounds(&vec_t, &[Type::I32], &context);
+        if let Err(e) = &result {
+            eprintln!("Error: {}", e);
+        }
+        assert!(result.is_ok(), "Result: {:?}", result);
+        let vec_i32 = result.unwrap();
+        
+        // Should be Vec<i32>
+        if let Type::Named(name, args) = vec_i32 {
+            assert_eq!(name, "Vec");
+            assert_eq!(args.len(), 1);
+            assert_eq!(args[0], Type::I32);
+        } else {
+            panic!("Expected Named type");
+        }
+        
+        // Test with simple generic: Option<T>
+        let u_var = Type::Variable(TypeVar::fresh());
+        let option_t = Type::Named("Option".to_string(), vec![u_var.clone()]);
+        let result = subst.instantiate_generic_with_bounds(&option_t, &[Type::Bool], &context);
+        assert!(result.is_ok());
+        let option_bool = result.unwrap();
+        
+        // Should be Option<bool>
+        if let Type::Named(name, args) = option_bool {
+            assert_eq!(name, "Option");
+            assert_eq!(args.len(), 1);
+            assert_eq!(args[0], Type::Bool);
+        } else {
+            panic!("Expected Named type");
+        }
+    }
+    
+    #[test]
+    fn test_generic_instantiation_error_cases() {
+        let context = GenericContext::new();
+        let subst = Substitution::new();
+        
+        // Create a generic type Result<T, E>
+        let t_var = Type::Variable(TypeVar::fresh());
+        let e_var = Type::Variable(TypeVar::fresh());
+        let result_te = Type::Named("Result".to_string(), vec![t_var, e_var]);
+        
+        // Wrong number of type arguments
+        let result = subst.instantiate_generic_with_bounds(&result_te, &[Type::I32], &context);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.contains("Wrong number of type arguments"));
+        
+        // Correct number of arguments
+        let result = subst.instantiate_generic_with_bounds(
+            &result_te, 
+            &[Type::I32, Type::Bool], 
+            &context
+        );
+        assert!(result.is_ok());
+        let result_ib = result.unwrap();
+        
+        // Should be Result<i32, bool>
+        if let Type::Named(name, args) = result_ib {
+            assert_eq!(name, "Result");
+            assert_eq!(args.len(), 2);
+            assert_eq!(args[0], Type::I32);
+            assert_eq!(args[1], Type::Bool);
+        } else {
+            panic!("Expected Named type");
+        }
     }
 }

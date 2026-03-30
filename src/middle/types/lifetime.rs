@@ -50,6 +50,16 @@ impl Lifetime {
         matches!(self, Lifetime::Variable(_))
     }
 
+    /// Get mangled name for lifetime (used in codegen for monomorphization)
+    pub fn mangled_name(&self) -> String {
+        match self {
+            Lifetime::Static => "static".to_string(),
+            Lifetime::Named(name) => name.clone(),
+            Lifetime::Variable(var) => format!("ltvar_{}", var.0),
+            Lifetime::Error => "Error".to_string(),
+        }
+    }
+
     /// Check if this lifetime outlives another lifetime
     /// This is a simplified version - in full Rust, this would be more complex
     pub fn outlives(&self, other: &Lifetime) -> bool {

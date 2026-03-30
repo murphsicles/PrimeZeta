@@ -221,24 +221,27 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
         let type_args: Vec<String> = type_args_opt.unwrap_or_default();
 
         // Check if there's another :: for a method call
-        // This can happen in two cases:
-        // 1. After type arguments: Vec::<i32>::new()
-        // 2. In a path without type arguments: Point::new()
+        // This can happen in three cases:
+        // 1. After type arguments: Vec::<i32>::new()  (type args, then ::method)
+        // 2. Direct generic function call: vec_new::<i32>()  (type args, no ::method)
+        // 3. In a path without type arguments: Point::new()  (no type args, has ::method)
         let (input, method_name) = if !type_args.is_empty() {
-            // Case 1: After type arguments, we must have ::method
+            // Case 1 or 2: Check if there's :: after type arguments
             match opt(ws(tag("::"))).parse(input) {
                 Ok((i, Some(_))) => {
-                    // Parse method name after ::
+                    // Case 1: :: after type arguments, parse method name
                     let (i, name) = parse_ident(i)?;
                     (i, Some(name))
                 }
-                _ => {
-                    // No :: after type arguments, this is just a type reference
-                    return Ok((input, AstNode::Var(method)));
+                Ok((i, None)) => {
+                    // Case 2: No :: after type arguments, this is a direct generic function call
+                    // like vec_new::<i32>()
+                    (i, None)
                 }
+                Err(e) => return Err(e),
             }
         } else {
-            // Case 2: Check if this is a path call like Point::new()
+            // Case 3: Check if this is a path call like Point::new()
             // If path has multiple segments (e.g., ["Point", "new"]), it's already a path call
             // If path has single segment but we have :: followed by identifier, parse it
             let (i, has_sep) = match opt(ws(tag("::"))).parse(input) {
