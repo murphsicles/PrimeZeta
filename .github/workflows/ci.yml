@@ -16,22 +16,28 @@ jobs:
         toolchain: [nightly] # 2024 edition requires nightly (stable post-2024)
     steps:
     - uses: actions/checkout@v4
-    - name: Install LLVM 21.1 for inkwell llvm21-1 feature
+    - name: Install LLVM 22.1 for performance improvements (check job)
       run: |
-        # Add LLVM repository
+        # Add LLVM repository for 22.1
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-21.1 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-22.1 main" | sudo tee /etc/apt/sources.list.d/llvm.list
         sudo apt-get update
         
-        # Install LLVM 21.1 packages
+        # Install LLVM 22.1 packages (performance improvements)
+        sudo apt-get install -y llvm-22.1 llvm-22.1-dev llvm-22.1-tools libpolly-22.1-dev
+        
+        # Also install LLVM 21.1 for inkwell llvm21-1 feature compatibility
         sudo apt-get install -y llvm-21.1 llvm-21.1-dev llvm-21.1-tools libpolly-21.1-dev
         
-        # Also install base LLVM 21 for compatibility
-        sudo apt-get install -y llvm-21 llvm-21-dev llvm-21-tools libpolly-21-dev
+        # Install base LLVM 22 for compatibility
+        sudo apt-get install -y llvm-22 llvm-22-dev llvm-22-tools libpolly-22-dev
     - name: Set LLVM prefix
       run: |
-        echo "LLVM_SYS_210_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
+        # Set both prefixes for compatibility
+        echo "LLVM_SYS_210_PREFIX=/usr/lib/llvm-21.1" >> $GITHUB_ENV
         echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21.1" >> $GITHUB_ENV
+        echo "LLVM_SYS_220_PREFIX=/usr/lib/llvm-22" >> $GITHUB_ENV
+        echo "LLVM_SYS_221_PREFIX=/usr/lib/llvm-22.1" >> $GITHUB_ENV
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master
       with:
@@ -56,22 +62,28 @@ jobs:
     needs: check
     steps:
     - uses: actions/checkout@v4
-    - name: Install LLVM 21.1 for inkwell llvm21-1 feature
+    - name: Install LLVM 22.1 for performance improvements (test job)
       run: |
-        # Add LLVM repository
+        # Add LLVM repository for 22.1
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-21.1 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-22.1 main" | sudo tee /etc/apt/sources.list.d/llvm.list
         sudo apt-get update
         
-        # Install LLVM 21.1 packages
+        # Install LLVM 22.1 packages (performance improvements)
+        sudo apt-get install -y llvm-22.1 llvm-22.1-dev llvm-22.1-tools libpolly-22.1-dev
+        
+        # Also install LLVM 21.1 for inkwell llvm21-1 feature compatibility
         sudo apt-get install -y llvm-21.1 llvm-21.1-dev llvm-21.1-tools libpolly-21.1-dev
         
-        # Also install base LLVM 21 for compatibility
-        sudo apt-get install -y llvm-21 llvm-21-dev llvm-21-tools libpolly-21-dev
+        # Install base LLVM 22 for compatibility
+        sudo apt-get install -y llvm-22 llvm-22-dev llvm-22-tools libpolly-22-dev
     - name: Set LLVM prefix
       run: |
-        echo "LLVM_SYS_210_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
+        # Set both prefixes for compatibility
+        echo "LLVM_SYS_210_PREFIX=/usr/lib/llvm-21.1" >> $GITHUB_ENV
         echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21.1" >> $GITHUB_ENV
+        echo "LLVM_SYS_220_PREFIX=/usr/lib/llvm-22" >> $GITHUB_ENV
+        echo "LLVM_SYS_221_PREFIX=/usr/lib/llvm-22.1" >> $GITHUB_ENV
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master
       with:
