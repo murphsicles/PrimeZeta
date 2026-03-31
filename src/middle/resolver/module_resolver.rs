@@ -54,8 +54,15 @@ impl ModuleResolver {
         if !path.is_empty() && path[0] == "zeta" {
             // For self-compilation, we need to handle zeta:: imports specially
             // These refer to the compiler's own data structures, not .z files
-            // We'll create a virtual module path for these
-            let module_name = path.join("_");
+            // We'll create a virtual module path for the module (without item name)
+            // For `use zeta::frontend::ast::AstNode;`, path is ["zeta", "frontend", "ast", "AstNode"]
+            // We need to resolve ["zeta", "frontend", "ast"] to a virtual module
+            let module_path = if path.len() > 1 {
+                &path[..path.len() - 1] // Remove the last component (the item name)
+            } else {
+                path // Keep all if only 1 component (shouldn't happen for zeta::)
+            };
+            let module_name = module_path.join("_");
             let virtual_path = PathBuf::from(format!("zeta_virtual/{}", module_name));
             return Ok(virtual_path);
         }
