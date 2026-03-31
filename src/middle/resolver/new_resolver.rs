@@ -22,6 +22,9 @@ pub struct InferContext {
     /// Function signatures (name -> return type)
     functions: HashMap<String, Type>,
 
+    /// Type definitions (structs, enums, etc.) - name -> type constructor
+    types: HashMap<String, Type>,
+
     /// Current substitution
     substitution: Substitution,
 
@@ -46,6 +49,7 @@ impl InferContext {
         let mut ctx = InferContext {
             variables: HashMap::new(),
             functions: HashMap::new(),
+            types: HashMap::new(),
             substitution: Substitution::new(),
             constraints: Vec::new(),
             generic_context: GenericContext::new(),
@@ -691,12 +695,31 @@ impl InferContext {
                 }
             }
 
-            AstNode::StructDef { name, fields, .. } => {
-                // Register struct type in context
-                // For now, we'll just create a named type with no type parameters
-                let _struct_ty = Type::Named(name.clone(), Vec::new());
+            AstNode::StructDef { name, generics, fields, .. } => {
+                // Parse generic type parameters if present
+                let type_params = if !generics.is_empty() {
+                    // Parse "T: Clone + Copy" style bounds
+                    self.parse_generic_params(generics)?
+                } else {
+                    Vec::new()
+                };
 
-                // Store field types for later use
+                // Enter generic scope for the struct definition
+                self.enter_generic_scope(type_params);
+
+                // Create type variables for each generic parameter
+                let mut type_args = Vec::new();
+                for _ in 0..generics.len() {
+                    type_args.push(Type::Variable(TypeVar::fresh()));
+                }
+
+                // Create the struct type constructor: Pair<T1, T2> where T1, T2 are type variables
+                let struct_ty = Type::Named(name.clone(), type_args.clone());
+
+                // Register struct type in context for type checking
+                self.types.insert(name.clone(), struct_ty);
+
+                // Store field types for later use (for field access)
                 // We need to parse field type strings to Type objects
                 let mut _field_types = Vec::new();
                 for (field_name, type_str) in fields {
@@ -705,16 +728,36 @@ impl InferContext {
                     _field_types.push((field_name.clone(), field_ty));
                 }
 
-                // Store struct definition in context for later use
-                // For now, we'll just return unit type since struct definitions
-                // don't have a value type at the top level
+                // Exit generic scope
+                self.exit_generic_scope();
+
+                // Struct definitions don't have a value type at the top level
                 Ok(Type::Tuple(vec![])) // Unit type
             }
 
-            AstNode::EnumDef { name, variants, .. } => {
-                // Register enum type in context
-                // For now, we'll just create a named type with no type parameters
-                let _enum_ty = Type::Named(name.clone(), Vec::new());
+            AstNode::EnumDef { name, generics, variants, .. } => {
+                // Parse generic type parameters if present
+                let type_params = if !generics.is_empty() {
+                    // Parse "T: Clone + Copy" style bounds
+                    self.parse_generic_params(generics)?
+                } else {
+                    Vec::new()
+                };
+
+                // Enter generic scope for the enum definition
+                self.enter_generic_scope(type_params);
+
+                // Create type variables for each generic parameter
+                let mut type_args = Vec::new();
+                for _ in 0..generics.len() {
+                    type_args.push(Type::Variable(TypeVar::fresh()));
+                }
+
+                // Create the enum type constructor: EnumName<T1, T2> where T1, T2 are type variables
+                let enum_ty = Type::Named(name.clone(), type_args.clone());
+
+                // Register enum type in context for type checking
+                self.types.insert(name.clone(), enum_ty);
 
                 // Store variant information for later use
                 // We could register variant constructors as functions here
@@ -726,7 +769,7 @@ impl InferContext {
                     // For variants with parameters, create a function type
                     if variant_params.is_empty() {
                         // Nullary variant: () -> Enum
-                        let ret_type = Type::Named(name.clone(), Vec::new());
+                        let ret_type = Type::Named(name.clone(), type_args.clone());
                         self.functions.insert(func_name, ret_type);
                     } else {
                         // Variant with parameters: (T1, T2, ...) -> Enum
@@ -743,8 +786,8 @@ impl InferContext {
                             }
                         }
 
-                        // The return type is just the enum (non-generic)
-                        let ret_type = Type::Named(name.clone(), Vec::new());
+                        // The return type is the enum with its type arguments
+                        let ret_type = Type::Named(name.clone(), type_args.clone());
 
                         // The variant constructor is a function from param_types to ret_type
                         let func_type = Type::Function(param_types, Box::new(ret_type));
@@ -752,13 +795,26 @@ impl InferContext {
                     }
                 }
 
+                // Exit generic scope
+                self.exit_generic_scope();
+
                 // Enum definitions have unit type at top level
                 Ok(Type::Tuple(vec![])) // Unit type
             }
 
             AstNode::StructLit { variant, fields } => {
-                // Look up struct type
-                let struct_ty = Type::Named(variant.clone(), Vec::new());
+                // Look up struct type definition
+                // For generic structs, we need to create fresh type variables for type arguments
+                // For now, create a named type with fresh type variables
+                // TODO: Look up actual struct definition to get correct number of type parameters
+                let struct_ty = if let Some(defined_ty) = self.types.get(variant) {
+                    // Clone the type definition
+                    defined_ty.clone()
+                } else {
+                    // Unknown struct - create with no type arguments
+                    // This will cause arity mismatch if the struct is actually generic
+                    Type::Named(variant.clone(), Vec::new())
+                };
 
                 // Type check each field
                 for (_field_name, field_expr) in fields {
@@ -1192,9 +1248,14 @@ impl InferContext {
         // Register them as function-like types that can be instantiated
         // For now, we'll store them as simple named types
         // In a full implementation, we'd store them in a separate generic types table
-        self.functions.insert("Vec".to_string(), vec_ty);
-        self.functions.insert("Option".to_string(), option_ty);
-        self.functions.insert("Result".to_string(), result_ty);
+        self.functions.insert("Vec".to_string(), vec_ty.clone());
+        self.functions.insert("Option".to_string(), option_ty.clone());
+        self.functions.insert("Result".to_string(), result_ty.clone());
+        
+        // Also register them as types for type checking
+        self.types.insert("Vec".to_string(), vec_ty);
+        self.types.insert("Option".to_string(), option_ty);
+        self.types.insert("Result".to_string(), result_ty);
     }
 
     /// Get final type of expression after solving constraints
@@ -1210,6 +1271,7 @@ impl Clone for InferContext {
         InferContext {
             variables: self.variables.clone(),
             functions: self.functions.clone(),
+            types: self.types.clone(),
             substitution: self.substitution.clone(),
             constraints: self.constraints.clone(),
             generic_context: self.generic_context.clone(),
