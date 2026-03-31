@@ -19,6 +19,7 @@ pub mod frontend;
 pub mod integration;
 pub mod middle;
 pub mod runtime;
+pub mod zeta;
 
 // #[cfg(test)]
 // mod tests;

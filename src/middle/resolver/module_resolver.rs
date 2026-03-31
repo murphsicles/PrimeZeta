@@ -287,47 +287,238 @@ impl ModuleResolver {
         let path_components: Vec<&str> = module_path.split('_').collect();
 
         // Create a virtual module with the appropriate exports
-        // For now, we'll create placeholder ASTs for common zeta:: imports
         let mut exports = HashMap::new();
         let mut asts = Vec::new();
 
-        // Handle common zeta::frontend::ast::AstNode import
-        if path_components.len() >= 3
-            && path_components[0] == "frontend"
-            && path_components[1] == "ast"
-        {
-            // Create a virtual enum for AstNode
-            let ast_node_enum = AstNode::EnumDef {
-                name: "AstNode".to_string(),
-                generics: vec![],
-                lifetimes: vec![],
-                variants: vec![
-                    ("Program".to_string(), vec![]),
-                    ("FuncDef".to_string(), vec![]),
-                    ("Call".to_string(), vec![]),
-                    ("Lit".to_string(), vec![]),
-                    ("Var".to_string(), vec![]),
-                    ("BinaryOp".to_string(), vec![]),
-                    ("If".to_string(), vec![]),
-                    ("Return".to_string(), vec![]),
-                    ("Let".to_string(), vec![]),
-                    ("Match".to_string(), vec![]),
-                    ("StructDef".to_string(), vec![]),
-                    ("EnumDef".to_string(), vec![]),
-                    ("ImplBlock".to_string(), vec![]),
-                    ("Use".to_string(), vec![]),
-                    ("ModDef".to_string(), vec![]),
-                ],
-                attrs: vec![],
-                doc: "Abstract Syntax Tree node for Zeta language".to_string(),
-                pub_: true,
-                where_clauses: vec![],
-            };
+        // Check if this is a zeta:: import
+        if !path_components.is_empty() && path_components[0] == "zeta" {
+            println!("[MODULE RESOLVER DEBUG] Path components: {:?}", path_components);
+            // Handle different zeta:: imports based on path components
+            if path_components.len() >= 4 {
+                println!("[MODULE RESOLVER DEBUG] Matching: ({}, {}, {})", 
+                         path_components[1], path_components[2], path_components[3]);
+                match (path_components[1], path_components[2], path_components[3]) {
+                    ("frontend", "ast", "AstNode") => {
+                        // Create a virtual enum for AstNode
+                        let ast_node_enum = AstNode::EnumDef {
+                            name: "AstNode".to_string(),
+                            generics: vec![],
+                            lifetimes: vec![],
+                            variants: vec![
+                                ("Program".to_string(), vec![]),
+                                ("FuncDef".to_string(), vec![]),
+                                ("Call".to_string(), vec![]),
+                                ("Lit".to_string(), vec![]),
+                                ("Var".to_string(), vec![]),
+                                ("BinaryOp".to_string(), vec![]),
+                                ("If".to_string(), vec![]),
+                                ("Return".to_string(), vec![]),
+                                ("Let".to_string(), vec![]),
+                                ("Match".to_string(), vec![]),
+                                ("StructDef".to_string(), vec![]),
+                                ("EnumDef".to_string(), vec![]),
+                                ("ImplBlock".to_string(), vec![]),
+                                ("Use".to_string(), vec![]),
+                                ("ModDef".to_string(), vec![]),
+                            ],
+                            attrs: vec![],
+                            doc: "Abstract Syntax Tree node for Zeta language".to_string(),
+                            pub_: true,
+                            where_clauses: vec![],
+                        };
 
-            asts.push(ast_node_enum.clone());
-            exports.insert("AstNode".to_string(), ast_node_enum);
-
-            println!("[MODULE RESOLVER] Created virtual module for AstNode");
+                        asts.push(ast_node_enum.clone());
+                        exports.insert("AstNode".to_string(), ast_node_enum);
+                        println!("[MODULE RESOLVER] Created virtual module for AstNode");
+                    }
+                    ("frontend", "parser", "top_level") if path_components.len() >= 5 => {
+                        // Handle parse_zeta function
+                        if path_components[4] == "parse_zeta" {
+                            let parse_zeta_func = AstNode::FuncDef {
+                                name: "parse_zeta".to_string(),
+                                generics: vec![],
+                                lifetimes: vec![],
+                                params: vec![("input".to_string(), "&str".to_string())],
+                                ret: "Result<(&str, Vec<AstNode>), &'static str>".to_string(),
+                                body: vec![],
+                                attrs: vec![],
+                                ret_expr: None,
+                                single_line: false,
+                                doc: "Parse Zeta source code".to_string(),
+                                pub_: true,
+                                async_: false,
+                                const_: false,
+                                where_clauses: vec![],
+                            };
+                            asts.push(parse_zeta_func.clone());
+                            exports.insert("parse_zeta".to_string(), parse_zeta_func);
+                            println!("[MODULE RESOLVER] Created virtual module for parse_zeta");
+                        }
+                    }
+                    ("middle", "resolver", "resolver") if path_components.len() >= 5 => {
+                        // Handle Resolver struct
+                        if path_components[4] == "Resolver" {
+                            let resolver_struct = AstNode::StructDef {
+                                name: "Resolver".to_string(),
+                                generics: vec![],
+                                lifetimes: vec![],
+                                fields: vec![],
+                                attrs: vec![],
+                                doc: "Semantic analysis and monomorphization engine".to_string(),
+                                pub_: true,
+                                where_clauses: vec![],
+                            };
+                            asts.push(resolver_struct.clone());
+                            exports.insert("Resolver".to_string(), resolver_struct);
+                            println!("[MODULE RESOLVER] Created virtual module for Resolver");
+                        }
+                    }
+                    ("middle", "mir", "mir") if path_components.len() >= 5 => {
+                        // Handle Mir struct
+                        if path_components[4] == "Mir" {
+                            let mir_struct = AstNode::StructDef {
+                                name: "Mir".to_string(),
+                                generics: vec![],
+                                lifetimes: vec![],
+                                fields: vec![],
+                                attrs: vec![],
+                                doc: "Mid-level Intermediate Representation".to_string(),
+                                pub_: true,
+                                where_clauses: vec![],
+                            };
+                            asts.push(mir_struct.clone());
+                            exports.insert("Mir".to_string(), mir_struct);
+                            println!("[MODULE RESOLVER] Created virtual module for Mir");
+                        }
+                    }
+                    ("middle", "specialization", "is_cache_safe") => {
+                        // Handle is_cache_safe function
+                        let is_cache_safe_func = AstNode::FuncDef {
+                            name: "is_cache_safe".to_string(),
+                            generics: vec![],
+                            lifetimes: vec![],
+                            params: vec![("type_name".to_string(), "&str".to_string())],
+                            ret: "bool".to_string(),
+                            body: vec![],
+                            attrs: vec![],
+                            ret_expr: None,
+                            single_line: false,
+                            doc: "Check if a type is cache-safe for specialization".to_string(),
+                            pub_: true,
+                            async_: false,
+                            const_: false,
+                            where_clauses: vec![],
+                        };
+                        asts.push(is_cache_safe_func.clone());
+                        exports.insert("is_cache_safe".to_string(), is_cache_safe_func);
+                        println!("[MODULE RESOLVER] Created virtual module for is_cache_safe");
+                    }
+                    ("middle", "specialization", "lookup_specialization") => {
+                        // Handle lookup_specialization function
+                        let lookup_specialization_func = AstNode::FuncDef {
+                            name: "lookup_specialization".to_string(),
+                            generics: vec![],
+                            lifetimes: vec![],
+                            params: vec![("key".to_string(), "&str".to_string())],
+                            ret: "Option<String>".to_string(),
+                            body: vec![],
+                            attrs: vec![],
+                            ret_expr: None,
+                            single_line: false,
+                            doc: "Look up a specialization in the cache".to_string(),
+                            pub_: true,
+                            async_: false,
+                            const_: false,
+                            where_clauses: vec![],
+                        };
+                        asts.push(lookup_specialization_func.clone());
+                        exports.insert("lookup_specialization".to_string(), lookup_specialization_func);
+                        println!("[MODULE RESOLVER] Created virtual module for lookup_specialization");
+                    }
+                    ("middle", "specialization", "record_specialization") => {
+                        // Handle record_specialization function
+                        let record_specialization_func = AstNode::FuncDef {
+                            name: "record_specialization".to_string(),
+                            generics: vec![],
+                            lifetimes: vec![],
+                            params: vec![
+                                ("key".to_string(), "&str".to_string()),
+                                ("value".to_string(), "&str".to_string()),
+                            ],
+                            ret: "()".to_string(),
+                            body: vec![],
+                            attrs: vec![],
+                            ret_expr: None,
+                            single_line: false,
+                            doc: "Record a specialization in the cache".to_string(),
+                            pub_: true,
+                            async_: false,
+                            const_: false,
+                            where_clauses: vec![],
+                        };
+                        asts.push(record_specialization_func.clone());
+                        exports.insert("record_specialization".to_string(), record_specialization_func);
+                        println!("[MODULE RESOLVER] Created virtual module for record_specialization");
+                    }
+                    ("backend", "codegen", "codegen") if path_components.len() >= 5 => {
+                        // Handle LLVMCodegen struct
+                        if path_components[4] == "LLVMCodegen" {
+                            let llvmcodegen_struct = AstNode::StructDef {
+                                name: "LLVMCodegen".to_string(),
+                                generics: vec![],
+                                lifetimes: vec![],
+                                fields: vec![],
+                                attrs: vec![],
+                                doc: "LLVM-based code generator".to_string(),
+                                pub_: true,
+                                where_clauses: vec![],
+                            };
+                            asts.push(llvmcodegen_struct.clone());
+                            exports.insert("LLVMCodegen".to_string(), llvmcodegen_struct);
+                            println!("[MODULE RESOLVER] Created virtual module for LLVMCodegen");
+                        }
+                    }
+                    ("runtime", "actor", "channel") if path_components.len() >= 5 => {
+                        // Handle Channel struct (generic)
+                        if path_components[4] == "Channel" {
+                            let channel_struct = AstNode::StructDef {
+                                name: "Channel".to_string(),
+                                generics: vec!["T".to_string()],
+                                lifetimes: vec![],
+                                fields: vec![],
+                                attrs: vec![],
+                                doc: "Actor communication channel".to_string(),
+                                pub_: true,
+                                where_clauses: vec![],
+                            };
+                            asts.push(channel_struct.clone());
+                            exports.insert("Channel".to_string(), channel_struct);
+                            println!("[MODULE RESOLVER] Created virtual module for Channel");
+                        }
+                    }
+                    ("runtime", "actor", "scheduler") if path_components.len() >= 5 => {
+                        // Handle Scheduler struct
+                        if path_components[4] == "Scheduler" {
+                            let scheduler_struct = AstNode::StructDef {
+                                name: "Scheduler".to_string(),
+                                generics: vec![],
+                                lifetimes: vec![],
+                                fields: vec![],
+                                attrs: vec![],
+                                doc: "Actor scheduler".to_string(),
+                                pub_: true,
+                                where_clauses: vec![],
+                            };
+                            asts.push(scheduler_struct.clone());
+                            exports.insert("Scheduler".to_string(), scheduler_struct);
+                            println!("[MODULE RESOLVER] Created virtual module for Scheduler");
+                        }
+                    }
+                    _ => {
+                        println!("[MODULE RESOLVER] Unknown zeta:: import pattern: {}", module_path);
+                    }
+                }
+            }
         }
 
         // Create the virtual module
