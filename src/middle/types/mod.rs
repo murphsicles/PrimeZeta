@@ -61,6 +61,8 @@ pub enum Type {
 
     // Function types
     Function(Vec<Type>, Box<Type>), // (T1, T2, ...) -> R
+    // Async function types (returns a Future)
+    AsyncFunction(Vec<Type>, Box<Type>), // async (T1, T2, ...) -> R
 
     // Type variables (for inference)
     Variable(TypeVar),
@@ -302,6 +304,9 @@ impl Type {
             Type::Function(params, ret) => {
                 params.iter().any(|t| t.contains_vars()) || ret.contains_vars()
             }
+            Type::AsyncFunction(params, ret) => {
+                params.iter().any(|t| t.contains_vars()) || ret.contains_vars()
+            }
             _ => false,
         }
     }
@@ -358,6 +363,14 @@ impl Type {
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("({}) -> {}", params_str, ret.display_name())
+            }
+            Type::AsyncFunction(params, ret) => {
+                let params_str = params
+                    .iter()
+                    .map(|t| t.display_name())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("async ({}) -> {}", params_str, ret.display_name())
             }
             Type::Variable(var) => format!("T{}", var.0),
             Type::Error => "<?>".to_string(),
@@ -430,6 +443,14 @@ impl Type {
             }
             Type::Variable(var) => format!("Var_{}", var.0),
             Type::Error => "Error".to_string(),
+            Type::AsyncFunction(params, ret) => {
+                let param_str = params
+                    .iter()
+                    .map(|p| p.mangled_name())
+                    .collect::<Vec<_>>()
+                    .join("_");
+                format!("AsyncFunction_{}_{}", param_str, ret.mangled_name())
+            }
         }
     }
 
@@ -648,6 +669,9 @@ impl Substitution {
             Type::Ref(inner, _, _) => self.occurs_check(var, inner),
             Type::Named(_, args) => args.iter().any(|t| self.occurs_check(var, t)),
             Type::Function(params, ret) => {
+                params.iter().any(|p| self.occurs_check(var, p)) || self.occurs_check(var, ret)
+            }
+            Type::AsyncFunction(params, ret) => {
                 params.iter().any(|p| self.occurs_check(var, p)) || self.occurs_check(var, ret)
             }
             _ => false,
