@@ -6,6 +6,7 @@
 
 use super::resolver::{Resolver, Type};
 use crate::frontend::ast::AstNode;
+use crate::middle::types::UnifyError;
 
 impl Resolver {
     pub fn typecheck(&mut self, asts: &[AstNode]) -> bool {
@@ -30,19 +31,32 @@ impl Resolver {
                 true
             }
             Err(errors) => {
-                // New type system failed, fall back to old system
-                eprintln!("New type system failed, falling back to old system");
-                for error in errors {
+                // New type system failed - check if it's a type mismatch
+                eprintln!("New type system failed with errors:");
+                for error in &errors {
                     eprintln!("  Type error: {}", error);
                 }
-
-                // Semantic checks (recursive) - old system
-                for ast in asts {
-                    if !self.check_node(ast) {
-                        ok = false;
+                
+                // Check if any error is a type mismatch (like i64 vs str)
+                // If so, fail compilation. Otherwise fall back to old system.
+                let has_type_mismatch = errors.iter().any(|e| {
+                    matches!(e, UnifyError::Mismatch(_, _))
+                });
+                
+                if has_type_mismatch {
+                    // Type mismatch error - fail compilation
+                    false
+                } else {
+                    // Other errors - fall back to old system
+                    eprintln!("Falling back to old type system");
+                    let mut ok = true;
+                    for ast in asts {
+                        if !self.check_node(ast) {
+                            ok = false;
+                        }
                     }
+                    ok
                 }
-                ok
             }
         }
     }

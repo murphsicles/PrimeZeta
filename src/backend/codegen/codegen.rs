@@ -1507,7 +1507,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
         }
     }
 
-    fn gen_expr_safe(&self, id: &u32, exprs: &HashMap<u32, MirExpr>) -> BasicValueEnum<'ctx> {
+    fn gen_expr_safe(&mut self, id: &u32, exprs: &HashMap<u32, MirExpr>) -> BasicValueEnum<'ctx> {
         if let Some(expr) = exprs.get(id) {
             self.gen_expr(expr, exprs)
         } else {
@@ -1515,7 +1515,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
         }
     }
 
-    fn gen_expr(&self, expr: &MirExpr, exprs: &HashMap<u32, MirExpr>) -> BasicValueEnum<'ctx> {
+    fn gen_expr(&mut self, expr: &MirExpr, exprs: &HashMap<u32, MirExpr>) -> BasicValueEnum<'ctx> {
         match expr {
             MirExpr::Var(id) => self.load_local(*id),
             MirExpr::Lit(n) => self.i64_type.const_int(*n as u64, true).into(),
@@ -1566,103 +1566,117 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     .build_load(self.i64_type, ptr, "timing_load")
                     .unwrap()
             }
-            MirExpr::Struct { variant: _, fields } => {
-                // For now, handle simple cases:
-                // - Empty struct: return 0
-                // - Single field: return the field value
-                // - Two fields: pack both values into a single i64 (high 32 bits for first, low 32 bits for second)
-                // This is a temporary hack until proper struct support is implemented
+            MirExpr::Struct { variant, fields } => {
+                // Allocate struct on stack and store field values
+                // Create a type key for caching
+                let type_key = format!("{}_fields_{}", variant, fields.len());
                 
-                match fields.len() {
-                    0 => self.i64_type.const_int(0, true).into(),
-                    1 => {
-                        let (_, field_id) = &fields[0];
-                        self.gen_expr(&exprs[field_id], exprs)
-                    }
-                    2 => {
-                        let (_, first_id) = &fields[0];
-                        let (_, second_id) = &fields[1];
-                        let first_val = self.gen_expr(&exprs[first_id], exprs).into_int_value();
-                        let second_val = self.gen_expr(&exprs[second_id], exprs).into_int_value();
-                        
-                        // Pack two i32 values into one i64
-                        // First value in high 32 bits, second value in low 32 bits
-                        let first_shifted = self.builder.build_left_shift(
-                            first_val,
-                            self.i64_type.const_int(32, false),
-                            "first_shifted"
-                        ).unwrap();
-                        let second_masked = self.builder.build_and(
-                            second_val,
-                            self.i64_type.const_int(0xFFFFFFFF, false),
-                            "second_masked"
-                        ).unwrap();
-                        let packed = self.builder.build_or(
-                            first_shifted,
-                            second_masked,
-                            "packed_struct"
-                        ).unwrap();
-                        packed.into()
-                    }
-                    _ => {
-                        // For more than 2 fields, return the first field value
-                        // This maintains backward compatibility
-                        let (_, first_field_id) = &fields[0];
-                        self.gen_expr(&exprs[first_field_id], exprs)
-                    }
+                // Get or create LLVM struct type
+                let struct_type = if let Some(ty) = self.specialized_types.get(&type_key) {
+                    *ty
+                } else {
+                    // Create struct type based on field count
+                    // For now, assume all fields are i64
+                    let field_types: Vec<_> = (0..fields.len())
+                        .map(|_| self.i64_type.into())
+                        .collect();
+                    
+                    let ty = self.context.struct_type(&field_types, false);
+                    self.specialized_types.insert(type_key.clone(), ty);
+                    ty
+                };
+                
+                // Allocate struct on stack
+                let alloca = self.builder.build_alloca(struct_type, "struct_alloca").unwrap();
+                
+                // Store each field value
+                for (i, (field_name, field_id)) in fields.iter().enumerate() {
+                    let field_ptr = self.builder.build_struct_gep(
+                        struct_type,
+                        alloca,
+                        i as u32,
+                        &format!("field_{}_ptr", field_name)
+                    ).unwrap();
+                    
+                    let field_val = self.gen_expr(&exprs[field_id], exprs).into_int_value();
+                    self.builder.build_store(field_ptr, field_val).unwrap();
                 }
+                
+                // Return pointer to struct (as i64)
+                // Convert pointer to integer
+                let ptr_as_int = self.builder.build_ptr_to_int(
+                    alloca,
+                    self.i64_type,
+                    "ptr_to_int"
+                ).unwrap();
+                ptr_as_int.into()
             }
             MirExpr::FieldAccess { base, field } => {
-                // Handle field access for packed structs
-                // Check if the base is a struct with 2 fields
-                let base_expr = &exprs[base];
-                if let MirExpr::Struct { variant: _, fields: struct_fields } = base_expr {
-                    if struct_fields.len() == 2 {
-                        // Find the field index
-                        let field_index = struct_fields.iter()
-                            .position(|(fname, _)| fname == field)
-                            .unwrap_or(0);
-                        
-                        // Get the packed struct value
-                        let packed_val = self.gen_expr(&exprs[base], exprs).into_int_value();
-                        
-                        if field_index == 0 {
-                            // Extract first field (high 32 bits)
-                            let shifted = self.builder.build_right_shift(
-                                packed_val,
-                                self.i64_type.const_int(32, false),
-                                false, // arithmetic shift
-                                "extract_first"
-                            ).unwrap();
-                            shifted.into()
-                        } else {
-                            // Extract second field (low 32 bits)
-                            let masked = self.builder.build_and(
-                                packed_val,
-                                self.i64_type.const_int(0xFFFFFFFF, false),
-                                "extract_second"
-                            ).unwrap();
-                            masked.into()
-                        }
-                    } else {
-                        // Not a 2-field struct, use old behavior
-                        // Find the field by name
-                        for (field_name, field_id) in struct_fields {
-                            if field_name == field {
-                                return self.gen_expr(&exprs[field_id], exprs);
-                            }
-                        }
-                        // Field not found, return first field
-                        if let Some((_, first_field_id)) = struct_fields.first() {
-                            return self.gen_expr(&exprs[first_field_id], exprs);
-                        }
-                        self.i64_type.const_int(0, true).into()
-                    }
+                // Handle field access for structs
+                let base_val = self.gen_expr(&exprs[base], exprs);
+                
+                // Convert base value to pointer if it's an integer (pointer stored as i64)
+                let ptr = if let BasicValueEnum::IntValue(int_val) = base_val {
+                    // Convert i64 to pointer
+                    self.builder.build_int_to_ptr(
+                        int_val,
+                        self.context.ptr_type(AddressSpace::default()),
+                        "int_to_ptr"
+                    ).unwrap()
+                } else if let BasicValueEnum::PointerValue(ptr_val) = base_val {
+                    ptr_val
                 } else {
-                    // Base is not a struct expression, might be a variable
-                    // For now, return the value as-is (old behavior)
-                    self.gen_expr(&exprs[base], exprs)
-                }
+                    // Not a pointer or integer, return 0
+                    return self.i64_type.const_int(0, true).into();
+                };
+                
+                // Get the base expression to determine struct type
+                let base_expr = &exprs[base];
+                let field_count = if let MirExpr::Struct { variant: _, fields } = base_expr {
+                    fields.len()
+                } else {
+                    // Default to 2 fields for Pair<A, B>
+                    2
+                };
+                
+                // Create type key for lookup
+                let type_key = format!("struct_fields_{}", field_count);
+                
+                // Get cached struct type or create it
+                let struct_type = if let Some(ty) = self.specialized_types.get(&type_key) {
+                    *ty
+                } else {
+                    // Create struct type with field_count i64 fields
+                    let field_types: Vec<_> = (0..field_count)
+                        .map(|_| self.i64_type.into())
+                        .collect();
+                    
+                    let ty = self.context.struct_type(&field_types, false);
+                    self.specialized_types.insert(type_key.clone(), ty);
+                    ty
+                };
+                
+                let loaded_struct = self.builder.build_load(struct_type, ptr, "load_struct").unwrap();
+                
+                // Extract field based on name
+                // For Pair<A, B> struct, field "first" is index 0, "second" is index 1
+                let field_index = if field == "first" {
+                    0
+                } else if field == "second" {
+                    1
+                } else {
+                    // Try to parse as numeric index
+                    field.parse::<u32>().unwrap_or(0)
+                };
+                
+                // Extract value from struct
+                let field_val = self.builder.build_extract_value(
+                    loaded_struct.into_struct_value(),
+                    field_index,
+                    &format!("extract_{}", field)
+                ).unwrap();
+                
+                field_val.into()
             },
         }
     }
