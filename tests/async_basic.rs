@@ -6,7 +6,6 @@ mod tests {
     use zetac::compile_and_run_zeta;
 
     #[test]
-    #[ignore = "Async runtime has segmentation fault - needs debugging"]
     fn test_async_function_parsing() {
         let code = r#"
             async fn fetch() -> Result<i64, String> {
@@ -26,7 +25,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Async runtime has segmentation fault - needs debugging"]
     fn test_await_expression_parsing() {
         let code = r#"
             async fn fetch() -> i64 {
@@ -46,7 +44,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Async runtime has segmentation fault - needs debugging"]
     fn test_atomic_operations() {
         let code = r#"
             fn main() -> i64 {
@@ -62,7 +59,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Async runtime has segmentation fault - needs debugging"]
     fn test_channel_operations() {
         let code = r#"
             fn main() -> i64 {

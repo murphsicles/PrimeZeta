@@ -19,6 +19,7 @@ impl Resolver {
                 checker.check(ast, self)
             };
             if !borrow_ok {
+                let _ = ok; // Mark as used to avoid warning
                 ok = false;
             }
         }

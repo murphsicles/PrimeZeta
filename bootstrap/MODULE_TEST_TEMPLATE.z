@@ -1,0 +1,64 @@
+// Module syntax test template
+// This shows what Zeta module syntax should look like after implementation
+
+// Basic module with public function
+mod math {
+    pub fn add(a: i64, b: i64) -> i64 {
+        a + b
+    }
+    
+    // Private function (not accessible outside module)
+    fn multiply(a: i64, b: i64) -> i64 {
+        a * b
+    }
+}
+
+// Nested modules
+mod outer {
+    pub mod inner {
+        pub fn secret() -> i64 {
+            42
+        }
+    }
+}
+
+// Use statements
+use math::add;
+use outer::inner::secret;
+
+// Struct with visibility
+mod types {
+    pub struct Point {
+        pub x: i64,
+        pub y: i64,
+        // private field
+        id: i64,
+    }
+    
+    pub fn create_point(x: i64, y: i64) -> Point {
+        Point { x, y, id: 0 }
+    }
+}
+
+// Main function using modules
+fn main() -> i64 {
+    // Call public function from math module
+    let sum = math::add(10, 20);
+    
+    // Use imported function
+    let sum2 = add(5, 15);
+    
+    // Call nested module function
+    let secret_value = outer::inner::secret();
+    
+    // Create struct from module
+    use types::create_point;
+    let p = create_point(3, 4);
+    
+    // Access public fields
+    let total = sum + sum2 + secret_value + p.x + p.y;
+    
+    total
+}
+
+// Expected result: 10+20 + 5+15 + 42 + 3+4 = 99

@@ -256,4 +256,12 @@ pub enum AstNode {
     },
     /// Await expression for async functions.
     Await(Box<AstNode>),
+    /// Module definition with nested items.
+    ModDef {
+        name: String,
+        items: Vec<AstNode>,
+        /// Visibility: true for public, false for private (default)
+        pub_: bool,
+        attrs: Vec<String>,
+    },
 }

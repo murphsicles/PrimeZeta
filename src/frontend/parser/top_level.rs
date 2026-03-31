@@ -95,7 +95,7 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
     let (input, attrs) = parse_attributes(input)?;
 
     // Parse visibility
-    let (input, _pub_) = parse_visibility(input)?;
+    let (input, pub_) = parse_visibility(input)?;
 
     let (input, const_opt) = opt(ws(tag("const"))).parse(input)?;
     let (input, async_opt) = opt(ws(tag("async"))).parse(input)?;
@@ -172,7 +172,7 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
             ret_expr,
             single_line,
             doc: "".to_string(),
-            pub_: false,
+            pub_,
             async_: async_opt.is_some(),
             const_: const_opt.is_some(),
             where_clauses,
@@ -200,6 +200,9 @@ fn parse_concept(input: &str) -> IResult<&str, AstNode> {
     // Parse attributes
     let (input, attrs) = parse_attributes(input)?;
 
+    // Parse visibility
+    let (input, pub_) = parse_visibility(input)?;
+
     let (input, _) = ws(tag("concept")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
@@ -218,7 +221,7 @@ fn parse_concept(input: &str) -> IResult<&str, AstNode> {
             methods,
             attrs,
             doc: "".to_string(),
-            pub_: false,
+            pub_,
             where_clauses,
         },
     ))
@@ -448,6 +451,37 @@ fn parse_const(input: &str) -> IResult<&str, AstNode> {
     ))
 }
 
+fn parse_mod(input: &str) -> IResult<&str, AstNode> {
+    // Parse attributes first
+    let (input, attrs) = parse_attributes(input)?;
+
+    // Parse visibility
+    let (input, pub_) = parse_visibility(input)?;
+
+    let (input, _) = ws(tag("mod")).parse(input)?;
+    let (input, name) = ws(parse_ident).parse(input)?;
+    
+    // Parse module body
+    let (input, items) = delimited(
+        ws(tag("{")),
+        many0(ws(alt((
+            parse_use_statement,
+            map(parse_top_level_item, |node| vec![node]),
+        )))),
+        ws(tag("}")),
+    ).parse(input)?;
+    
+    // Flatten the items
+    let items: Vec<AstNode> = items.into_iter().flatten().collect();
+    
+    Ok((input, AstNode::ModDef {
+        name,
+        items,
+        pub_,
+        attrs,
+    }))
+}
+
 fn parse_macro_def(input: &str) -> IResult<&str, AstNode> {
     let (input, _) = ws(tag("macro_rules!")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
@@ -498,6 +532,7 @@ fn parse_top_level_item(input: &str) -> IResult<&str, AstNode> {
         parse_struct,
         parse_const,
         parse_macro_def,
+        parse_mod,
     ))
     .parse(input)
 }
