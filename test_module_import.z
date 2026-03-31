@@ -1,0 +1,10 @@
+// Test module import
+use zorb::std::option::Option;
+
+fn main() -> i64 {
+    let opt = Option::Some(42);
+    match opt {
+        Option::Some(x) => x,
+        Option::None => 0,
+    }
+}

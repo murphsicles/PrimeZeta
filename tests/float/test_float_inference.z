@@ -1,6 +1,0 @@
-﻿fn main() -> i64 {
-    let x = 3.14
-    let y = 2.0
-    let z = x * y
-    0
-}

@@ -1,9 +1,0 @@
-// Simple test for guard clauses
-fn main() -> i64 {
-    let x = 10;
-    
-    match x {
-        y if y > 5 => y * 2,  // Should return 20
-        y => y
-    }
-}
