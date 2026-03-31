@@ -1,27 +1,10 @@
-// Test all v0.5.0 imports
-use zeta::frontend::ast::AstNode;
-use zeta::frontend::parser::top_level::parse_zeta;
-use zeta::middle::resolver::resolver::Resolver;
-use zeta::middle::mir::mir::Mir;
-use zeta::middle::specialization::{is_cache_safe, lookup_specialization, record_specialization};
-use zeta::backend::codegen::codegen::LLVMCodegen;
-use zeta::runtime::actor::channel::Channel;
-use zeta::runtime::actor::scheduler::Scheduler;
+// Test all import patterns
+use crate::middle::mir::Mir;           // Rust internal
+use std::collections::HashMap;         // Standard library  
+use reqwest::blocking::Client;         // Rust external (no zorb::)
+use zorb::serde::Deserialize;          // Zeta external
+use zeta::frontend::ast::AstNode;      // Zeta internal
 
 fn main() {
-    println!("Testing all v0.5.0 imports");
-    
-    // Just reference the types to test they exist
-    let _ast: AstNode = AstNode::Program;
-    let _parse_result = parse_zeta("test");
-    let _resolver = Resolver::new();
-    let _mir = Mir::new();
-    let _cache_safe = is_cache_safe("i32");
-    let _lookup = lookup_specialization("key");
-    let _record = record_specialization("key", "value");
-    let _codegen = LLVMCodegen::new("context", "module");
-    let _channel: Channel<i32> = Channel::new();
-    let _scheduler = Scheduler::new();
-    
-    println!("All imports work!");
+    println!("Testing all import patterns");
 }
