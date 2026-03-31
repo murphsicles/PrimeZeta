@@ -199,9 +199,18 @@ impl Resolver {
                     // Create a fresh type variable
                     Type::Variable(crate::middle::types::TypeVar::fresh())
                 } else {
-                    // For complex types (generics, tuples, etc.), return a Named type
-                    // This is a simplified conversion - full parsing would be in typecheck_new.rs
-                    Type::Named(s.to_string(), vec![])
+                    // Check for module-qualified type names like "zeta::frontend::ast::AstNode"
+                    // or "std::option::Option<T>"
+                    if s.contains("::") {
+                        // For module-qualified names, we need to handle them specially
+                        // For now, we'll create a Named type with the full path
+                        // Later, we might want to resolve the actual type
+                        Type::Named(s.to_string(), vec![])
+                    } else {
+                        // For complex types (generics, tuples, etc.), return a Named type
+                        // This is a simplified conversion - full parsing would be in typecheck_new.rs
+                        Type::Named(s.to_string(), vec![])
+                    }
                 }
             }
         }

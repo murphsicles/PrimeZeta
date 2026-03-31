@@ -168,6 +168,10 @@ impl Resolver {
                                     println!("[RESOLVER] Registering const from module: {}", name);
                                     self.register(module_ast);
                                 }
+                                AstNode::FuncDef { name, .. } => {
+                                    println!("[RESOLVER] Registering function from module: {}", name);
+                                    self.register(module_ast);
+                                }
                                 // Skip impl blocks for now - they cause issues
                                 _ => {
                                     println!(

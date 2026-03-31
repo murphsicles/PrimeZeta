@@ -159,6 +159,12 @@ impl ModuleResolver {
             return Ok(self.modules.get(&path_str).unwrap());
         }
 
+        // Check if this is a virtual module for zeta:: imports
+        if path_str.starts_with("zeta_virtual/") {
+            println!("[MODULE RESOLVER] Loading virtual module for zeta:: import");
+            return self.load_virtual_module(&path_str);
+        }
+
         // Read and parse file
         let content = fs::read_to_string(path)
             .map_err(|e| format!("Failed to read module file {}: {}", path.display(), e))?;
@@ -266,6 +272,71 @@ impl ModuleResolver {
         self.modules.insert(path_str.clone(), module);
         println!("[MODULE RESOLVER] Module loaded successfully: {}", name);
         Ok(self.modules.get(&path_str).unwrap())
+    }
+
+    /// Load a virtual module for zeta:: imports (self-compilation)
+    fn load_virtual_module(&mut self, path_str: &str) -> Result<&Module, String> {
+        // Extract the module path from the virtual path
+        // path_str format: "zeta_virtual/frontend_ast_AstNode"
+        let parts: Vec<&str> = path_str.split('/').collect();
+        if parts.len() < 2 {
+            return Err("Invalid virtual module path".to_string());
+        }
+        
+        let module_path = parts[1];
+        let path_components: Vec<&str> = module_path.split('_').collect();
+        
+        // Create a virtual module with the appropriate exports
+        // For now, we'll create placeholder ASTs for common zeta:: imports
+        let mut exports = HashMap::new();
+        let mut asts = Vec::new();
+        
+        // Handle common zeta::frontend::ast::AstNode import
+        if path_components.len() >= 3 && path_components[0] == "frontend" && path_components[1] == "ast" {
+            // Create a virtual enum for AstNode
+            let ast_node_enum = AstNode::EnumDef {
+                name: "AstNode".to_string(),
+                generics: vec![],
+                lifetimes: vec![],
+                variants: vec![
+                    ("Program".to_string(), vec![]),
+                    ("FuncDef".to_string(), vec![]),
+                    ("Call".to_string(), vec![]),
+                    ("Lit".to_string(), vec![]),
+                    ("Var".to_string(), vec![]),
+                    ("BinaryOp".to_string(), vec![]),
+                    ("If".to_string(), vec![]),
+                    ("Return".to_string(), vec![]),
+                    ("Let".to_string(), vec![]),
+                    ("Match".to_string(), vec![]),
+                    ("StructDef".to_string(), vec![]),
+                    ("EnumDef".to_string(), vec![]),
+                    ("ImplBlock".to_string(), vec![]),
+                    ("Use".to_string(), vec![]),
+                    ("ModDef".to_string(), vec![]),
+                ],
+                attrs: vec![],
+                doc: "Abstract Syntax Tree node for Zeta language".to_string(),
+                pub_: true,
+                where_clauses: vec![],
+            };
+            
+            asts.push(ast_node_enum.clone());
+            exports.insert("AstNode".to_string(), ast_node_enum);
+            
+            println!("[MODULE RESOLVER] Created virtual module for AstNode");
+        }
+        
+        // Create the virtual module
+        let module = Module {
+            name: module_path.to_string(),
+            path: PathBuf::from(path_str),
+            asts,
+            exports,
+        };
+        
+        self.modules.insert(path_str.to_string(), module);
+        Ok(self.modules.get(path_str).unwrap())
     }
 
     /// Process a use statement and add imports to scope

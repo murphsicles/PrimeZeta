@@ -244,6 +244,31 @@ impl Type {
                     }
                 }
 
+                // Check for module-qualified generic type: std::option::Option<T>
+                // We need to handle :: in the type name before checking for <
+                if s.contains("::") {
+                    // Check if there's a generic part after the last ::
+                    if let Some(last_colon_colon) = s.rfind("::") {
+                        let after_last_colon = &s[last_colon_colon + 2..];
+                        if after_last_colon.contains('<') {
+                            // This is a module-qualified generic type like std::option::Option<T>
+                            // Find the < after the last ::
+                            if let Some(open_angle) = after_last_colon.find('<')
+                                && let Some(close_angle) = s.rfind('>')
+                                && open_angle < close_angle
+                            {
+                                // The type name is everything up to the <
+                                let type_name = s.to_string();
+                                // For now, we'll create a Named type with the full path
+                                // Later we might want to parse the generic arguments
+                                return Type::Named(type_name, vec![]);
+                            }
+                        }
+                    }
+                    // Module-qualified non-generic type like zeta::frontend::ast::AstNode
+                    return Type::Named(s.to_string(), vec![]);
+                }
+
                 // Check for generic type: Vec<i32>, Option<T>, Result<T, E>
                 // Look for < followed by > with content in between
                 if let Some(open_angle) = s.find('<')
