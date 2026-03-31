@@ -13,6 +13,18 @@ target
 # Contains mutation testing data
 **/mutants.out*/
 
+# OpenClaw workspace files (PRIVATE - NEVER COMMIT TO GITHUB)
+AGENTS.md
+SOUL.md
+TOOLS.md
+USER.md
+IDENTITY.md
+HEARTBEAT.md
+MEMORY.md
+memory/
+.openclaw/
+workspace/
+
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
