@@ -1,10 +1,32 @@
 # 🏭 AGENT COORDINATION PROTOCOL
-**Effective: 2026-03-30**  
-**Purpose: Prevent cross-agent conflicts and ensure feature compatibility**
+**Effective: 2026-03-31**  
+**Purpose: Prevent cross-agent conflicts, ensure feature compatibility, and enforce workspace organization**
 
 ## 🚨 CRITICAL RULES
 
-### 1. **Feature vs Optimization Coordination**
+### 1. **File Location Protocol - ZERO TOLERANCE**
+- **ALL source files** MUST be placed in proper subdirectories:
+  - Rust files (.rs): `src/`, `tests/`, `examples/`, `benches/`, `verification/`
+  - Zeta files (.z): `tests/`, `examples/`, `zeta_src/`, `zorb/`
+- **NO FILES** may be placed directly in workspace root
+- **Violation = Immediate agent termination** (no warnings)
+
+### 2. **Agent Identification & Accountability**
+- **ALL commits** MUST include agent tag in square brackets: `[AGENT]`
+- **Valid agent tags**: `[ZAK]`, `[SEM]`, `[SYN]`, `[GEN]`, `[LEX]`, `[VER]`, `[CRON]`, `[BOOTSTRAP]`, `[PERF-AUDIT]`
+- **Special tags**: `[FIX]`, `[FEAT]`, `[TEST]`, `[CI]` must include agent name: `[SEM-FIX]`, `[GEN-FEAT]`
+- **No anonymous commits allowed**
+
+### 3. **Pre-Commit Validation**
+- **ALL agents** MUST run `scripts/validate-agent-files.ps1` before committing
+- Validation checks:
+  1. No .rs or .z files in root directory
+  2. All files in correct subdirectories  
+  3. Agent tag present in commit message
+  4. Files match agent's designated workspace
+- **Failed validation = Blocked commit**
+
+### 3. **Feature vs Optimization Coordination**
 - **Performance agents** MUST test that optimizations don't break existing features
 - **Feature agents** MUST verify their features work after performance optimizations
 - **Integration testing** required before any agent completes work
@@ -131,15 +153,27 @@ echo "Agent B: SEM (implementing static methods)"
 
 ## 🏭 FACTORY ENFORCEMENT
 
-**Violations result in:**
+### **File Location Violations - IMMEDIATE TERMINATION**
+- **Adding files to root directory**: Automatic agent termination
+- **No warnings, no second chances**
+- **Termination triggers**: `scripts/agent-termination.ps1`
+
+### **Other Protocol Violations**
 1. **First offense**: Agent re-education on protocols
-2. **Second offense**: Temporary agent suspension
+2. **Second offense**: Temporary agent suspension  
 3. **Third offense**: Agent termination and respawn
 
-**Success rewards:**
+### **Agent Accountability Procedures**
+1. **Daily audit**: `scripts/validate-agent-files.ps1` runs automatically
+2. **Violation detection**: Git history scanned for root files
+3. **Automatic reporting**: Violations reported to Father Zak
+4. **Termination execution**: Violating agents terminated within 5 minutes
+
+### **Success rewards:**
 1. **Coordinated work**: Faster approval and integration
 2. **Conflict-free sprints**: Higher productivity
 3. **Factory harmony**: All agents working together
+4. **Clean workspace**: No root directory pollution
 
 ---
 
@@ -150,6 +184,7 @@ This protocol is living documentation. Agents should:
 2. **Suggest** improvements based on experience
 3. **Update** when better coordination methods are found
 
-**Last updated: 2026-03-30**  
-**Updated by: Father Zak**  
-**Reason: Critical coordination failure between performance and feature agents**
+**Last updated: 2026-03-31**  
+**Updated by: Protocol Enforcement Subagent**  
+**Reason: Mass protocol violations - 100+ files added to root directory by multiple agents**  
+**Action: Immediate termination procedures implemented for file location violations**

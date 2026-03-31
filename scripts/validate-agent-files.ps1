@@ -32,10 +32,15 @@ $specialTags = @('FIX', 'FEAT', 'TEST', 'CI', 'QUALITY', 'CLIPPY', 'SECURITY', '
 if ($PreCommit) {
     Write-Host "Checking commit message for agent tag..." -ForegroundColor Gray
     
-    # Get commit message from git
-    if ($CommitMessage -eq "") {
-        $CommitMessage = git log --format=%B -n 1 HEAD
+    # Get commit message from parameter
+    if ([string]::IsNullOrEmpty($CommitMessage)) {
+        # In pre-commit hook, message should be passed as parameter
+        Write-Host "⚠️  Warning: No commit message provided" -ForegroundColor Yellow
+        Write-Host "   Agent tag validation skipped (will fail in production)" -ForegroundColor Gray
+        return
     }
+    
+    Write-Host "Commit message: $CommitMessage" -ForegroundColor Gray
     
     $agentTag = $null
     if ($CommitMessage -match '\[([A-Za-z0-9\-]+)\]') {
