@@ -192,13 +192,8 @@ impl ModuleResolver {
                 return Ok(z_path);
             }
 
-            // Try as directory with mod.z
-            let mut mod_path = ext_path.clone();
-            mod_path.push("mod.z");
-
-            if mod_path.exists() {
-                return Ok(mod_path);
-            }
+            // For external crate imports, we don't use mod.z structure
+            // We create single .z files like stub_types/external/reqwest.z
 
             // If not found, create a minimal stub
             println!(
