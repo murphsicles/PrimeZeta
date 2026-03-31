@@ -418,6 +418,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     .map(|_| self.i64_type.into())
                     .collect();
                 let fn_type = self.i64_type.fn_type(&param_types, false);
+                println!("[CODEGEN] Adding function to module: {}", fn_name);
                 let fn_val = self.module.add_function(&fn_name, fn_type, None);
                 self.fns.insert(fn_name.clone(), fn_val);
             }
@@ -669,7 +670,12 @@ impl<'ctx> LLVMCodegen<'ctx> {
         if name.contains("::") {
             let mangled = name.replace("::", "_");
             println!("[CODEGEN DEBUG] Mangled {} to {}", name, mangled);
+            // Try the mangled name first
             if let Some(&f) = self.fns.get(&mangled) {
+                return f;
+            }
+            // Also try the original name (functions might be compiled with :: in name)
+            if let Some(&f) = self.fns.get(name) {
                 return f;
             }
             // Also try just the method name (function might be compiled as just "new")

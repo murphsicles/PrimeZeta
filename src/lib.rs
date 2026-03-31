@@ -76,23 +76,65 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
 
     // Generate MIR for all function definitions, not just main
     let mut mirs = Vec::new();
-    for ast in &const_evaluated_asts {
+    
+    // Recursively walk AST to find all function definitions with module context
+    fn collect_functions(ast: &AstNode, module_path: &str, functions: &mut Vec<(String, AstNode)>) {
         match ast {
-            AstNode::FuncDef { name: _, .. } => {
-                let mir = resolver.lower_to_mir(ast);
-                mirs.push(mir);
+            AstNode::FuncDef { name, .. } => {
+                let qualified_name = if module_path.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{}::{}", module_path, name)
+                };
+                // Create a copy with the qualified name
+                let mut qualified_ast = ast.clone();
+                if let AstNode::FuncDef { name, .. } = &mut qualified_ast {
+                    *name = qualified_name.clone();
+                }
+                functions.push((qualified_name, qualified_ast));
             }
             AstNode::ImplBlock { body, .. } => {
-                // Generate MIR for functions inside impl blocks
+                // Functions inside impl blocks
                 for func in body {
-                    if let AstNode::FuncDef { name: _, .. } = func {
-                        let mir = resolver.lower_to_mir(func);
-                        mirs.push(mir);
-                    }
+                    collect_functions(func, module_path, functions);
+                }
+            }
+            AstNode::ModDef { name: module_name, items, .. } => {
+                // Functions inside modules
+                let new_module_path = if module_path.is_empty() {
+                    module_name.clone()
+                } else {
+                    format!("{}::{}", module_path, module_name)
+                };
+                for item in items {
+                    collect_functions(item, &new_module_path, functions);
+                }
+            }
+            AstNode::Program(nodes) => {
+                // Program node contains multiple nodes
+                for node in nodes {
+                    collect_functions(node, module_path, functions);
                 }
             }
             _ => {}
         }
+    }
+    
+    // Collect all functions from all ASTs
+    let mut all_functions = Vec::new();
+    println!("[LIB] Processing {} ASTs", const_evaluated_asts.len());
+    for (i, ast) in const_evaluated_asts.iter().enumerate() {
+        println!("[LIB] AST {}: {:?}", i, ast);
+        collect_functions(ast, "", &mut all_functions);
+    }
+    
+    println!("[LIB] Found {} functions total", all_functions.len());
+    
+    // Generate MIR for all functions
+    for (name, func_ast) in all_functions {
+        println!("[LIB] Generating MIR for function: {}", name);
+        let mir = resolver.lower_to_mir(&func_ast);
+        mirs.push(mir);
     }
 
     // Check if we have a main function (for backward compatibility with tests)

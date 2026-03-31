@@ -379,7 +379,13 @@ impl Resolver {
     /// Get function signature for type checking
     #[allow(clippy::type_complexity)]
     pub fn get_func_signature(&self, name: &str) -> Option<&(Vec<(String, Type)>, Type, bool)> {
-        self.funcs.get(name)
+        println!("[RESOLVER] Looking up function: {}", name);
+        let result = self.funcs.get(name);
+        if result.is_none() {
+            println!("[RESOLVER] Function not found: {}", name);
+            println!("[RESOLVER] Available functions: {:?}", self.funcs.keys().collect::<Vec<_>>());
+        }
+        result
     }
 
     pub fn is_abi_stable(&self, key: &MonoKey) -> bool {
