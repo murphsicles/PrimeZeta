@@ -137,14 +137,14 @@ pub fn substitute_mir(mir: &Mir, substitution: &Substitution) -> Mir {
 /// List of type variables found in the MIR
 pub fn extract_type_vars(mir: &Mir) -> Vec<TypeVar> {
     use std::collections::HashSet;
-    
+
     let mut type_vars = HashSet::new();
-    
+
     // Extract type variables from type map
     for ty in mir.type_map.values() {
         extract_type_vars_from_type(ty, &mut type_vars);
     }
-    
+
     // Convert to vector and sort for deterministic output
     let mut result: Vec<TypeVar> = type_vars.into_iter().collect();
     result.sort_by_key(|tv| tv.0);
@@ -192,8 +192,8 @@ fn extract_type_vars_from_type(ty: &Type, type_vars: &mut HashSet<TypeVar>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::middle::types::{Substitution, Type, TypeVar};
     use crate::middle::mir::mir::{Mir, MirExpr, MirStmt};
+    use crate::middle::types::{Substitution, Type, TypeVar};
 
     #[test]
     fn test_create_substitution() {
@@ -261,28 +261,34 @@ mod tests {
             ctfe_consts: HashMap::new(),
             type_map: HashMap::new(),
         };
-        
+
         // Add some types with variables
         mir.type_map.insert(1, Type::Variable(TypeVar(0)));
         mir.type_map.insert(2, Type::I32);
-        mir.type_map.insert(3, Type::Named("Vec".to_string(), vec![Type::Variable(TypeVar(1))]));
-        mir.type_map.insert(4, Type::Function(
-            vec![Type::Variable(TypeVar(0))],
-            Box::new(Type::Variable(TypeVar(1)))
-        ));
-        
+        mir.type_map.insert(
+            3,
+            Type::Named("Vec".to_string(), vec![Type::Variable(TypeVar(1))]),
+        );
+        mir.type_map.insert(
+            4,
+            Type::Function(
+                vec![Type::Variable(TypeVar(0))],
+                Box::new(Type::Variable(TypeVar(1))),
+            ),
+        );
+
         let type_vars = extract_type_vars(&mir);
-        
+
         // Should find TypeVar(0) and TypeVar(1)
         assert_eq!(type_vars.len(), 2);
         assert!(type_vars.contains(&TypeVar(0)));
         assert!(type_vars.contains(&TypeVar(1)));
-        
+
         // Should be sorted
         assert_eq!(type_vars[0], TypeVar(0));
         assert_eq!(type_vars[1], TypeVar(1));
     }
-    
+
     #[test]
     fn test_extract_type_vars_no_vars() {
         // MIR with no type variables
@@ -294,11 +300,12 @@ mod tests {
             ctfe_consts: HashMap::new(),
             type_map: HashMap::new(),
         };
-        
+
         mir.type_map.insert(1, Type::I32);
         mir.type_map.insert(2, Type::Bool);
-        mir.type_map.insert(3, Type::Named("String".to_string(), vec![]));
-        
+        mir.type_map
+            .insert(3, Type::Named("String".to_string(), vec![]));
+
         let type_vars = extract_type_vars(&mir);
         assert!(type_vars.is_empty());
     }

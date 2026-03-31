@@ -460,7 +460,7 @@ fn parse_mod(input: &str) -> IResult<&str, AstNode> {
 
     let (input, _) = ws(tag("mod")).parse(input)?;
     let (input, name) = ws(parse_ident).parse(input)?;
-    
+
     // Parse module body
     let (input, items) = delimited(
         ws(tag("{")),
@@ -469,17 +469,21 @@ fn parse_mod(input: &str) -> IResult<&str, AstNode> {
             map(parse_top_level_item, |node| vec![node]),
         )))),
         ws(tag("}")),
-    ).parse(input)?;
-    
+    )
+    .parse(input)?;
+
     // Flatten the items
     let items: Vec<AstNode> = items.into_iter().flatten().collect();
-    
-    Ok((input, AstNode::ModDef {
-        name,
-        items,
-        pub_,
-        attrs,
-    }))
+
+    Ok((
+        input,
+        AstNode::ModDef {
+            name,
+            items,
+            pub_,
+            attrs,
+        },
+    ))
 }
 
 fn parse_macro_def(input: &str) -> IResult<&str, AstNode> {

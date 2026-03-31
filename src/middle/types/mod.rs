@@ -695,17 +695,29 @@ impl std::fmt::Display for UnifyError {
                 // Provide more helpful error messages for common type mismatches
                 let t1_name = t1.display_name();
                 let t2_name = t2.display_name();
-                
+
                 // Check for common mismatches
                 match (&t1, &t2) {
                     (Type::Str, Type::I64) | (Type::I64, Type::Str) => {
-                        write!(f, "Cannot use string as integer: expected {}, found {}", t1_name, t2_name)
+                        write!(
+                            f,
+                            "Cannot use string as integer: expected {}, found {}",
+                            t1_name, t2_name
+                        )
                     }
                     (Type::Bool, Type::I64) | (Type::I64, Type::Bool) => {
-                        write!(f, "Cannot use boolean as integer: expected {}, found {}", t1_name, t2_name)
+                        write!(
+                            f,
+                            "Cannot use boolean as integer: expected {}, found {}",
+                            t1_name, t2_name
+                        )
                     }
                     (Type::F64, Type::I64) | (Type::I64, Type::F64) => {
-                        write!(f, "Cannot mix integer and floating-point: expected {}, found {}", t1_name, t2_name)
+                        write!(
+                            f,
+                            "Cannot mix integer and floating-point: expected {}, found {}",
+                            t1_name, t2_name
+                        )
                     }
                     _ => {
                         write!(f, "Type mismatch: expected {}, found {}", t1_name, t2_name)
@@ -1008,7 +1020,7 @@ impl Substitution {
                     Self::collect_type_vars(param, &mut type_vars);
                 }
                 Self::collect_type_vars(ret, &mut type_vars);
-                
+
                 // Check if we have the right number of type arguments
                 let type_vars_count = type_vars.len();
                 if type_args.len() != type_vars_count {
@@ -1018,21 +1030,21 @@ impl Substitution {
                         type_args.len()
                     ));
                 }
-                
+
                 // Create a substitution mapping type variables to type arguments
                 let mut substitution = self.clone();
                 let type_vars_vec: Vec<TypeVar> = type_vars.into_iter().collect();
                 for (type_var, type_arg) in type_vars_vec.iter().zip(type_args.iter()) {
-                    substitution.mapping.insert(type_var.clone(), type_arg.clone());
+                    substitution
+                        .mapping
+                        .insert(type_var.clone(), type_arg.clone());
                 }
-                
+
                 // Apply substitution to parameters and return type
-                let instantiated_params: Vec<Type> = params
-                    .iter()
-                    .map(|p| substitution.apply(p))
-                    .collect();
+                let instantiated_params: Vec<Type> =
+                    params.iter().map(|p| substitution.apply(p)).collect();
                 let instantiated_ret = substitution.apply(ret);
-                
+
                 Ok(Type::Function(
                     instantiated_params,
                     Box::new(instantiated_ret),

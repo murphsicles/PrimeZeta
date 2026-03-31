@@ -37,13 +37,13 @@ impl Resolver {
                 for error in &errors {
                     eprintln!("  Type error: {}", error);
                 }
-                
+
                 // Check if any error is a type mismatch (like i64 vs str)
                 // If so, fail compilation. Otherwise fall back to old system.
-                let has_type_mismatch = errors.iter().any(|e| {
-                    matches!(e, UnifyError::Mismatch(_, _))
-                });
-                
+                let has_type_mismatch = errors
+                    .iter()
+                    .any(|e| matches!(e, UnifyError::Mismatch(_, _)));
+
                 if has_type_mismatch {
                     // Type mismatch error - fail compilation
                     false
@@ -70,18 +70,27 @@ impl Resolver {
                 if let Some((param_types, ret_type, _)) = self.get_func_signature(method) {
                     // Check number of arguments matches
                     if args.len() != param_types.len() {
-                        eprintln!("Error: {} expects {} arguments, got {}", 
-                                 method, param_types.len(), args.len());
+                        eprintln!(
+                            "Error: {} expects {} arguments, got {}",
+                            method,
+                            param_types.len(),
+                            args.len()
+                        );
                         ok = false;
                     } else {
                         // Check each argument type
-                        for (i, (arg, (param_name, param_type))) in 
-                            args.iter().zip(param_types.iter()).enumerate() {
+                        for (i, (arg, (param_name, param_type))) in
+                            args.iter().zip(param_types.iter()).enumerate()
+                        {
                             let arg_type = self.infer_type(arg);
                             if &arg_type != param_type {
-                                eprintln!("Error: Argument {} to {} has type {}, expected {}", 
-                                         i + 1, method, arg_type.display_name(), 
-                                         param_type.display_name());
+                                eprintln!(
+                                    "Error: Argument {} to {} has type {}, expected {}",
+                                    i + 1,
+                                    method,
+                                    arg_type.display_name(),
+                                    param_type.display_name()
+                                );
                                 ok = false;
                             }
                         }
@@ -93,7 +102,7 @@ impl Resolver {
                         eprintln!("Warning: Unknown function {}", method);
                     }
                 }
-                
+
                 // Also check the arguments recursively
                 for arg in args {
                     if !self.check_node(arg) {

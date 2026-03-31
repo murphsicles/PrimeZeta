@@ -600,7 +600,7 @@ impl InferContext {
                     let param_ty = self.parse_type_string(param_type_str)?;
                     param_types.push(param_ty);
                 }
-                
+
                 // Create function type: (param_types...) -> return_ty
                 let func_type = Type::Function(param_types, Box::new(return_ty.clone()));
                 self.functions.insert(name.clone(), func_type);
@@ -695,7 +695,12 @@ impl InferContext {
                 }
             }
 
-            AstNode::StructDef { name, generics, fields, .. } => {
+            AstNode::StructDef {
+                name,
+                generics,
+                fields,
+                ..
+            } => {
                 // Parse generic type parameters if present
                 let type_params = if !generics.is_empty() {
                     // Parse "T: Clone + Copy" style bounds
@@ -735,7 +740,12 @@ impl InferContext {
                 Ok(Type::Tuple(vec![])) // Unit type
             }
 
-            AstNode::EnumDef { name, generics, variants, .. } => {
+            AstNode::EnumDef {
+                name,
+                generics,
+                variants,
+                ..
+            } => {
                 // Parse generic type parameters if present
                 let type_params = if !generics.is_empty() {
                     // Parse "T: Clone + Copy" style bounds
@@ -1249,9 +1259,11 @@ impl InferContext {
         // For now, we'll store them as simple named types
         // In a full implementation, we'd store them in a separate generic types table
         self.functions.insert("Vec".to_string(), vec_ty.clone());
-        self.functions.insert("Option".to_string(), option_ty.clone());
-        self.functions.insert("Result".to_string(), result_ty.clone());
-        
+        self.functions
+            .insert("Option".to_string(), option_ty.clone());
+        self.functions
+            .insert("Result".to_string(), result_ty.clone());
+
         // Also register them as types for type checking
         self.types.insert("Vec".to_string(), vec_ty);
         self.types.insert("Option".to_string(), option_ty);

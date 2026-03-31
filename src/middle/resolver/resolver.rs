@@ -188,7 +188,11 @@ impl Resolver {
                 }
             }
             AstNode::FuncDef {
-                name, params, ret, async_, ..
+                name,
+                params,
+                ret,
+                async_,
+                ..
             } => {
                 // Convert string types to Type enum
                 let typed_params: Vec<(String, Type)> = params
@@ -279,6 +283,16 @@ impl Resolver {
                     self.funcs.insert(full_name, (vec![], typed_ret, false));
                 }
             }
+            AstNode::ModDef {
+                name, items, pub_, ..
+            } => {
+                // Register module and its items
+                println!("[RESOLVER] Registering module: {} (pub: {})", name, pub_);
+                // Register all items in the module
+                for item in items {
+                    self.register(item);
+                }
+            }
             AstNode::MacroDef { name, patterns } => {
                 // Parse and register the macro
                 match crate::frontend::macro_expand::parse_macro_rules(&patterns) {
@@ -302,6 +316,7 @@ impl Resolver {
     }
 
     /// Get function signature for type checking
+    #[allow(clippy::type_complexity)]
     pub fn get_func_signature(&self, name: &str) -> Option<&(Vec<(String, Type)>, Type, bool)> {
         self.funcs.get(name)
     }

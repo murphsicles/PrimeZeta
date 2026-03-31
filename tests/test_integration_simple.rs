@@ -13,9 +13,7 @@ fn main() {
     // let new_params =
     //     zetac::integration::generic_integration::conversion::convert_generics(&old_generics);
 
-    println!(
-        "Integration bridge test temporarily disabled due to feature gating"
-    );
+    println!("Integration bridge test temporarily disabled due to feature gating");
 
     println!("Integration bridge test completed successfully!");
 }
