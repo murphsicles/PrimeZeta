@@ -9,7 +9,7 @@ use zetac::compile_and_run_zeta;
 fn test_basic_module() {
     let code = r#"
         // Simple test - modules might not be implemented yet
-        fn main() -> i32 {
+        fn main() -> i64 {
             let x = 42;
             let y = 10;
             x + y
@@ -33,12 +33,12 @@ fn test_unknown_syntax_handling() {
     let code = r#"
         // Testing how compiler handles syntax it might not support yet
         mod math {
-            pub fn add(a: i32, b: i32) -> i32 {
+            pub fn add(a: i64, b: i64) -> i64 {
                 a + b
             }
         }
         
-        fn main() -> i32 {
+        fn main() -> i64 {
             // If modules are supported, this should work
             // If not, should give clear error
             42
@@ -57,14 +57,14 @@ fn test_unknown_syntax_handling() {
 #[test]
 fn test_nested_structure() {
     let code = r#"
-        fn outer() -> i32 {
-            fn inner() -> i32 {
+        fn outer() -> i64 {
+            fn inner() -> i64 {
                 42
             }
             inner()
         }
         
-        fn main() -> i32 {
+        fn main() -> i64 {
             outer()
         }
     "#;
@@ -81,15 +81,15 @@ fn test_nested_structure() {
 #[test]
 fn test_visibility_concepts() {
     let code = r#"
-        fn public_api() -> i32 {
+        fn public_api() -> i64 {
             private_helper()
         }
         
-        fn private_helper() -> i32 {
+        fn private_helper() -> i64 {
             42
         }
         
-        fn main() -> i32 {
+        fn main() -> i64 {
             public_api()
         }
     "#;
@@ -112,11 +112,11 @@ fn test_visibility_concepts() {
 #[test]
 fn test_multiple_functions() {
     let code = r#"
-        fn helper1() -> i32 { 10 }
-        fn helper2() -> i32 { 20 }
-        fn helper3() -> i32 { 30 }
+        fn helper1() -> i64 { 10 }
+        fn helper2() -> i64 { 20 }
+        fn helper3() -> i64 { 30 }
         
-        fn main() -> i32 {
+        fn main() -> i64 {
             helper1() + helper2() + helper3()
         }
     "#;
@@ -142,7 +142,7 @@ fn test_unsupported_feature_error() {
         // Try using potentially unsupported syntax
         use std::collections::HashMap;
         
-        fn main() -> i32 {
+        fn main() -> i64 {
             42
         }
     "#;
@@ -160,23 +160,23 @@ fn test_unsupported_feature_error() {
 fn test_rust_like_code() {
     let code = r#"
         struct Point {
-            x: i32,
-            y: i32,
+            x: i64,
+            y: i64,
         }
         
         impl Point {
             // Instance method (requires self)
-            fn sum(&self) -> i32 {
+            fn sum(&self) -> i64 {
                 self.x + self.y
             }
         }
         
         // Regular function to create Point (not a static method)
-        fn create_point(x: i32, y: i32) -> Point {
+        fn create_point(x: i64, y: i64) -> Point {
             Point { x, y }
         }
         
-        fn main() -> i32 {
+        fn main() -> i64 {
             // Create Point using a regular function
             let p = create_point(10, 20);
             p.sum()
@@ -198,15 +198,15 @@ fn test_rust_like_code() {
 #[test]
 fn test_cross_function_type_checking() {
     let code = r#"
-        fn get_value() -> i32 {
+        fn get_value() -> i64 {
             100
         }
         
-        fn process(x: i32) -> i32 {
+        fn process(x: i64) -> i64 {
             x * 2
         }
         
-        fn main() -> i32 {
+        fn main() -> i64 {
             let x = get_value();
             process(x)
         }
@@ -234,8 +234,8 @@ fn test_type_mismatch_error() {
             "hello"
         }
         
-        fn main() -> i32 {
-            let x: i32 = returns_string();  // Type mismatch
+        fn main() -> i64 {
+            let x: i64 = returns_string();  // Type mismatch
             x
         }
     "#;
@@ -258,15 +258,15 @@ fn test_type_mismatch_error() {
 fn test_end_to_end_compilation() {
     let code = r#"
         // Simple but complete program
-        fn add(a: i32, b: i32) -> i32 {
+        fn add(a: i64, b: i64) -> i64 {
             a + b
         }
         
-        fn multiply(a: i32, b: i32) -> i32 {
+        fn multiply(a: i64, b: i64) -> i64 {
             a * b
         }
         
-        fn main() -> i32 {
+        fn main() -> i64 {
             let sum = add(5, 3);
             let product = multiply(2, 4);
             sum + product
