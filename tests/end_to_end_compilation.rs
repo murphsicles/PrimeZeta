@@ -155,11 +155,10 @@ fn test_error_propagation() {
     let error = result.unwrap_err();
     println!("✓ Type error caught: {}", error);
 
-    // Test with syntax error
+    // Test with syntax error - REAL syntax error (malformed expression)
     let code = r#"
     fn main() -> i64 {
-        let x = 10
-        // Missing semicolon or expression
+        let x = 10 +  // Missing right operand
     }
     "#;
 

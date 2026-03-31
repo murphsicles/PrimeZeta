@@ -42,7 +42,13 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
     init_runtime();
     // crate::runtime::r#async::init_async_runtime(); // TODO: Enable when async is fully implemented
 
-    let (_, asts) = parse_zeta(code).map_err(|e| format!("Parse error: {:?}", e))?;
+    let (remaining, asts) = parse_zeta(code).map_err(|e| format!("Parse error: {:?}", e))?;
+    
+    // Check that all input was consumed (allow only whitespace/comments)
+    let trimmed_remaining = remaining.trim();
+    if !trimmed_remaining.is_empty() {
+        return Err(format!("Syntax error: incomplete parse. Remaining: '{}'", trimmed_remaining));
+    }
 
     let mut resolver = Resolver::new();
 
