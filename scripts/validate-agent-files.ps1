@@ -29,8 +29,13 @@ $validAgentTags = @(
 $specialTags = @('FIX', 'FEAT', 'TEST', 'CI', 'QUALITY', 'CLIPPY', 'SECURITY', 'EMERGENCY')
 
 # Check 1: Agent tag in commit message
-if ($PreCommit -and $CommitMessage -ne "") {
+if ($PreCommit) {
     Write-Host "Checking commit message for agent tag..." -ForegroundColor Gray
+    
+    # Get commit message from git
+    if ($CommitMessage -eq "") {
+        $CommitMessage = git log --format=%B -n 1 HEAD
+    }
     
     $agentTag = $null
     if ($CommitMessage -match '\[([A-Za-z0-9\-]+)\]') {
