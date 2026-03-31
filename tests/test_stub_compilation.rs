@@ -16,7 +16,7 @@ mod zeta {
             }
         }
     }
-    
+
     pub mod middle {
         pub mod resolver {
             pub mod resolver {
@@ -26,7 +26,7 @@ mod zeta {
                 }
             }
         }
-        
+
         pub mod mir {
             pub mod mir {
                 #[derive(Debug, Clone)]
@@ -35,14 +35,20 @@ mod zeta {
                 }
             }
         }
-        
+
         pub mod specialization {
-            pub fn is_cache_safe(_ty: &str) -> bool { false }
-            pub fn lookup_specialization(_key: &str) -> Option<String> { None }
-            pub fn record_specialization(_key: &str, _value: &str) -> bool { false }
+            pub fn is_cache_safe(_ty: &str) -> bool {
+                false
+            }
+            pub fn lookup_specialization(_key: &str) -> Option<String> {
+                None
+            }
+            pub fn record_specialization(_key: &str, _value: &str) -> bool {
+                false
+            }
         }
     }
-    
+
     pub mod backend {
         pub mod codegen {
             pub mod codegen {
@@ -53,7 +59,7 @@ mod zeta {
             }
         }
     }
-    
+
     pub mod runtime {
         pub mod actor {
             pub mod channel {
@@ -61,7 +67,7 @@ mod zeta {
                     _phantom: std::marker::PhantomData<T>,
                 }
             }
-            
+
             pub mod scheduler {
                 #[derive(Debug)]
                 pub struct Scheduler {
@@ -73,17 +79,19 @@ mod zeta {
 }
 
 fn main() {
+    use zeta::backend::codegen::codegen::LLVMCodegen;
     use zeta::frontend::ast::AstNode;
     use zeta::frontend::parser::top_level::parse_zeta;
-    use zeta::middle::resolver::resolver::Resolver;
     use zeta::middle::mir::mir::Mir;
-    use zeta::middle::specialization::{is_cache_safe, lookup_specialization, record_specialization};
-    use zeta::backend::codegen::codegen::LLVMCodegen;
+    use zeta::middle::resolver::resolver::Resolver;
+    use zeta::middle::specialization::{
+        is_cache_safe, lookup_specialization, record_specialization,
+    };
     use zeta::runtime::actor::channel::Channel;
     use zeta::runtime::actor::scheduler::Scheduler;
-    
+
     println!("All stub types compile successfully!");
-    
+
     // Test that we can create instances
     let _ast = AstNode::Placeholder;
     let _parse_result = parse_zeta("test");
@@ -93,8 +101,10 @@ fn main() {
     let _lookup = lookup_specialization("key");
     let _record = record_specialization("key", "value");
     let _codegen = LLVMCodegen { _placeholder: () };
-    let _channel: Channel<i32> = Channel { _phantom: std::marker::PhantomData };
+    let _channel: Channel<i32> = Channel {
+        _phantom: std::marker::PhantomData,
+    };
     let _scheduler = Scheduler { _placeholder: () };
-    
+
     println!("All instances created successfully!");
 }
