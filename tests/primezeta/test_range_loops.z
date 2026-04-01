@@ -1,6 +1,8 @@
 // Test range loops for PrimeZeta compatibility
 // Protocol compliant: test file in tests/primezeta/
 
+use std::print;
+
 // Test 1: Simple range expression
 fn test_range_expr() {
     let r = 1..10;
