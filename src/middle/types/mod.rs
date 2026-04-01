@@ -1173,6 +1173,7 @@ impl Substitution {
             | Type::U16
             | Type::U32
             | Type::U64
+            | Type::Usize
             | Type::F32
             | Type::F64
             | Type::Bool
@@ -1216,6 +1217,7 @@ impl Substitution {
             | Type::U16
             | Type::U32
             | Type::U64
+            | Type::Usize
             | Type::F32
             | Type::F64
             | Type::Bool
@@ -1253,6 +1255,7 @@ impl Substitution {
                 | Type::U16
                 | Type::U32
                 | Type::U64
+                | Type::Usize
                 | Type::F32
                 | Type::F64
                 | Type::Bool
