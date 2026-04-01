@@ -35,7 +35,11 @@
 - [x] Code generator updated for new node types
 - [x] Comprehensive test suite (16+ test files)
 
-### Week 1.3: Bootstrap Validation
+### Week 1.3: Bootstrap Validation - IN PROGRESS
+- [x] Bootstrap test files organized into tests/ directory ✅
+- [x] Array parsing enhancement with nested bracket support ✅
+- [x] PrimeZeta comptime test added ✅
+- [x] Bootstrap validation test framework created ✅
 - [ ] Compile minimal compiler with itself
 - [ ] Verify output matches input
 - [ ] Test with increasingly complex programs
