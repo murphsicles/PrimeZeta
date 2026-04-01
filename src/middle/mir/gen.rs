@@ -885,6 +885,16 @@ impl MirGen {
                 self.exprs.insert(id, MirExpr::Var(id));
                 self.type_map.insert(id, Type::I64);
             }
+            AstNode::Cast { expr, ty } => {
+                // For now, just pass through the expression without conversion
+                // TODO: Implement actual type conversion in MIR
+                let expr_id = self.lower_expr(expr);
+                // Store the target type in type_map
+                let target_type = Type::from_string(ty);
+                self.type_map.insert(id, target_type);
+                // For now, just use the expression as-is
+                self.exprs.insert(id, MirExpr::Var(expr_id));
+            }
             _ => {
                 self.exprs.insert(id, MirExpr::Lit(0));
                 self.type_map.insert(id, Type::I64);

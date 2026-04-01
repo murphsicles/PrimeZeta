@@ -483,6 +483,12 @@ impl InferContext {
                         // Bitwise operations
                         Ok(left_ty)
                     }
+                    ".." => {
+                        // Range operator - creates a Range type
+                        // Both sides should be numeric types
+                        // For now, we'll accept any numeric type and return Range
+                        Ok(Type::Range)
+                    }
                     _ => return Err(format!("Unknown operator: {}", op)),
                 }
             }
@@ -506,6 +512,16 @@ impl InferContext {
                     }
                     _ => return Err(format!("Unknown unary operator: {}", op)),
                 }
+            }
+
+            AstNode::Cast { expr, ty } => {
+                let expr_ty = self.infer(expr)?;
+                let target_ty = self.parse_type_string(ty)?;
+                
+                // Check if conversion is valid
+                // For now, allow all numeric conversions
+                // TODO: Add proper conversion validation
+                Ok(target_ty)
             }
 
             AstNode::Assign(lhs, rhs) => {
@@ -578,6 +594,7 @@ impl InferContext {
                 ret,
                 body,
                 ret_expr,
+                comptime_,
                 ..
             } => {
                 // Parse generic type parameters if present
@@ -593,6 +610,15 @@ impl InferContext {
 
                 // Parse return type in generic context
                 let return_ty = self.parse_type_string(ret)?;
+
+                // Handle comptime functions
+                if *comptime_ {
+                    // For comptime functions, we need to ensure all expressions
+                    // can be evaluated at compile time
+                    // TODO: Implement proper compile-time evaluation checking
+                    // For now, we just mark it as comptime and continue
+                    eprintln!("Note: Comptime function '{}' - compile-time evaluation not fully implemented yet", name);
+                }
 
                 // Register function signature as a proper function type
                 // Collect parameter types
@@ -1172,6 +1198,35 @@ impl InferContext {
                     self.infer(expr)?;
                 }
                 // Continue statements have unit type (they don't produce a value)
+                Ok(Type::Tuple(vec![]))
+            }
+
+            AstNode::For { pattern, expr, body } => {
+                // Type check the expression - it should be a range
+                let expr_ty = self.infer(expr)?;
+                
+                // For now, we'll accept any type for the expression
+                // In the future, we should check it's a Range type
+                // self.constrain_eq(expr_ty, Type::Range);
+                
+                // Check the pattern (loop variable)
+                // For simple variable patterns, we need to infer the type from the range
+                // For now, we'll use i64 as the default loop variable type
+                // TODO: Infer actual type from range expression
+                if let AstNode::Var(var_name) = &**pattern {
+                    // Declare loop variable with i64 type for now
+                    self.declare(var_name.clone(), Type::I64);
+                } else {
+                    // Complex pattern - for now, just check it
+                    self.check_pattern(pattern, &Type::I64)?;
+                }
+                
+                // Type check the body
+                for stmt in body {
+                    self.infer(stmt)?;
+                }
+                
+                // For loops have unit type
                 Ok(Type::Tuple(vec![]))
             }
 

@@ -831,13 +831,22 @@ impl Substitution {
         let t2 = self.apply(t2);
 
         match (&t1, &t2) {
-            // Same type
-            (Type::I64, Type::I64) => Ok(()),
+            // Same primitive types
+            (Type::I8, Type::I8) => Ok(()),
+            (Type::I16, Type::I16) => Ok(()),
             (Type::I32, Type::I32) => Ok(()),
-            (Type::Bool, Type::Bool) => Ok(()),
-            (Type::Str, Type::Str) => Ok(()),
+            (Type::I64, Type::I64) => Ok(()),
+            (Type::U8, Type::U8) => Ok(()),
+            (Type::U16, Type::U16) => Ok(()),
+            (Type::U32, Type::U32) => Ok(()),
+            (Type::U64, Type::U64) => Ok(()),
+            (Type::Usize, Type::Usize) => Ok(()),
             (Type::F32, Type::F32) => Ok(()),
             (Type::F64, Type::F64) => Ok(()),
+            (Type::Bool, Type::Bool) => Ok(()),
+            (Type::Char, Type::Char) => Ok(()),
+            (Type::Str, Type::Str) => Ok(()),
+            (Type::Range, Type::Range) => Ok(()),
 
             // Note: No implicit numeric coercions in unification
             // i32 and i64 are distinct types
