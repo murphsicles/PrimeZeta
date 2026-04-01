@@ -1,5 +1,0 @@
-impl Parser {
-    fn new() -> Parser {
-        Parser { input: "", pos: 0 }
-    }
-}
