@@ -417,9 +417,36 @@ pub fn parse_generic_params(input: &str) -> IResult<&str, (Vec<String>, Vec<Stri
     Ok((input, (lifetimes, type_params)))
 }
 
+/// Parse a single attribute (e.g., #[test] or #[derive(Clone, Debug)])
+pub fn parse_attribute(input: &str) -> IResult<&str, String> {
+    let (input, _) = tag("#[")(input)?;
+    let (input, content) = take_until("]")(input)?;
+    let (input, _) = tag("]")(input)?;
+    
+    // Trim whitespace from the content
+    let trimmed_content = content.trim();
+    Ok((input, trimmed_content.to_string()))
+}
+
 /// Parse zero or more attributes
 pub fn parse_attributes(input: &str) -> IResult<&str, Vec<String>> {
-    // Always return empty vector for now
-    // TODO: Implement proper attribute parsing
-    Ok((input, Vec::new()))
+    let mut attributes = Vec::new();
+    let mut current_input = input;
+    
+    loop {
+        // Skip whitespace and comments before checking for attribute
+        let (input_after_ws, _) = skip_ws_and_comments0(current_input)?;
+        
+        // Check if we have an attribute
+        if input_after_ws.starts_with("#[") {
+            let (input_after_attr, attr) = parse_attribute(input_after_ws)?;
+            attributes.push(attr);
+            current_input = input_after_attr;
+        } else {
+            // No more attributes
+            break;
+        }
+    }
+    
+    Ok((current_input, attributes))
 }
