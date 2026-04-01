@@ -258,13 +258,13 @@ pub unsafe extern "C" fn to_string_str(s: i64) -> i64 {
     if s == 0 {
         return 0;
     }
-    
+
     // For strings, to_string is an identity operation
     // But we need to clone the string to follow ownership semantics
     let input = unsafe { CStr::from_ptr(s as *const c_char) }
         .to_str()
         .unwrap_or("");
-    
+
     let cstring = CString::new(input).unwrap();
     let len = cstring.as_bytes_with_nul().len();
     let ptr = std_malloc(len);

@@ -266,15 +266,10 @@ fn parse_method_sig(input: &str) -> IResult<&str, AstNode> {
 }
 
 fn parse_impl(input: &str) -> IResult<&str, AstNode> {
-    // DEBUG: Print what we're trying to parse
-    // println!("DEBUG parse_impl input: '{}'", input);
-    
     // Parse attributes
     let (input, attrs) = parse_attributes(input)?;
-    // println!("DEBUG after parse_attributes: '{}'", input);
 
     let (input, _) = ws(tag("impl")).parse(input)?;
-    // println!("DEBUG after ws(tag(\"impl\")): '{}'", input);
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
 
     // Try to parse as inherent impl: impl<Generics> Type { ... }

@@ -5,8 +5,8 @@ use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_until, take_while};
 use nom::character::complete::{alpha1, multispace1, satisfy};
-use nom::combinator::{map, opt, peek, recognize, value, verify};
-use nom::error::{Error, ErrorKind};
+use nom::combinator::{map, opt, recognize, value, verify};
+
 use nom::multi::{many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated};
 
@@ -366,8 +366,6 @@ pub fn parse_generic_params(input: &str) -> IResult<&str, (Vec<String>, Vec<Stri
 
     Ok((input, (lifetimes, type_params)))
 }
-
-
 
 /// Parse zero or more attributes
 pub fn parse_attributes(input: &str) -> IResult<&str, Vec<String>> {
