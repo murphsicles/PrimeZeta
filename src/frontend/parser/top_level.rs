@@ -435,13 +435,18 @@ fn parse_const(input: &str) -> IResult<&str, AstNode> {
     // Parse visibility
     let (input, pub_) = parse_visibility(input)?;
 
-    let (input, _) = ws(tag("const")).parse(input)?;
+    // Parse const or comptime keyword
+    let (input, comptime_) = alt((
+        ws(tag("comptime")).map(|_| true),
+        ws(tag("const")).map(|_| false),
+    )).parse(input)?;
+    
     let (input, name) = ws(parse_ident).parse(input)?;
     let (input, _) = ws(tag(":")).parse(input)?;
     let (input, ty) = ws(parse_type).parse(input)?;
     let (input, _) = ws(tag("=")).parse(input)?;
     let (input, value) = ws(parse_full_expr).parse(input)?;
-    let (input, _) = ws(tag(";")).parse(input)?;
+    let (input, _) = opt(ws(tag(";"))).parse(input)?;
 
     Ok((
         input,
@@ -450,6 +455,7 @@ fn parse_const(input: &str) -> IResult<&str, AstNode> {
             ty,
             value: Box::new(value),
             pub_,
+            comptime_,
         },
     ))
 }

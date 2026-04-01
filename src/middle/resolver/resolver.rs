@@ -36,6 +36,8 @@ pub struct Resolver {
     pub associated_types: HashMap<(String, String), String>,
     pub ctfe_consts: HashMap<AstNode, i64>,
     funcs: HashMap<String, FuncSignature>,
+    /// Registered function ASTs (including module functions)
+    registered_funcs: HashMap<String, AstNode>,
     /// Module resolver for Zorb imports
     module_resolver: ModuleResolver,
     /// Macro expander for macro processing
@@ -55,6 +57,7 @@ impl Resolver {
             associated_types: HashMap::new(),
             ctfe_consts: HashMap::new(),
             funcs: HashMap::new(),
+            registered_funcs: HashMap::new(),
             module_resolver: ModuleResolver::new("."),
             macro_expander: MacroExpander::new(),
         };
@@ -216,10 +219,10 @@ impl Resolver {
                 }
             }
             AstNode::FuncDef {
-                name,
-                params,
-                ret,
-                async_,
+                ref name,
+                ref params,
+                ref ret,
+                ref async_,
                 ..
             } => {
                 // Convert string types to Type enum
@@ -227,13 +230,15 @@ impl Resolver {
                     .iter()
                     .map(|(name, ty_str)| (name.clone(), self.string_to_type(ty_str)))
                     .collect();
-                let typed_ret = self.string_to_type(&ret);
+                let typed_ret = self.string_to_type(ret);
                 println!(
                     "[RESOLVER] Registering function: {} with {} params",
                     name,
                     params.len()
                 );
-                self.funcs.insert(name, (typed_params, typed_ret, async_));
+                let name_clone = name.clone();
+                self.funcs.insert(name_clone.clone(), (typed_params, typed_ret, *async_));
+                self.registered_funcs.insert(name_clone, ast.clone());
             }
             AstNode::ExternFunc {
                 name,
@@ -297,6 +302,7 @@ impl Resolver {
                 ref ty,
                 ref value,
                 pub_: _,
+                comptime_: _,
             } => {
                 // Register constant for compile-time evaluation
                 // For now, we'll store it in ctfe_consts if it's a simple literal
@@ -612,6 +618,15 @@ impl Resolver {
                 Ok(vec![node.clone()])
             }
         }
+    }
+
+    /// Get all registered function ASTs
+    pub fn get_registered_funcs(&self) -> Vec<AstNode> {
+        println!("[RESOLVER DEBUG] Returning {} registered functions", self.registered_funcs.len());
+        for (name, _) in &self.registered_funcs {
+            println!("[RESOLVER DEBUG] Registered function: {}", name);
+        }
+        self.registered_funcs.values().cloned().collect()
     }
 
     /// Register built-in runtime functions that are required for compilation

@@ -1,0 +1,5 @@
+// Minimal test that v0.3.23 can compile
+fn main() -> i64 {
+    let x = 42;
+    x
+}

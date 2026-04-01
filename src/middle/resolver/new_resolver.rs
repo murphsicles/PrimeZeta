@@ -553,6 +553,7 @@ impl InferContext {
                 ty,
                 value,
                 pub_: _,
+                comptime_: _,
             } => {
                 // Parse the type string to Type
                 let const_ty = self.parse_type_string(ty)?;
@@ -1055,6 +1056,34 @@ impl InferContext {
                 Ok(then_ty)
             }
 
+            AstNode::If {
+                cond,
+                then,
+                else_,
+            } => {
+                // Type check the condition - must be boolean
+                let cond_ty = self.infer(cond)?;
+                self.constrain_eq(cond_ty, Type::Bool);
+
+                // Type check the then branch
+                let mut then_ty = Type::Tuple(vec![]); // Default to unit
+                for stmt in then {
+                    then_ty = self.infer(stmt)?;
+                }
+
+                // Type check the else branch if present
+                let mut else_ty = Type::Tuple(vec![]); // Default to unit
+                for stmt in else_ {
+                    else_ty = self.infer(stmt)?;
+                }
+
+                // Both branches must have the same type
+                self.constrain_eq(then_ty.clone(), else_ty.clone());
+
+                // The if expression has the type of its branches
+                Ok(then_ty)
+            }
+
             AstNode::Match { scrutinee, arms } => {
                 // Type check the scrutinee
                 let scrutinee_ty = self.infer(scrutinee)?;
@@ -1092,6 +1121,20 @@ impl InferContext {
                 // Use statements are processed by the resolver before type inference
                 // They don't have a type themselves
                 Ok(Type::Tuple(vec![])) // Unit type
+            }
+
+            AstNode::Return(expr) => {
+                // Type check the return expression
+                let expr_ty = self.infer(expr)?;
+                // Return statements have unit type (they don't produce a value)
+                Ok(Type::Tuple(vec![]))
+            }
+
+            AstNode::ExprStmt { expr } => {
+                // Type check the expression, but discard its type
+                let _ = self.infer(expr)?;
+                // Expression statements have unit type
+                Ok(Type::Tuple(vec![]))
             }
 
             _ => {

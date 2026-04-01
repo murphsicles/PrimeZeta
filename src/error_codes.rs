@@ -20,6 +20,9 @@
 use std::collections::HashMap;
 use std::fmt;
 
+// Re-export diagnostics for backward compatibility
+pub use crate::diagnostics::{Diagnostic, Severity, SourceLocation, SourceSpan};
+
 /// Error code with description and category
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ErrorCode {
@@ -358,60 +361,27 @@ pub fn format_with_code(code: &str, context: &str) -> String {
     ERROR_CODES.format_error(code, context)
 }
 
-/// Diagnostic struct for error reporting (simplified Rust version)
-#[derive(Debug, Clone)]
-pub struct Diagnostic {
-    pub code: String,
-    pub message: String,
-    pub span: Option<(usize, usize)>, // (line, column) - simplified
-    pub help: Option<String>,
-    pub note: Option<String>,
+// Note: The main Diagnostic struct is now in the diagnostics module
+// This provides backward compatibility wrappers
+
+/// Create a diagnostic from an error code
+pub fn diagnostic_from_code(code: &str, message: String, span: Option<SourceSpan>) -> Diagnostic {
+    let mut diag = Diagnostic::error(code, message);
+    if let Some(span) = span {
+        diag = diag.with_span(span);
+    }
+    
+    // Add suggestions from error code registry if available
+    if let Some(error_code) = ERROR_CODES.get(code) {
+        if let Some(suggestion) = &error_code.suggestion {
+            diag = diag.with_suggestion(suggestion.clone());
+        }
+    }
+    
+    diag
 }
 
-impl Diagnostic {
-    pub fn new(code: &str, message: String) -> Self {
-        Self {
-            code: code.to_string(),
-            message,
-            span: None,
-            help: None,
-            note: None,
-        }
-    }
 
-    pub fn with_span(mut self, line: usize, column: usize) -> Self {
-        self.span = Some((line, column));
-        self
-    }
-
-    pub fn with_help(mut self, help: String) -> Self {
-        self.help = Some(help);
-        self
-    }
-
-    pub fn with_note(mut self, note: String) -> Self {
-        self.note = Some(note);
-        self
-    }
-
-    pub fn format(&self) -> String {
-        let mut output = format!("error[{}]: {}", self.code, self.message);
-
-        if let Some((line, column)) = self.span {
-            output.push_str(&format!("\n  --> at line {}, column {}", line, column));
-        }
-
-        if let Some(help) = &self.help {
-            output.push_str(&format!("\n  help: {}", help));
-        }
-
-        if let Some(note) = &self.note {
-            output.push_str(&format!("\n  note: {}", note));
-        }
-
-        output
-    }
-}
 
 /// Common error codes for easy reference
 pub mod common {

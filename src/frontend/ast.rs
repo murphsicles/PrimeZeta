@@ -222,6 +222,11 @@ pub enum AstNode {
     },
     /// Loop statement.
     Loop { body: Vec<AstNode> },
+    /// While loop statement.
+    While {
+        cond: Box<AstNode>,
+        body: Vec<AstNode>,
+    },
     /// Unsafe block.
     Unsafe { body: Vec<AstNode> },
     /// Macro call.
@@ -248,6 +253,8 @@ pub enum AstNode {
         value: Box<AstNode>,
         /// Visibility: true for public, false for private (default)
         pub_: bool,
+        /// Compile-time flag: true for comptime variables
+        comptime_: bool,
     },
     /// Match expression with scrutinee and arms.
     Match {

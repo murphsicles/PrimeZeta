@@ -221,6 +221,8 @@ pub fn parse_type(input: &str) -> IResult<&str, String> {
         preceded(ws(tag("dyn")), ws(parse_type_path)).map(|p| format!("dyn {}", p)),
         // Built-in types
         tag("i64").map(|_| "i64".to_string()),
+        tag("u64").map(|_| "u64".to_string()),
+        tag("usize").map(|_| "usize".to_string()),
         tag("f64").map(|_| "f64".to_string()),
         tag("bool").map(|_| "bool".to_string()),
         tag("String").map(|_| "String".to_string()),

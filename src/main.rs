@@ -34,6 +34,7 @@ fn collect_func_asts(asts: &[AstNode]) -> Vec<AstNode> {
             AstNode::FuncDef { .. } => funcs.push(ast.clone()),
             AstNode::ImplBlock { body, .. } => funcs.extend(collect_func_asts(body)),
             AstNode::ConceptDef { methods, .. } => funcs.extend(collect_func_asts(methods)),
+            AstNode::ModDef { items, .. } => funcs.extend(collect_func_asts(items)),
             _ => {}
         }
     }
@@ -90,7 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     return Err("Typecheck failed".into());
                 }
 
-                let func_asts = collect_func_asts(&asts);
+                let func_asts = resolver.get_registered_funcs();
                 let mir_map: HashMap<String, Mir> = func_asts
                     .iter()
                     .filter_map(|ast| {
@@ -211,7 +212,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let _ = resolver.typecheck(&asts);
 
-        let func_asts = collect_func_asts(&asts);
+        let func_asts = resolver.get_registered_funcs();
         let mut mono_mirs = vec![];
         let used_specs = resolver.collect_used_specializations(&asts);
 
@@ -292,7 +293,7 @@ fn repl(_dump_mir: bool) -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        let func_asts = collect_func_asts(&asts);
+        let func_asts = resolver.get_registered_funcs();
         let mir_map: HashMap<String, Mir> = func_asts
             .iter()
             .filter_map(|ast| {

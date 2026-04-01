@@ -10,7 +10,7 @@ use nom::IResult;
 use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while};
-use nom::combinator::opt;
+use nom::combinator::{map, opt};
 use nom::error::Error as NomError;
 use nom::multi::{separated_list0, separated_list1};
 use nom::sequence::{delimited, preceded, terminated};
@@ -405,11 +405,25 @@ fn parse_if(input: &str) -> IResult<&str, AstNode> {
         ws(parse_expr_no_if).parse(input)?
     };
     let (input, then) = delimited(ws(tag("{")), parse_block_body, ws(tag("}"))).parse(input)?;
+    
+    // Parse else clause: either `else { ... }` or `else if ...`
     let (input, else_opt) = opt(preceded(
         ws(tag("else")),
-        delimited(ws(tag("{")), parse_block_body, ws(tag("}"))),
+        alt((
+            // else { ... } block
+            map(
+                delimited(ws(tag("{")), parse_block_body, ws(tag("}"))),
+                |body| body,
+            ),
+            // else if ... (parse as another if statement)
+            map(
+                parse_if,
+                |if_node| vec![if_node],
+            ),
+        )),
     ))
     .parse(input)?;
+    
     let else_: Vec<AstNode> = else_opt.unwrap_or(vec![]);
     Ok((
         input,

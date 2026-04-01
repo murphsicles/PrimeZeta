@@ -195,6 +195,7 @@ pub fn evaluate_constants(asts: &[AstNode]) -> Result<Vec<AstNode>, String> {
                 ty,
                 value,
                 pub_,
+                comptime_,
             } => {
                 // Try to evaluate the constant
                 match evaluator.eval_const_expr(value) {
@@ -205,6 +206,7 @@ pub fn evaluate_constants(asts: &[AstNode]) -> Result<Vec<AstNode>, String> {
                             ty: ty.clone(),
                             value: Box::new(AstNode::Lit(val)),
                             pub_: *pub_,
+                            comptime_: *comptime_,
                         });
                     }
                     Err(e) => {
