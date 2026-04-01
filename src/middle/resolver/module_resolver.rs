@@ -496,6 +496,7 @@ impl ModuleResolver {
             pub_: true,
             async_: false,
             const_: false,
+            comptime_: false,
             where_clauses: vec![],
         };
         asts.push(malloc_func.clone());
@@ -516,6 +517,7 @@ impl ModuleResolver {
             pub_: true,
             async_: false,
             const_: false,
+            comptime_: false,
             where_clauses: vec![],
         };
         asts.push(free_func.clone());
@@ -536,7 +538,7 @@ impl ModuleResolver {
             pub_: true,
             async_: false,
             const_: false,
-            where_clauses: vec![],
+        comptime_: false,            where_clauses: vec![],
         };
         asts.push(print_func.clone());
         exports.insert("print".to_string(), print_func);
@@ -556,7 +558,7 @@ impl ModuleResolver {
             pub_: true,
             async_: false,
             const_: false,
-            where_clauses: vec![],
+        comptime_: false,            where_clauses: vec![],
         };
         asts.push(println_func.clone());
         exports.insert("println".to_string(), println_func);
@@ -576,7 +578,7 @@ impl ModuleResolver {
             pub_: true,
             async_: false,
             const_: false,
-            where_clauses: vec![],
+        comptime_: false,            where_clauses: vec![],
         };
         asts.push(args_func.clone());
         exports.insert("args".to_string(), args_func);
@@ -665,7 +667,7 @@ impl ModuleResolver {
                         pub_: true,
                         async_: false,
                         const_: false,
-                        where_clauses: vec![],
+        comptime_: false,                        where_clauses: vec![],
                     };
                     asts.push(parse_zeta_func.clone());
                     exports.insert("parse_zeta".to_string(), parse_zeta_func);
@@ -723,7 +725,7 @@ impl ModuleResolver {
                         pub_: true,
                         async_: false,
                         const_: false,
-                        where_clauses: vec![],
+        comptime_: false,                        where_clauses: vec![],
                     };
                     asts.push(is_cache_safe_func.clone());
                     exports.insert("is_cache_safe".to_string(), is_cache_safe_func);
@@ -742,7 +744,7 @@ impl ModuleResolver {
                         pub_: true,
                         async_: false,
                         const_: false,
-                        where_clauses: vec![],
+        comptime_: false,                        where_clauses: vec![],
                     };
                     asts.push(lookup_specialization_func.clone());
                     exports.insert(
@@ -767,7 +769,7 @@ impl ModuleResolver {
                         pub_: true,
                         async_: false,
                         const_: false,
-                        where_clauses: vec![],
+        comptime_: false,                        where_clauses: vec![],
                     };
                     asts.push(record_specialization_func.clone());
                     exports.insert(
@@ -1059,3 +1061,4 @@ pub fn from_str<T>(_s: &str) -> Result<T, ()> {
         }
     }
 }
+

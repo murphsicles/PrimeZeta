@@ -1,92 +1,75 @@
-# Pre-Commit Validation Script
-# Ensures no untracked TODOs or placeholder logic
+# PRE-COMMIT VALIDATION SCRIPT
+# Runs automatically before any git commit
+# Prevents protocol violations from being committed
 
-param(
-    [string]$CommitMessage = ""
-)
-
-Write-Host "=== PRE-COMMIT VALIDATION ===" -ForegroundColor Red
+Write-Host "=== PRE-COMMIT PROTOCOL VALIDATION ===" -ForegroundColor Cyan
+Write-Host "Time: $(Get-Date -Format 'HH:mm:ss')"
 Write-Host ""
 
-# Check for staged changes
-$stagedFiles = git diff --cached --name-only
-if (-not $stagedFiles) {
-    Write-Host "No staged changes to validate." -ForegroundColor Yellow
-    exit 0
-}
-
-Write-Host "Checking staged files for TODOs and placeholders..." -ForegroundColor Cyan
-
-$hasViolations = $false
 $violations = @()
+$errors = 0
+$warnings = 0
 
-foreach ($file in $stagedFiles) {
-    if ($file -match "\.(rs|z)$") {
-        # Get staged content for this file
-        $stagedContent = git diff --cached "$file" | Where-Object { $_ -match "^\+" } | ForEach-Object { $_.Substring(1) }
-        
-        # Check for TODOs/FIXMEs
-        $lineNum = 0
-        foreach ($line in $stagedContent) {
-            $lineNum++
-            if ($line -match "(TODO|FIXME)") {
-                $violationMsg = "❌ ${file}:${lineNum} - Untracked $($matches[1]): $($line.Trim())"
-                $violations += $violationMsg
-                $hasViolations = $true
-            }
-            
-            # Check for placeholder patterns
-            if ($line -match "placeholder|stub|hack|XXX" -and $line -notmatch "TODO_TRACKING") {
-                $violationMsg = "⚠️  ${file}:${lineNum} - Placeholder logic: $($line.Trim())"
-                $violations += $violationMsg
-                $hasViolations = $true
-            }
-            
-            # Check for magic number placeholders
-            if ($line -match "Lit\(0\)|return 0|0; //|default_value" -and $line -notmatch "test") {
-                $violationMsg = "⚠️  ${file}:${lineNum} - Magic placeholder: $($line.Trim())"
-                $violations += $violationMsg
-                $hasViolations = $true
-            }
-        }
+# 1. CHECK FOR FILES IN ROOT DIRECTORY
+Write-Host "1. Checking for files in root directory..." -ForegroundColor Yellow
+$rootFiles = Get-ChildItem -File -Path "." -Exclude @("Cargo.toml", "Cargo.lock", ".gitignore", "README.md", "LICENSE", "deny.toml", ".zeta_*")
+
+foreach ($file in $rootFiles) {
+    $violations += "❌ File in root: $($file.Name)"
+    $errors++
+}
+
+# 2. CHECK FOR WORKSPACE FILES
+Write-Host "2. Checking for workspace files..." -ForegroundColor Yellow
+$workspaceFiles = @("AGENTS.md", "IDENTITY.md", "SOUL.md", "TOOLS.md", "USER.md", "HEARTBEAT.md", "MEMORY.md", "WORK_QUEUE.md")
+foreach ($file in $workspaceFiles) {
+    if (Test-Path $file) {
+        $violations += "❌ SECURITY: Workspace file in repository: $file"
+        $errors++
     }
 }
 
-# Check commit message for TODO references
-if ($CommitMessage -match "TODO-") {
-    Write-Host "✅ Commit references TODO ID" -ForegroundColor Green
-} else {
-    # Check if any TODOs were found
-    if ($violations | Where-Object { $_ -match "❌" }) {
-        Write-Host "⚠️  Commit doesn't reference TODO IDs but has TODOs" -ForegroundColor Yellow
-    }
+# 3. CHECK FOR TEST FILES IN WRONG LOCATIONS
+Write-Host "3. Checking test file locations..." -ForegroundColor Yellow
+$testFilesInWrongPlace = Get-ChildItem -File -Path "." -Filter "*.z" -ErrorAction SilentlyContinue
+foreach ($file in $testFilesInWrongPlace) {
+    $violations += "❌ Test file in root: $($file.Name) (should be in tests/ directory)"
+    $errors++
 }
 
-# Report violations
+# 4. CHECK FOR RELEASE NOTES IN ROOT
+Write-Host "4. Checking release note locations..." -ForegroundColor Yellow
+$releaseNotesInRoot = Get-ChildItem -File -Path "." -Filter "RELEASE_*.md" -ErrorAction SilentlyContinue
+foreach ($file in $releaseNotesInRoot) {
+    $violations += "⚠️ Release note in root: $($file.Name) (should be in docs/releases/)"
+    $warnings++
+}
+
+# 5. VALIDATION SUMMARY
+Write-Host ""
+Write-Host "=== VALIDATION RESULTS ===" -ForegroundColor Cyan
+Write-Host "Errors: $errors" -ForegroundColor $(if ($errors -gt 0) { "Red" } else { "Green" })
+Write-Host "Warnings: $warnings" -ForegroundColor $(if ($warnings -gt 0) { "Yellow" } else { "Green" })
+
 if ($violations.Count -gt 0) {
-    Write-Host "`n=== VIOLATIONS FOUND ===" -ForegroundColor Red
-    foreach ($v in $violations) {
-        Write-Host $v
+    Write-Host ""
+    Write-Host "=== PROTOCOL VIOLATIONS FOUND ===" -ForegroundColor Red
+    foreach ($violation in $violations) {
+        Write-Host $violation
     }
     
-    Write-Host "`n=== REQUIRED ACTIONS ===" -ForegroundColor Red
-    Write-Host "1. Add TODOs to TODO_TRACKING.md with:" -ForegroundColor Yellow
-    Write-Host "   - ID (TODO-YYYYMMDD-NNN)" -ForegroundColor Gray
-    Write-Host "   - Owner (agent responsible)" -ForegroundColor Gray
-    Write-Host "   - Due date (within 48 hours)" -ForegroundColor Gray
-    Write-Host "   - Impact description" -ForegroundColor Gray
-    
-    Write-Host "`n2. Update commit message to reference TODO ID:" -ForegroundColor Yellow
-    Write-Host "   [AGENT] Description [TODO-ID]" -ForegroundColor Gray
-    
-    Write-Host "`n3. Or remove placeholder logic and implement properly" -ForegroundColor Yellow
-    
-    Write-Host "`n=== COMMIT BLOCKED ===" -ForegroundColor Red
-    Write-Host "Fix violations before committing." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "❌ COMMIT BLOCKED: Fix violations before committing" -ForegroundColor Red
+    Write-Host "Suggested fixes:" -ForegroundColor Yellow
+    Write-Host "  • Move .z files to tests/ directory"
+    Write-Host "  • Remove workspace files (AGENTS.md, IDENTITY.md, etc.)"
+    Write-Host "  • Move release notes to docs/releases/"
+    Write-Host "  • Keep root directory clean"
     
     exit 1
 } else {
-    Write-Host "✅ No untracked TODOs or placeholder logic found." -ForegroundColor Green
-    Write-Host "Commit validation passed." -ForegroundColor Green
+    Write-Host ""
+    Write-Host "✅ All protocols validated successfully!" -ForegroundColor Green
+    Write-Host "Ready to commit." -ForegroundColor Green
     exit 0
 }

@@ -154,11 +154,12 @@ impl ConstEvaluator {
         match func {
             AstNode::FuncDef {
                 const_,
+                comptime_,
                 body,
                 ret_expr,
                 ..
             } => {
-                if !*const_ {
+                if !*const_ && !*comptime_ {
                     return Ok(None);
                 }
 

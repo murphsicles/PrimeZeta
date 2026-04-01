@@ -72,6 +72,8 @@ pub enum AstNode {
         async_: bool,
         /// Const flag: true for const functions (compile-time evaluable)
         const_: bool,
+        /// Comptime flag: true for comptime functions (must be evaluated at compile time)
+        comptime_: bool,
         /// Where clauses: e.g., where T: Clone, U: Debug + Display
         where_clauses: Vec<(String, Vec<String>)>,
     },

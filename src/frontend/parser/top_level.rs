@@ -97,6 +97,7 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
     // Parse visibility
     let (input, pub_) = parse_visibility(input)?;
 
+    let (input, comptime_opt) = opt(ws(tag("comptime"))).parse(input)?;
     let (input, const_opt) = opt(ws(tag("const"))).parse(input)?;
     let (input, async_opt) = opt(ws(tag("async"))).parse(input)?;
     let (input, extern_opt) = opt(ws(tag("extern"))).parse(input)?;
@@ -175,6 +176,7 @@ fn parse_func(input: &str) -> IResult<&str, AstNode> {
             pub_,
             async_: async_opt.is_some(),
             const_: const_opt.is_some(),
+            comptime_: comptime_opt.is_some(),
             where_clauses,
         }
     };

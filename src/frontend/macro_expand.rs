@@ -417,6 +417,7 @@ fn create_test_function(node: &AstNode) -> Result<AstNode, String> {
                 pub_: false,
                 async_: *async_,
                 const_: *const_,
+                comptime_: false,
                 where_clauses: Vec::new(),
             })
         }
