@@ -21,10 +21,18 @@ enum AstNode {
         name: String,
         value: Box<AstNode>,
     },
+    Assign {
+        name: String,
+        value: Box<AstNode>,
+    },
     If {
         condition: Box<AstNode>,
         then_body: Vec<AstNode>,
         else_body: Vec<AstNode>,
+    },
+    While {
+        condition: Box<AstNode>,
+        body: Vec<AstNode>,
     },
 }
 
@@ -120,6 +128,65 @@ impl Parser {
                     name: var_name,
                     value: Box::new(expr),
                 });
+            } else if self.consume("while ") {
+                // Parse while loop: while (condition) { body }
+                self.skip_whitespace();
+                self.consume("(");
+                let condition = self.parse_expr();
+                self.consume(")");
+                self.skip_whitespace();
+                self.consume("{");
+                
+                let mut while_body = Vec::new();
+                while !self.consume("}") {
+                    self.skip_whitespace();
+                    if self.consume("return ") {
+                        let expr = self.parse_expr();
+                        self.consume(";");
+                        while_body.push(AstNode::Return(Box::new(expr)));
+                    } else if self.consume("let ") {
+                        let var_name = self.parse_ident();
+                        self.skip_whitespace();
+                        self.consume("=");
+                        self.skip_whitespace();
+                        let expr = self.parse_expr();
+                        self.consume(";");
+                        while_body.push(AstNode::VarDecl {
+                            name: var_name,
+                            value: Box::new(expr),
+                        });
+                    } else if self.consume("if ") {
+                        // Nested if statement - skip for now
+                        self.skip_until("}");
+                    } else if self.consume("while ") {
+                        // Nested while loop - skip for now
+                        self.skip_until("}");
+                    } else {
+                        // Try to parse as variable reassignment: name = expr;
+                        let start_pos = self.pos;
+                        let potential_name = self.parse_ident();
+                        self.skip_whitespace();
+                        if self.consume("=") {
+                            // It's a reassignment
+                            let expr = self.parse_expr();
+                            self.consume(";");
+                            while_body.push(AstNode::Assign {
+                                name: potential_name,
+                                value: Box::new(expr),
+                            });
+                        } else {
+                            // Not a reassignment, revert and skip
+                            self.pos = start_pos;
+                            self.pos += 1;
+                        }
+                    }
+                    self.skip_whitespace();
+                }
+                
+                body.push(AstNode::While {
+                    condition: Box::new(condition),
+                    body: while_body,
+                });
             } else if self.consume("if ") {
                 // Parse if statement: if (condition) { body } [else { body }]
                 self.skip_whitespace();
@@ -205,8 +272,23 @@ impl Parser {
                     else_body,
                 });
             } else {
-                // Skip unknown statements
-                self.pos += 1;
+                // Try to parse as variable reassignment: name = expr;
+                let start_pos = self.pos;
+                let potential_name = self.parse_ident();
+                self.skip_whitespace();
+                if self.consume("=") {
+                    // It's a reassignment
+                    let expr = self.parse_expr();
+                    self.consume(";");
+                    body.push(AstNode::Assign {
+                        name: potential_name,
+                        value: Box::new(expr),
+                    });
+                } else {
+                    // Not a reassignment, revert and skip
+                    self.pos = start_pos;
+                    self.pos += 1;
+                }
             }
             self.skip_whitespace();
         }
@@ -414,6 +496,12 @@ impl CodeGen {
                 self.generate(value);
                 self.output.push_str(";\n");
             }
+            AstNode::Assign { name, value } => {
+                self.add_indent();
+                self.output.push_str(&format!("{} = ", name));
+                self.generate(value);
+                self.output.push_str(";\n");
+            }
             AstNode::If { condition, then_body, else_body } => {
                 self.add_indent();
                 self.output.push_str("if (");
@@ -443,6 +531,21 @@ impl CodeGen {
                 }
                 
                 self.output.push_str("\n");
+            }
+            AstNode::While { condition, body } => {
+                self.add_indent();
+                self.output.push_str("while (");
+                self.generate(condition);
+                self.output.push_str(") {\n");
+                self.indent += 1;
+                
+                for node in body {
+                    self.generate(node);
+                }
+                
+                self.indent -= 1;
+                self.add_indent();
+                self.output.push_str("}\n");
             }
         }
     }
