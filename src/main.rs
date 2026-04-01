@@ -27,20 +27,6 @@ use zetac::middle::specialization::{
 };
 use zetac::runtime::actor::scheduler;
 
-fn collect_func_asts(asts: &[AstNode]) -> Vec<AstNode> {
-    let mut funcs = vec![];
-    for ast in asts {
-        match ast {
-            AstNode::FuncDef { .. } => funcs.push(ast.clone()),
-            AstNode::ImplBlock { body, .. } => funcs.extend(collect_func_asts(body)),
-            AstNode::ConceptDef { methods, .. } => funcs.extend(collect_func_asts(methods)),
-            AstNode::ModDef { items, .. } => funcs.extend(collect_func_asts(items)),
-            _ => {}
-        }
-    }
-    funcs
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     scheduler::init_runtime();
 
