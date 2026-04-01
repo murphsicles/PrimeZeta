@@ -181,24 +181,9 @@ impl Resolver {
                                         "[RESOLVER] Registering function from module: {}",
                                         name
                                     );
-                                    // Register with module-qualified name
-                                    // The module name is the last component of the path
-                                    let module_name = if path.len() > 1 {
-                                        path[path.len() - 2].clone()
-                                    } else {
-                                        "".to_string()
-                                    };
-                                    if !module_name.is_empty() {
-                                        // Create a copy of the AST with module-qualified name
-                                        let mut qualified_ast = module_ast.clone();
-                                        if let AstNode::FuncDef { ref mut name, .. } = qualified_ast
-                                        {
-                                            *name = format!("{}::{}", module_name, name);
-                                        }
-                                        self.register(qualified_ast);
-                                    } else {
-                                        self.register(module_ast);
-                                    }
+                                    // When importing via `use std::malloc`, register with simple name
+                                    // The function will be available as `malloc` in current scope
+                                    self.register(module_ast);
                                 }
                                 // Skip impl blocks for now - they cause issues
                                 _ => {
