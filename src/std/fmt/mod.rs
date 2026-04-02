@@ -64,7 +64,7 @@ pub unsafe extern "C" fn fmt_format(
     format_ptr: *const u8,
     format_len: usize,
     value: i64,
-) -> *mut u8 {
+) -> *mut u8 { unsafe {
     let format_bytes = std::slice::from_raw_parts(format_ptr, format_len);
     let format_str = String::from_utf8_lossy(format_bytes);
     
@@ -85,7 +85,7 @@ pub unsafe extern "C" fn fmt_format(
     let ptr = boxed.as_ptr();
     std::mem::forget(boxed);
     ptr as *mut u8
-}
+}}
 
 /// Formats a value for debugging.
 /// 
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn fmt_write(
     format_ptr: *const u8,
     format_len: usize,
     value: i64,
-) -> isize {
+) -> isize { unsafe {
     let format_bytes = std::slice::from_raw_parts(format_ptr, format_len);
     let format_str = String::from_utf8_lossy(format_bytes);
     
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn fmt_write(
     }
     
     len as isize
-}
+}}
 
 // ============================================================================
 // Formatter Implementation

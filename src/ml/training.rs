@@ -4,14 +4,13 @@
 //! model evaluation utilities.
 
 use super::tensor::Tensor;
-use super::nn::{Layer, Sequential};
+use super::nn::Layer;
 use super::optim::{Optimizer, LRScheduler};
 use super::data::{Dataset, DataLoader};
 use std::path::Path;
 use std::fs::{File, create_dir_all};
-use std::io::{Write, BufReader, BufWriter};
+use std::io::{Write, BufReader};
 use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
 
 /// Loss functions for training
 pub trait LossFunction {
@@ -429,7 +428,7 @@ impl Trainer {
     /// Validate the model
     pub fn validate(&self, val_loader: &mut DataLoader) -> (f32, f32) {
         // Set model to evaluation mode
-        let mut model = self.model.as_ref();
+        let model = self.model.as_ref();
         // Note: Need mutable reference to call train(false), but we're in &self
         // In real implementation, we would handle this differently
         

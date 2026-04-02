@@ -63,13 +63,13 @@ pub unsafe extern "C" fn time_now() -> *mut Time {
 /// # Safety
 /// start must be a valid pointer from time_now.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn time_elapsed(start: *const Time) -> u64 {
+pub unsafe extern "C" fn time_elapsed(start: *const Time) -> u64 { unsafe {
     if let Some(start) = start.as_ref() {
         start.instant.elapsed().as_nanos() as u64
     } else {
         0
     }
-}
+}}
 
 /// Sleeps for the specified number of milliseconds.
 #[unsafe(no_mangle)]
@@ -98,39 +98,39 @@ pub unsafe extern "C" fn duration_new(secs: u64) -> *mut ZetaDuration {
 /// # Safety
 /// duration must be a valid pointer from duration_new.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn duration_as_secs(duration: *const ZetaDuration) -> u64 {
+pub unsafe extern "C" fn duration_as_secs(duration: *const ZetaDuration) -> u64 { unsafe {
     if let Some(duration) = duration.as_ref() {
         duration.nanos / 1_000_000_000
     } else {
         0
     }
-}
+}}
 
 /// Gets the duration in milliseconds.
 /// 
 /// # Safety
 /// duration must be a valid pointer from duration_new.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn duration_as_millis(duration: *const ZetaDuration) -> u64 {
+pub unsafe extern "C" fn duration_as_millis(duration: *const ZetaDuration) -> u64 { unsafe {
     if let Some(duration) = duration.as_ref() {
         duration.nanos / 1_000_000
     } else {
         0
     }
-}
+}}
 
 /// Gets the duration in microseconds.
 /// 
 /// # Safety
 /// duration must be a valid pointer from duration_new.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn duration_as_micros(duration: *const ZetaDuration) -> u64 {
+pub unsafe extern "C" fn duration_as_micros(duration: *const ZetaDuration) -> u64 { unsafe {
     if let Some(duration) = duration.as_ref() {
         duration.nanos / 1_000
     } else {
         0
     }
-}
+}}
 
 // ============================================================================
 // Date/Time Operations
@@ -169,7 +169,7 @@ pub unsafe extern "C" fn datetime_format(
     datetime: *const DateTime,
     format_ptr: *const u8,
     format_len: usize,
-) -> *mut u8 {
+) -> *mut u8 { unsafe {
     if let Some(datetime) = datetime.as_ref() {
         let format_bytes = std::slice::from_raw_parts(format_ptr, format_len);
         let format_str = String::from_utf8_lossy(format_bytes);
@@ -218,4 +218,4 @@ pub unsafe extern "C" fn datetime_format(
     } else {
         std::ptr::null_mut()
     }
-}
+}}

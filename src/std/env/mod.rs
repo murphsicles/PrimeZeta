@@ -7,7 +7,6 @@
 //! - Working directory
 
 use std::env;
-use std::path::PathBuf;
 
 /// Initializes the environment module.
 pub fn init() {
@@ -48,7 +47,7 @@ pub fn register_functions(map: &mut std::collections::HashMap<&'static str, usiz
 /// name_ptr must point to valid UTF-8 string of name_len bytes.
 /// Returns a pointer to the value string, or null if not found.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn env_var(name_ptr: *const u8, name_len: usize) -> *mut u8 {
+pub unsafe extern "C" fn env_var(name_ptr: *const u8, name_len: usize) -> *mut u8 { unsafe {
     let name_bytes = std::slice::from_raw_parts(name_ptr, name_len);
     let name = String::from_utf8_lossy(name_bytes);
     
@@ -61,7 +60,7 @@ pub unsafe extern "C" fn env_var(name_ptr: *const u8, name_len: usize) -> *mut u
         }
         Err(_) => std::ptr::null_mut(),
     }
-}
+}}
 
 /// Sets an environment variable.
 /// 
@@ -74,7 +73,7 @@ pub unsafe extern "C" fn env_set_var(
     name_len: usize,
     value_ptr: *const u8,
     value_len: usize,
-) -> bool {
+) -> bool { unsafe {
     let name_bytes = std::slice::from_raw_parts(name_ptr, name_len);
     let value_bytes = std::slice::from_raw_parts(value_ptr, value_len);
     
@@ -83,19 +82,19 @@ pub unsafe extern "C" fn env_set_var(
     
     env::set_var(name.as_ref(), value.as_ref());
     true
-}
+}}
 
 /// Checks if an environment variable exists.
 /// 
 /// # Safety
 /// name_ptr must point to valid UTF-8 string of name_len bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn env_var_exists(name_ptr: *const u8, name_len: usize) -> bool {
+pub unsafe extern "C" fn env_var_exists(name_ptr: *const u8, name_len: usize) -> bool { unsafe {
     let name_bytes = std::slice::from_raw_parts(name_ptr, name_len);
     let name = String::from_utf8_lossy(name_bytes);
     
     env::var(name.as_ref()).is_ok()
-}
+}}
 
 // ============================================================================
 // Command Line Arguments
@@ -179,12 +178,12 @@ pub unsafe extern "C" fn env_current_dir() -> *mut u8 {
 /// # Safety
 /// path_ptr must point to valid UTF-8 string of path_len bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn env_set_current_dir(path_ptr: *const u8, path_len: usize) -> bool {
+pub unsafe extern "C" fn env_set_current_dir(path_ptr: *const u8, path_len: usize) -> bool { unsafe {
     let path_bytes = std::slice::from_raw_parts(path_ptr, path_len);
     let path_str = String::from_utf8_lossy(path_bytes);
     
     env::set_current_dir(path_str.as_ref()).is_ok()
-}
+}}
 
 /// Gets the home directory.
 /// 

@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use serde::{Deserialize, Serialize};
 
-use super::{Manifest, Dependency, DependencyResolver};
+use super::{Manifest, DependencyResolver};
 use crate::package::manifest::WorkspaceConfig;
 
 /// Dependency graph node

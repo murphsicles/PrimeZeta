@@ -67,7 +67,7 @@ pub unsafe extern "C" fn vec_new() -> *mut Vec<i32> {
 /// # Safety
 /// vec must be a valid pointer from vec_new.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vec_push(vec: *mut Vec<i32>, value: i32) {
+pub unsafe extern "C" fn vec_push(vec: *mut Vec<i32>, value: i32) { unsafe {
     if let Some(vec) = vec.as_mut() {
         // Simple implementation - in real implementation would handle resizing
         if vec.len >= vec.capacity {
@@ -76,14 +76,14 @@ pub unsafe extern "C" fn vec_push(vec: *mut Vec<i32>, value: i32) {
         }
         vec.len += 1;
     }
-}
+}}
 
 /// Pops an element from the Vec.
 /// 
 /// # Safety
 /// vec must be a valid pointer from vec_new.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vec_pop(vec: *mut Vec<i32>) -> i32 {
+pub unsafe extern "C" fn vec_pop(vec: *mut Vec<i32>) -> i32 { unsafe {
     if let Some(vec) = vec.as_mut() {
         if vec.len > 0 {
             vec.len -= 1;
@@ -92,27 +92,27 @@ pub unsafe extern "C" fn vec_pop(vec: *mut Vec<i32>) -> i32 {
         }
     }
     -1 // Error value
-}
+}}
 
 /// Gets the length of the Vec.
 /// 
 /// # Safety
 /// vec must be a valid pointer from vec_new.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vec_len(vec: *const Vec<i32>) -> usize {
+pub unsafe extern "C" fn vec_len(vec: *const Vec<i32>) -> usize { unsafe {
     if let Some(vec) = vec.as_ref() {
         vec.len
     } else {
         0
     }
-}
+}}
 
 /// Gets an element from the Vec by index.
 /// 
 /// # Safety
 /// vec must be a valid pointer from vec_new.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn vec_get(vec: *const Vec<i32>, index: usize) -> i32 {
+pub unsafe extern "C" fn vec_get(vec: *const Vec<i32>, index: usize) -> i32 { unsafe {
     if let Some(vec) = vec.as_ref() {
         if index < vec.len {
             // Return dummy value for now
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn vec_get(vec: *const Vec<i32>, index: usize) -> i32 {
         }
     }
     -1 // Error value
-}
+}}
 
 // ============================================================================
 // HashMap<K, V> Implementation
@@ -153,7 +153,7 @@ pub unsafe extern "C" fn hashmap_insert(
     key_ptr: *const u8,
     key_len: usize,
     value: i32,
-) -> bool {
+) -> bool { unsafe {
     if let Some(map) = map.as_mut() {
         // Convert raw pointer to String
         let key_bytes = std::slice::from_raw_parts(key_ptr, key_len);
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn hashmap_insert(
     } else {
         false
     }
-}
+}}
 
 /// Gets a value from the HashMap by key.
 /// 
@@ -174,7 +174,7 @@ pub unsafe extern "C" fn hashmap_get(
     map: *const HashMap<String, i32>,
     key_ptr: *const u8,
     key_len: usize,
-) -> i32 {
+) -> i32 { unsafe {
     if let Some(map) = map.as_ref() {
         let key_bytes = std::slice::from_raw_parts(key_ptr, key_len);
         let key = String::from_utf8_lossy(key_bytes).to_string();
@@ -182,7 +182,7 @@ pub unsafe extern "C" fn hashmap_get(
     } else {
         -1
     }
-}
+}}
 
 /// Removes a key-value pair from the HashMap.
 /// 
@@ -193,7 +193,7 @@ pub unsafe extern "C" fn hashmap_remove(
     map: *mut HashMap<String, i32>,
     key_ptr: *const u8,
     key_len: usize,
-) -> bool {
+) -> bool { unsafe {
     if let Some(map) = map.as_mut() {
         let key_bytes = std::slice::from_raw_parts(key_ptr, key_len);
         let key = String::from_utf8_lossy(key_bytes).to_string();
@@ -201,20 +201,20 @@ pub unsafe extern "C" fn hashmap_remove(
     } else {
         false
     }
-}
+}}
 
 /// Gets the length of the HashMap.
 /// 
 /// # Safety
 /// map must be a valid pointer from hashmap_new.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn hashmap_len(map: *const HashMap<String, i32>) -> usize {
+pub unsafe extern "C" fn hashmap_len(map: *const HashMap<String, i32>) -> usize { unsafe {
     if let Some(map) = map.as_ref() {
         map.data.len()
     } else {
         0
     }
-}
+}}
 
 // ============================================================================
 // String Implementation
@@ -242,46 +242,46 @@ pub unsafe extern "C" fn string_new() -> *mut ZetaString {
 /// # Safety
 /// Returns a pointer to a ZetaString structure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn string_from(ptr: *const u8, len: usize) -> *mut ZetaString {
+pub unsafe extern "C" fn string_from(ptr: *const u8, len: usize) -> *mut ZetaString { unsafe {
     let bytes = std::slice::from_raw_parts(ptr, len);
     let s = Box::new(ZetaString {
         data: String::from_utf8_lossy(bytes).to_string(),
     });
     Box::into_raw(s)
-}
+}}
 
 /// Gets the length of the String in bytes.
 /// 
 /// # Safety
 /// s must be a valid pointer from string_new or string_from.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn string_len(s: *const ZetaString) -> usize {
+pub unsafe extern "C" fn string_len(s: *const ZetaString) -> usize { unsafe {
     if let Some(s) = s.as_ref() {
         s.data.len()
     } else {
         0
     }
-}
+}}
 
 /// Checks if the String is empty.
 /// 
 /// # Safety
 /// s must be a valid pointer from string_new or string_from.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn string_is_empty(s: *const ZetaString) -> bool {
+pub unsafe extern "C" fn string_is_empty(s: *const ZetaString) -> bool { unsafe {
     if let Some(s) = s.as_ref() {
         s.data.is_empty()
     } else {
         true
     }
-}
+}}
 
 /// Concatenates two strings.
 /// 
 /// # Safety
 /// s1 and s2 must be valid pointers from string_new or string_from.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn string_concat(s1: *const ZetaString, s2: *const ZetaString) -> *mut ZetaString {
+pub unsafe extern "C" fn string_concat(s1: *const ZetaString, s2: *const ZetaString) -> *mut ZetaString { unsafe {
     let empty = String::new();
     let s1_ref = s1.as_ref().map(|s| &s.data).unwrap_or(&empty);
     let s2_ref = s2.as_ref().map(|s| &s.data).unwrap_or(&empty);
@@ -290,4 +290,4 @@ pub unsafe extern "C" fn string_concat(s1: *const ZetaString, s2: *const ZetaStr
         data: format!("{}{}", s1_ref, s2_ref),
     });
     Box::into_raw(result)
-}
+}}

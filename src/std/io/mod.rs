@@ -6,7 +6,7 @@
 //! - Buffered I/O and streams
 
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 /// Initializes the I/O module.
 pub fn init() {
@@ -48,28 +48,28 @@ pub struct File {
 /// # Safety
 /// Returns a pointer to a File structure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn file_open(path_ptr: *const u8, path_len: usize, mode: i32) -> *mut File {
+pub unsafe extern "C" fn file_open(path_ptr: *const u8, path_len: usize, mode: i32) -> *mut File { unsafe {
     let path_bytes = std::slice::from_raw_parts(path_ptr, path_len);
     let path = String::from_utf8_lossy(path_bytes).to_string();
     
     // mode: 0 = read, 1 = write, 2 = append
     let file = Box::new(File { path });
     Box::into_raw(file)
-}
+}}
 
 /// Closes a file.
 /// 
 /// # Safety
 /// file must be a valid pointer from file_open.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn file_close(file: *mut File) -> bool {
+pub unsafe extern "C" fn file_close(file: *mut File) -> bool { unsafe {
     if !file.is_null() {
         let _ = Box::from_raw(file);
         true
     } else {
         false
     }
-}
+}}
 
 /// Reads from a file.
 /// 
@@ -80,7 +80,7 @@ pub unsafe extern "C" fn file_read(
     file: *const File,
     buffer: *mut u8,
     buffer_len: usize,
-) -> isize {
+) -> isize { unsafe {
     if let Some(file) = file.as_ref() {
         match fs::read(&file.path) {
             Ok(data) => {
@@ -93,7 +93,7 @@ pub unsafe extern "C" fn file_read(
     } else {
         -1
     }
-}
+}}
 
 /// Writes to a file.
 /// 
@@ -104,7 +104,7 @@ pub unsafe extern "C" fn file_write(
     file: *const File,
     data_ptr: *const u8,
     data_len: usize,
-) -> isize {
+) -> isize { unsafe {
     if let Some(file) = file.as_ref() {
         let data = std::slice::from_raw_parts(data_ptr, data_len);
         match fs::write(&file.path, data) {
@@ -114,7 +114,7 @@ pub unsafe extern "C" fn file_write(
     } else {
         -1
     }
-}
+}}
 
 // ============================================================================
 // Console Operations
@@ -125,7 +125,7 @@ pub unsafe extern "C" fn file_write(
 /// # Safety
 /// buffer must point to valid memory of at least buffer_len bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn io_read_line(buffer: *mut u8, buffer_len: usize) -> isize {
+pub unsafe extern "C" fn io_read_line(buffer: *mut u8, buffer_len: usize) -> isize { unsafe {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(_) => {
@@ -136,20 +136,20 @@ pub unsafe extern "C" fn io_read_line(buffer: *mut u8, buffer_len: usize) -> isi
         }
         Err(_) => -1,
     }
-}
+}}
 
 /// Writes data to standard output.
 /// 
 /// # Safety
 /// data_ptr must point to valid memory of at least data_len bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn io_write(data_ptr: *const u8, data_len: usize) -> isize {
+pub unsafe extern "C" fn io_write(data_ptr: *const u8, data_len: usize) -> isize { unsafe {
     let data = std::slice::from_raw_parts(data_ptr, data_len);
     match io::stdout().write_all(data) {
         Ok(_) => data_len as isize,
         Err(_) => -1,
     }
-}
+}}
 
 /// Flushes standard output.
 #[unsafe(no_mangle)]
@@ -192,7 +192,7 @@ pub unsafe extern "C" fn stream_read(
     stream: *mut Stream,
     buffer: *mut u8,
     buffer_len: usize,
-) -> isize {
+) -> isize { unsafe {
     if let Some(stream) = stream.as_mut() {
         let available = stream.buffer.len() - stream.position;
         let to_read = available.min(buffer_len);
@@ -208,7 +208,7 @@ pub unsafe extern "C" fn stream_read(
     } else {
         -1
     }
-}
+}}
 
 /// Writes to a stream.
 /// 
@@ -219,7 +219,7 @@ pub unsafe extern "C" fn stream_write(
     stream: *mut Stream,
     data_ptr: *const u8,
     data_len: usize,
-) -> isize {
+) -> isize { unsafe {
     if let Some(stream) = stream.as_mut() {
         let data = std::slice::from_raw_parts(data_ptr, data_len);
         stream.buffer.extend_from_slice(data);
@@ -227,4 +227,4 @@ pub unsafe extern "C" fn stream_write(
     } else {
         -1
     }
-}
+}}
