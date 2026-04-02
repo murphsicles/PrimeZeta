@@ -108,6 +108,13 @@ impl InferContext {
             ));
         }
 
+        // Check for trait object: dyn Trait
+        if s.starts_with("dyn ") {
+            let inner = s.trim_start_matches("dyn ").trim();
+            // Parse the trait name (could be a path like std::fmt::Debug)
+            return Ok(Type::TraitObject(inner.to_string()));
+        }
+
         // Check for array/slice type
         if s.starts_with('[') {
             if !s.ends_with(']') {
@@ -1692,6 +1699,7 @@ mod tests {
                 attrs: Vec::new(),
                 doc: "".to_string(),
                 where_clauses: Vec::new(),
+                body: None,
             }],
             attrs: Vec::new(),
             doc: "".to_string(),
