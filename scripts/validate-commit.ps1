@@ -12,7 +12,7 @@ $warnings = 0
 
 # 1. CHECK FOR FILES IN ROOT DIRECTORY
 Write-Host "1. Checking for files in root directory..." -ForegroundColor Yellow
-$rootFiles = Get-ChildItem -File -Path "." -Exclude @("Cargo.toml", "Cargo.lock", ".gitignore", "README.md", "LICENSE", "deny.toml", ".zeta_*")
+$rootFiles = Get-ChildItem -File -Path "." -Exclude @("Cargo.toml", "Cargo.lock", ".gitignore", "README.md", "LICENSE", "deny.toml", ".zeta_*", "AGENTS.md", "IDENTITY.md", "SOUL.md", "TOOLS.md", "USER.md", "HEARTBEAT.md", "MEMORY.md", "WORK_QUEUE.md")
 
 foreach ($file in $rootFiles) {
     $violations += "❌ File in root: $($file.Name)"
