@@ -124,6 +124,25 @@ impl ConstEvaluator {
         self.symbols.insert(name, value);
     }
 
+    /// Set a variable in current or parent scope
+    fn set_variable(&mut self, name: String, value: ConstValue) -> bool {
+        // Check current scope first
+        if self.symbols.contains_key(&name) {
+            self.symbols.insert(name, value);
+            return true;
+        }
+        
+        // Check parent scopes
+        for scope in self.symbol_stack.iter_mut().rev() {
+            if scope.contains_key(&name) {
+                scope.insert(name, value);
+                return true;
+            }
+        }
+        
+        false
+    }
+
     /// Evaluate a block of statements
     fn eval_block(&mut self, statements: &[AstNode]) -> Result<ConstValue, String> {
         let mut last_value = ConstValue::Int(0);
@@ -177,6 +196,12 @@ impl ConstEvaluator {
                     "&" => ConstValue::Int(left_int & right_int),
                     "|" => ConstValue::Int(left_int | right_int),
                     "^" => ConstValue::Int(left_int ^ right_int),
+                    "<" => ConstValue::Bool(left_int < right_int),
+                    "<=" => ConstValue::Bool(left_int <= right_int),
+                    ">" => ConstValue::Bool(left_int > right_int),
+                    ">=" => ConstValue::Bool(left_int >= right_int),
+                    "==" => ConstValue::Bool(left_int == right_int),
+                    "!=" => ConstValue::Bool(left_int != right_int),
                     _ => {
                         return Err(format!(
                             "Unsupported binary operator in const expression: {}",
@@ -244,7 +269,12 @@ impl ConstEvaluator {
                             .ok_or_else(|| "abs() requires integer argument".to_string())?;
                         ConstValue::Int(a.abs())
                     }
-                    _ => return Err(format!("Unsupported const function: {}", method)),
+                    _ => {
+                        // Try to find and call a const function
+                        // This is a simplified implementation
+                        // In a real compiler, we'd look up the function in a symbol table
+                        return Err(format!("Function calls not fully supported in const context: {}", method));
+                    }
                 }
             }
             AstNode::ConstDef { value, comptime_, .. } => {
@@ -287,10 +317,10 @@ impl ConstEvaluator {
                 match &**target {
                     AstNode::Var(var_name) => {
                         // Update variable in symbol table
-                        if self.lookup_variable(var_name).is_none() {
-                            return Err(format!("Cannot assign to undefined variable: {}", var_name));
+                        if !self.set_variable(var_name.clone(), value.clone()) {
+                            // Variable doesn't exist, create it in current scope
+                            self.define_variable(var_name.clone(), value.clone());
                         }
-                        self.define_variable(var_name.clone(), value.clone());
                         value
                     }
                     AstNode::Subscript { base, index } => {
@@ -357,11 +387,64 @@ impl ConstEvaluator {
             }
             AstNode::ExprStmt { expr } => {
                 // Evaluate the expression
+                // Special case: if it's just "var", ignore it (parser artifact)
+                if let AstNode::Var(name) = &**expr {
+                    if name == "var" {
+                        return Ok(ConstValue::Int(0));
+                    }
+                }
                 self.eval_const_expr(expr)?
             }
             AstNode::Return(expr) => {
                 // Evaluate the return expression
                 self.eval_const_expr(expr)?
+            }
+            AstNode::For { pattern, expr, body } => {
+                // Simple for loop implementation for range expressions
+                // For now, only support: for i in start..end
+                
+                // Try to get range bounds
+                // This is a simplification - real implementation would parse range syntax
+                if let AstNode::BinaryOp { op, left, right } = &**expr {
+                    if op == ".." {
+                        let start_val = self.eval_const_expr(left)?.as_i64()
+                            .ok_or_else(|| "Range start must be integer".to_string())?;
+                        let end_val = self.eval_const_expr(right)?.as_i64()
+                            .ok_or_else(|| "Range end must be integer".to_string())?;
+                        
+                        // Enter loop scope
+                        self.enter_scope();
+                        
+                        let mut last_value = ConstValue::Int(0);
+                        
+                        // Simple pattern: for i in start..end
+                        if let AstNode::Var(var_name) = &**pattern {
+                            for i in start_val..end_val {
+                                // Set loop variable
+                                self.define_variable(var_name.clone(), ConstValue::Int(i));
+                                
+                                // Evaluate loop body
+                                for stmt in body {
+                                    last_value = self.eval_const_expr(stmt)?;
+                                    
+                                    // Check for break/continue
+                                    // For now, just ignore
+                                }
+                            }
+                        } else {
+                            return Err("Complex for loop patterns not supported".to_string());
+                        }
+                        
+                        // Exit loop scope
+                        self.exit_scope();
+                        
+                        Ok(last_value)
+                    } else {
+                        Err("Only simple range for loops supported in const context".to_string())
+                    }
+                } else {
+                    Err("Only simple range for loops supported in const context".to_string())
+                }?
             }
             _ => {
                 return Err(format!(
@@ -408,7 +491,12 @@ impl ConstEvaluator {
                 // TODO: Handle function parameters
                 
                 let result = if let Some(expr) = ret_expr {
-                    // Function with explicit return expression
+                    // Function with explicit return expression - still need to evaluate body for side effects
+                    if !body.is_empty() {
+                        for stmt in body {
+                            self.eval_const_expr(stmt)?;
+                        }
+                    }
                     self.eval_const_expr(expr).map(Some)
                 } else if !body.is_empty() {
                     // Evaluate the function body

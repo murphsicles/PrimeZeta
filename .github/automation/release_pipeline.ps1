@@ -271,31 +271,29 @@ function Monitor-Pipeline {
         Write-PipelineLog "Reason: $($releaseStatus.reason)"
         
         # Handle different statuses
-        switch ($releaseStatus.status) {
-            "needs_agent" {
-                Write-PipelineLog "Spawning agent for $($pipeline.current_release)..."
+        if ($releaseStatus.status -eq "needs_agent") {
+            Write-PipelineLog "Spawning agent for $($pipeline.current_release)..."
+            Spawn-ReleaseAgent -ReleaseVersion $pipeline.current_release
+        }
+        elseif ($releaseStatus.status -eq "stalled") {
+            Write-PipelineLog "WARNING: Release stalled - $($releaseStatus.reason)"
+            
+            # Check if we should retry spawn
+            if ($pipeline.spawn_attempts -lt $pipeline.max_spawn_attempts) {
+                Write-PipelineLog "Attempting to respawn agent..."
                 Spawn-ReleaseAgent -ReleaseVersion $pipeline.current_release
             }
-            "stalled" {
-                Write-PipelineLog "WARNING: Release stalled - $($releaseStatus.reason)"
-                
-                # Check if we should retry spawn
-                if ($pipeline.spawn_attempts -lt $pipeline.max_spawn_attempts) {
-                    Write-PipelineLog "Attempting to respawn agent..."
-                    Spawn-ReleaseAgent -ReleaseVersion $pipeline.current_release
-                }
-                else {
-                    Write-PipelineLog "ERROR: Max spawn attempts reached for $($pipeline.current_release)"
-                    Write-PipelineLog "Consider manual intervention or skipping this release"
-                }
+            else {
+                Write-PipelineLog "ERROR: Max spawn attempts reached for $($pipeline.current_release)"
+                Write-PipelineLog "Consider manual intervention or skipping this release"
             }
-            "in_progress" {
-                Write-PipelineLog "Release in progress - monitoring continues"
-            }
-            "completed" {
-                Write-PipelineLog "✓ Release completed! Advancing pipeline..."
-                Advance-Release
-            }
+        }
+        elseif ($releaseStatus.status -eq "in_progress") {
+            Write-PipelineLog "Release in progress - monitoring continues"
+        }
+        elseif ($releaseStatus.status -eq "completed") {
+            Write-PipelineLog "✓ Release completed! Advancing pipeline..."
+            Advance-Release
         }
     }
     
@@ -317,13 +315,11 @@ function Show-PipelineStatus {
     Write-Host " $($pipeline.current_release)" -ForegroundColor White
     
     Write-Host "Pipeline Status:" -ForegroundColor Yellow -NoNewline
-    $statusColor = switch ($pipeline.pipeline_status) {
-        "active" { "Green" }
-        "idle" { "Yellow" }
-        "stalled" { "Red" }
-        "complete" { "Cyan" }
-        default { "Gray" }
-    }
+    $statusColor = "Gray"
+    if ($pipeline.pipeline_status -eq "active") { $statusColor = "Green" }
+    elseif ($pipeline.pipeline_status -eq "idle") { $statusColor = "Yellow" }
+    elseif ($pipeline.pipeline_status -eq "stalled") { $statusColor = "Red" }
+    elseif ($pipeline.pipeline_status -eq "complete") { $statusColor = "Cyan" }
     Write-Host " $($pipeline.pipeline_status)" -ForegroundColor $statusColor
     
     Write-Host ""
