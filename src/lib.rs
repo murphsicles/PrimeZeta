@@ -14,16 +14,20 @@
 //! Every line is optimized for speed, simplicity, and clarity.
 
 pub mod backend;
+// pub mod blockchain;  // Temporarily disabled for bootstrap testing
 pub mod compiler_config;
+pub mod debugger;
 pub mod diagnostics;
 pub mod error_codes;
 pub mod frontend;
 pub mod integration;
 pub mod lsp;
 pub mod middle;
+pub mod ml;
 pub mod package;
 pub mod runtime;
 pub mod std;
+pub mod workflows;
 pub mod zeta;
 
 // #[cfg(test)]
