@@ -6,7 +6,7 @@
 use super::expr::parse_full_expr;
 use super::parser::{
     parse_attributes, parse_generic_params, parse_ident, parse_path, parse_type,
-    parse_where_clause, skip_ws_and_comments, ws,
+    parse_type_path, parse_trait_bounds, parse_where_clause, skip_ws_and_comments, ws,
 };
 use super::stmt::parse_block_body;
 use crate::frontend::ast::AstNode;
@@ -209,11 +209,38 @@ fn parse_concept(input: &str) -> IResult<&str, AstNode> {
     let (input, name) = ws(parse_ident).parse(input)?;
     let (input, generics_opt) = opt(ws(parse_generic_params)).parse(input)?;
     let (lifetimes, type_generics) = generics_opt.unwrap_or((Vec::new(), Vec::new()));
+    
+    // Parse supertraits (concept inheritance) if present
+    let (input, supertraits) = if let Ok((input, _)) = ws(tag(":")).parse(input) {
+        // Parse trait bounds without the leading ':'
+        // Clone the parse_trait_bounds logic but skip the initial ':'
+        let (input, first_bound_path) = ws(parse_path).parse(input)?;
+        let first_bound = first_bound_path.join("::");
+        let mut bounds = vec![first_bound];
+
+        // Parse additional bounds with +
+        let mut input = input;
+        while let Ok((new_input, _)) = ws(tag("+")).parse(input) {
+            let (new_input, bound_path) = ws(parse_path).parse(new_input)?;
+            let bound = bound_path.join("::");
+            bounds.push(bound);
+            input = new_input;
+        }
+        
+        (input, bounds)
+    } else {
+        (input, Vec::new())
+    };
+    
     // Parse where clause if present
     let (input, where_clauses_opt) = opt(ws(parse_where_clause)).parse(input)?;
     let where_clauses = where_clauses_opt.unwrap_or_default();
+    // Parse concept body - can contain methods
     let (input, methods) =
         delimited(ws(tag("{")), many0(ws(parse_method_sig)), ws(tag("}"))).parse(input)?;
+    
+    // For now, we don't parse associated types
+    let associated_types = Vec::new();
     Ok((
         input,
         AstNode::ConceptDef {
@@ -221,10 +248,43 @@ fn parse_concept(input: &str) -> IResult<&str, AstNode> {
             generics: type_generics,
             lifetimes,
             methods,
+            associated_types,
             attrs,
             doc: "".to_string(),
             pub_,
             where_clauses,
+            supertraits,
+        },
+    ))
+}
+
+fn parse_associated_type(input: &str) -> IResult<&str, AstNode> {
+    let (input, _) = ws(tag("type")).parse(input)?;
+    let (input, name) = ws(parse_ident).parse(input)?;
+    
+    // Parse optional trait bounds: type Name: Bound1 + Bound2
+    let (input, bounds) = if let Ok((input, _)) = ws(tag(":")).parse(input) {
+        parse_trait_bounds(input)?
+    } else {
+        (input, Vec::new())
+    };
+    
+    // Parse optional default type: type Name = DefaultType
+    let (input, default) = if let Ok((input, _)) = ws(tag("=")).parse(input) {
+        let (input, default_ty) = ws(parse_type).parse(input)?;
+        (input, Some(default_ty))
+    } else {
+        (input, None)
+    };
+    
+    let (input, _) = ws(tag(";")).parse(input)?;
+    
+    Ok((
+        input,
+        AstNode::AssociatedType {
+            name,
+            default,
+            bounds,
         },
     ))
 }
@@ -250,7 +310,16 @@ fn parse_method_sig(input: &str) -> IResult<&str, AstNode> {
     // Parse where clause if present
     let (input, where_clauses_opt) = opt(ws(parse_where_clause)).parse(input)?;
     let where_clauses = where_clauses_opt.unwrap_or_default();
-    let (input, _) = ws(tag(";")).parse(input)?;
+    
+    // Check if there's a body (default implementation) or just a signature
+    let (input, body) = if let Ok((input, body)) = parse_block_body(input) {
+        (input, Some(body))
+    } else {
+        // Just a signature, ends with ;
+        let (input, _) = ws(tag(";")).parse(input)?;
+        (input, None)
+    };
+    
     let ret = ret_opt.unwrap_or_else(|| "i64".to_string());
     Ok((
         input,
@@ -263,6 +332,7 @@ fn parse_method_sig(input: &str) -> IResult<&str, AstNode> {
             attrs,
             doc: "".to_string(),
             where_clauses,
+            body,
         },
     ))
 }

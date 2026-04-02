@@ -65,8 +65,6 @@ impl fmt::Display for ConstValue {
 
 /// Constant evaluator for compile-time evaluation
 pub struct ConstEvaluator {
-    /// Cache of evaluated constants
-    cache: HashMap<AstNode, ConstValue>,
     /// Symbol table for variables in current scope
     symbols: HashMap<String, ConstValue>,
     /// Stack of symbol tables for nested scopes
@@ -82,7 +80,6 @@ impl Default for ConstEvaluator {
 impl ConstEvaluator {
     pub fn new() -> Self {
         Self {
-            cache: HashMap::new(),
             symbols: HashMap::new(),
             symbol_stack: Vec::new(),
         }
@@ -156,10 +153,13 @@ impl ConstEvaluator {
 
     /// Evaluate a const expression to a ConstValue
     pub fn eval_const_expr(&mut self, expr: &AstNode) -> Result<ConstValue, String> {
-        // Check cache first
-        if let Some(value) = self.cache.get(expr) {
-            return Ok(value.clone());
-        }
+        // Check cache first (but not for Var expressions since they can change)
+        // Actually, disable caching for now because it causes issues with loops
+        // if !matches!(expr, AstNode::Var(_)) {
+        //     if let Some(value) = self.cache.get(expr) {
+        //         return Ok(value.clone());
+        //     }
+        // }
 
         let value = match expr {
             AstNode::Lit(n) => ConstValue::Int(*n),
@@ -454,8 +454,11 @@ impl ConstEvaluator {
             }
         };
 
-        // Cache the result
-        self.cache.insert(expr.clone(), value.clone());
+        // Cache the result (but not for Var expressions since they can change)
+        // Actually, disable caching for now because it causes issues with loops
+        // if !matches!(expr, AstNode::Var(_)) {
+        //     self.cache.insert(expr.clone(), value.clone());
+        // }
         Ok(value)
     }
 

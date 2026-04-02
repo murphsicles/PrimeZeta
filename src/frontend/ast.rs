@@ -23,12 +23,15 @@ pub enum AstNode {
         generics: Vec<String>,
         lifetimes: Vec<String>, // Lifetime parameters like 'a, 'b
         methods: Vec<AstNode>,
+        associated_types: Vec<AstNode>,
         attrs: Vec<String>,
         doc: String,
         /// Visibility: true for public, false for private (default)
         pub_: bool,
         /// Where clauses: e.g., where T: Clone, U: Debug + Display
         where_clauses: Vec<(String, Vec<String>)>,
+        /// Supertraits: concepts this concept inherits from
+        supertraits: Vec<String>,
     },
     /// Implementation block for a concept on a type.
     ImplBlock {
@@ -53,6 +56,8 @@ pub enum AstNode {
         doc: String,
         /// Where clauses: e.g., where T: Clone, U: Debug + Display
         where_clauses: Vec<(String, Vec<String>)>,
+        /// Optional body for default implementations in concepts
+        body: Option<Vec<AstNode>>,
     },
     /// Function definition with parameters, return type, and body.
     FuncDef {
@@ -180,6 +185,14 @@ pub enum AstNode {
         ty: String,
         /// Visibility: true for public, false for private (default)
         pub_: bool,
+    },
+    /// Associated type declaration in a concept.
+    AssociatedType {
+        name: String,
+        /// Optional default type
+        default: Option<String>,
+        /// Optional trait bounds
+        bounds: Vec<String>,
     },
     /// Unary operation on an expression.
     UnaryOp { op: String, expr: Box<AstNode> },
