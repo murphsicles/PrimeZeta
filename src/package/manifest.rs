@@ -36,7 +36,7 @@ pub struct Manifest {
 }
 
 /// Package metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Package {
     /// Package name
     pub name: String,

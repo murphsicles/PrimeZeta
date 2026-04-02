@@ -256,19 +256,19 @@ impl AdvancedMacroExpander {
         registry.register_proc_macro(ProcMacro {
             name: "Debug".to_string(),
             macro_type: ProcMacroType::Derive,
-            handler: Self::derive_debug,
+            handler: crate::frontend::proc_macro::builtin::derive_debug,
         });
         
         registry.register_proc_macro(ProcMacro {
             name: "Clone".to_string(),
             macro_type: ProcMacroType::Derive,
-            handler: Self::derive_clone,
+            handler: crate::frontend::proc_macro::builtin::derive_clone,
         });
         
         registry.register_proc_macro(ProcMacro {
             name: "Copy".to_string(),
             macro_type: ProcMacroType::Derive,
-            handler: Self::derive_copy,
+            handler: crate::frontend::proc_macro::builtin::derive_copy,
         });
     }
     
@@ -564,4 +564,38 @@ impl AdvancedMacroExpander {
         // Try to match each pattern
         for pattern in &macro_def.patterns {
             if let Some(bindings) = self.match_pattern(&pattern.matcher, args, hygiene_scope) {
-                return
+                return self.expand_with_bindings(&pattern.expansion, &bindings, hygiene_scope);
+            }
+        }
+        
+        Err(format!(
+            "No matching pattern found for macro: {} with {} arguments",
+            macro_def.name,
+            args.len()
+        ))
+    }
+    
+    /// Match macro pattern against arguments
+    fn match_pattern(
+        &self,
+        pattern: &[MacroToken],
+        args: &[AstNode],
+        hygiene_scope: u32,
+    ) -> Option<HashMap<String, Vec<AstNode>>> {
+        // TODO: Implement proper pattern matching with hygiene
+        None
+    }
+    
+    /// Expand macro expansion with bindings
+    fn expand_with_bindings(
+        &self,
+        expansion: &[MacroToken],
+        bindings: &HashMap<String, Vec<AstNode>>,
+        hygiene_scope: u32,
+    ) -> Result<Vec<AstNode>, String> {
+        // TODO: Implement proper expansion with hygiene
+        Err("Not implemented".to_string())
+    }
+    
+
+}

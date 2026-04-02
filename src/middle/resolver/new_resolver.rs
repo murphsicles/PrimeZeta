@@ -3,7 +3,7 @@
 
 use crate::frontend::ast::AstNode;
 use crate::middle::types::{
-    GenericContext, Substitution, TraitBound, Type, TypeParam, TypeVar, UnifyError,
+    GenericContext, Kind, Substitution, TraitBound, Type, TypeParam, TypeVar, UnifyError,
 };
 use std::collections::HashMap;
 
@@ -1458,7 +1458,7 @@ impl InferContext {
                 }
             }
 
-            type_params.push(TypeParam { name, bounds });
+            type_params.push(TypeParam { name, bounds, kind: Kind::Star });
         }
 
         Ok(type_params)

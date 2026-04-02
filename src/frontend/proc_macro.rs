@@ -8,7 +8,7 @@
 //! 4. Compile-time reflection
 //! 5. Macro hygiene system
 
-use crate::frontend::ast::AstNode;
+use crate::frontend::ast::{AstNode, MatchArm};
 use std::collections::HashMap;
 
 /// Type of procedural macro
@@ -516,25 +516,7 @@ pub mod builtin {
                 };
                 
                 let mut result = vec![builder_struct];
-                result.extend(builder_methods.into_iter().map(|method| {
-                    AstNode::FuncDef {
-                        name: method.name.clone(),
-                        generics: method.generics.clone(),
-                        lifetimes: method.lifetimes.clone(),
-                        params: method.params.clone(),
-                        ret: method.ret.clone(),
-                        body: method.body.clone(),
-                        attrs: method.attrs.clone(),
-                        ret_expr: method.ret_expr.clone(),
-                        single_line: method.single_line,
-                        doc: method.doc.clone(),
-                        pub_: method.pub_,
-                        async_: method.async_,
-                        const_: method.const_,
-                        comptime_: method.comptime_,
-                        where_clauses: method.where_clauses.clone(),
-                    }
-                }));
+                result.extend(builder_methods);
                 result.push(builder_fn);
                 
                 Ok(result)
@@ -580,9 +562,11 @@ pub mod builtin {
                             ("f".to_string(), "&mut Formatter".to_string()),
                         ],
                         ret: "Result".to_string(),
-                        body: vec![
+                        body: {
+                            let mut body = Vec::new();
+                            
                             // Write struct name
-                            AstNode::ExprStmt {
+                            body.push(AstNode::ExprStmt {
                                 expr: Box::new(AstNode::Call {
                                     receiver: Some(Box::new(AstNode::Var("f".to_string()))),
                                     method: "write_str".to_string(),
@@ -590,52 +574,48 @@ pub mod builtin {
                                     type_args: Vec::new(),
                                     structural: false,
                                 }),
-                            },
+                            });
                             
                             // Write fields
-                            {
-                                let mut field_writes = Vec::new();
-                                for (i, (field_name, _)) in fields.iter().enumerate() {
-                                    if i > 0 {
-                                        field_writes.push(AstNode::ExprStmt {
-                                            expr: Box::new(AstNode::Call {
-                                                receiver: Some(Box::new(AstNode::Var("f".to_string()))),
-                                                method: "write_str".to_string(),
-                                                args: vec![AstNode::StringLit(", ".to_string())],
-                                                type_args: Vec::new(),
-                                                structural: false,
-                                            }),
-                                        });
-                                    }
-                                    
-                                    field_writes.push(AstNode::ExprStmt {
+                            for (i, (field_name, _)) in fields.iter().enumerate() {
+                                if i > 0 {
+                                    body.push(AstNode::ExprStmt {
                                         expr: Box::new(AstNode::Call {
                                             receiver: Some(Box::new(AstNode::Var("f".to_string()))),
                                             method: "write_str".to_string(),
-                                            args: vec![AstNode::StringLit(format!("{}: ", field_name))],
-                                            type_args: Vec::new(),
-                                            structural: false,
-                                        }),
-                                    });
-                                    
-                                    field_writes.push(AstNode::ExprStmt {
-                                        expr: Box::new(AstNode::Call {
-                                            receiver: Some(Box::new(AstNode::Var("f".to_string()))),
-                                            method: "debug_field".to_string(),
-                                            args: vec![AstNode::FieldAccess {
-                                                base: Box::new(AstNode::Var("self".to_string())),
-                                                field: field_name.clone(),
-                                            }],
+                                            args: vec![AstNode::StringLit(", ".to_string())],
                                             type_args: Vec::new(),
                                             structural: false,
                                         }),
                                     });
                                 }
-                                field_writes
-                            },
+                                
+                                body.push(AstNode::ExprStmt {
+                                    expr: Box::new(AstNode::Call {
+                                        receiver: Some(Box::new(AstNode::Var("f".to_string()))),
+                                        method: "write_str".to_string(),
+                                        args: vec![AstNode::StringLit(format!("{}: ", field_name))],
+                                        type_args: Vec::new(),
+                                        structural: false,
+                                    }),
+                                });
+                                
+                                body.push(AstNode::ExprStmt {
+                                    expr: Box::new(AstNode::Call {
+                                        receiver: Some(Box::new(AstNode::Var("f".to_string()))),
+                                        method: "debug_field".to_string(),
+                                        args: vec![AstNode::FieldAccess {
+                                            base: Box::new(AstNode::Var("self".to_string())),
+                                            field: field_name.clone(),
+                                        }],
+                                        type_args: Vec::new(),
+                                        structural: false,
+                                    }),
+                                });
+                            }
                             
                             // Close struct
-                            AstNode::ExprStmt {
+                            body.push(AstNode::ExprStmt {
                                 expr: Box::new(AstNode::Call {
                                     receiver: Some(Box::new(AstNode::Var("f".to_string()))),
                                     method: "write_str".to_string(),
@@ -643,17 +623,19 @@ pub mod builtin {
                                     type_args: Vec::new(),
                                     structural: false,
                                 }),
-                            },
+                            });
                             
                             // Return Ok(())
-                            AstNode::Return(Box::new(AstNode::Call {
+                            body.push(AstNode::Return(Box::new(AstNode::Call {
                                 receiver: Some(Box::new(AstNode::Var("Result".to_string()))),
                                 method: "Ok".to_string(),
-                                args: vec![AstNode::TupleLit(Vec::new())],
+                                args: vec![AstNode::Tuple(Vec::new())],
                                 type_args: Vec::new(),
                                 structural: false,
-                            })),
-                        ],
+                            })));
+                            
+                            body
+                        },
                         attrs: Vec::new(),
                         ret_expr: None,
                         single_line: false,
@@ -690,7 +672,7 @@ pub mod builtin {
                         body: vec![
                             // Match on self
                             AstNode::Match {
-                                expr: Box::new(AstNode::Var("self".to_string())),
+                                scrutinee: Box::new(AstNode::Var("self".to_string())),
                                 arms: variants.iter().map(|(variant_name, fields)| {
                                     MatchArm {
                                         pattern: Box::new(if fields.is_empty() {
@@ -715,7 +697,7 @@ pub mod builtin {
                             AstNode::Return(Box::new(AstNode::Call {
                                 receiver: Some(Box::new(AstNode::Var("Result".to_string()))),
                                 method: "Ok".to_string(),
-                                args: vec![AstNode::TupleLit(Vec::new())],
+                                args: vec![AstNode::Tuple(Vec::new())],
                                 type_args: Vec::new(),
                                 structural: false,
                             })),

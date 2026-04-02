@@ -14,6 +14,20 @@ pub use lifetime::{Lifetime, LifetimeContext, LifetimeSubstitution, LifetimeVar}
 pub mod kind;
 pub use kind::{Kind, KindContext, KindSubstitution, KindVar, TypeExpr};
 
+// Re-export associated type types
+pub mod associated;
+pub use associated::{
+    AssociatedType, AssociatedTypeBuilder, AssociatedTypeContext, AssociatedTypeProjection,
+    GenericParam,
+};
+
+// Re-export type family types
+pub mod family;
+pub use family::{
+    TypeFamily, TypeFamilyBuilder, TypeFamilyContext, TypeFamilyEquation,
+    TypeFamilyEquationBuilder, TypeFamilyPattern, TypeFamilyConstraint,
+};
+
 /// Type variable for inference
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeVar(pub u32);
