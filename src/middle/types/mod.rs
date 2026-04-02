@@ -628,7 +628,6 @@ impl Type {
                     .join("_");
                 format!("AsyncFunction_{}_{}", param_str, ret.mangled_name())
             }
-            Type::Variable(var) => format!("Var_{}", var.0),
             Type::Constructor(name, args, kind) => {
                 let mut mangled = format!("Constructor_{}_kind_{}", name, kind.mangled_name());
                 if !args.is_empty() {
@@ -655,7 +654,6 @@ impl Type {
                 }
                 mangled
             }
-            Type::Error => "Error".to_string(),
         }
     }
 

@@ -5,8 +5,8 @@
 
 use super::tensor::Tensor;
 use super::nn::Layer;
-use super::optim::{Optimizer, LRScheduler};
-use super::data::{Dataset, DataLoader};
+use super::optim::Optimizer;
+use super::data::DataLoader;
 use std::path::Path;
 use std::fs::{File, create_dir_all};
 use std::io::{Write, BufReader};
