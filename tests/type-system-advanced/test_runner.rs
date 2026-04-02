@@ -3,9 +3,7 @@
 //! This test verifies that the type system extensions compile and work correctly.
 
 use zetac::middle::types::*;
-use zetac::middle::types::kind::*;
 use zetac::middle::types::associated::*;
-use zetac::middle::types::family::*;
 
 #[test]
 fn test_higher_kinded_types_basic() {
@@ -194,10 +192,10 @@ fn test_advanced_features_integration() {
         Kind::Arrow(Box::new(Kind::Star), Box::new(Kind::Star)));
     
     // 2. Create associated type context for GATs
-    let mut assoc_ctx = AssociatedTypeContext::new();
+    let _assoc_ctx = AssociatedTypeContext::new();
     
     // 3. Create type family context for type-level computation
-    let mut family_ctx = TypeFamilyContext::new();
+    let _family_ctx = TypeFamilyContext::new();
     
     // Build a complex type: Option<Option<i32>>
     let inner = Type::Named("Option".to_string(), vec![Type::I32]);

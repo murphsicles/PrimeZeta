@@ -468,7 +468,7 @@ impl EnhancedBorrowChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::middle::types::lifetime::Lifetime;
+    
     
     #[test]
     fn test_enhanced_borrow_checker_basics() {

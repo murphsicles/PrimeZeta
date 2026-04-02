@@ -4,8 +4,6 @@
 use zetac::frontend::ast::AstNode;
 use zetac::frontend::borrow::{BorrowChecker, BorrowState};
 use zetac::middle::resolver::resolver::{Resolver, Type};
-use zetac::middle::types::Mutability;
-use zetac::middle::types::lifetime::Lifetime;
 
 #[test]
 fn test_ownership_basics() {

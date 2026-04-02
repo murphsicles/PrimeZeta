@@ -1,7 +1,6 @@
 // Standard Library Foundation Test Runner
 // Runs all tests for the standard library foundation implementation
 
-use std::fs;
 use std::path::Path;
 
 fn main() {

@@ -3,11 +3,9 @@
 //! This example shows how the package ecosystem enables real-world
 //! development workflows similar to Cargo.
 
-use std::path::Path;
 use zetac::package::manifest::Manifest;
 use zetac::package::dependency::{Version, VersionReq};
-use zetac::package::resolver::{PackageRegistry, PackageMetadata, DependencyResolver, ResolutionResult};
-use zetac::package::workspace::Workspace;
+use zetac::package::resolver::{PackageRegistry, PackageMetadata, DependencyResolver};
 
 /// Example 1: Creating and managing a new crate
 fn example_create_and_manage_crate() {

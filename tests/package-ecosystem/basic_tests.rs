@@ -7,7 +7,7 @@
 
 use zetac::package::manifest::Manifest;
 use zetac::package::dependency::{Version, VersionReq};
-use zetac::package::resolver::{PackageRegistry, PackageMetadata, DependencyResolver};
+use zetac::package::resolver::{PackageRegistry, PackageMetadata};
 
 #[test]
 fn test_manifest_parsing() {
