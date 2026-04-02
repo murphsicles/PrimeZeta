@@ -120,6 +120,18 @@ pub fn dead_code_elimination(mir: &mut Mir) {
                 };
                 dead_code_elimination(&mut nested_mir);
             }
+            MirStmt::While {
+                cond,
+                body,
+            } => {
+                mark_expr_used(*cond, &mut used, &mir.exprs);
+                // Recursively process nested statements in the loop body
+                let mut nested_mir = Mir {
+                    stmts: body.clone(),
+                    ..Default::default()
+                };
+                dead_code_elimination(&mut nested_mir);
+            }
         }
     }
 

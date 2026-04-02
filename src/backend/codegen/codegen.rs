@@ -650,6 +650,14 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     ids.insert(*dest_id);
                 }
             }
+            MirStmt::While { cond, body } => {
+                if let Some(e) = exprs.get(cond) {
+                    self.collect_ids_from_expr_safe(e, ids, exprs);
+                }
+                for s in body {
+                    self.collect_ids_from_stmt_safe(s, ids, exprs);
+                }
+            }
             MirStmt::ParamInit { param_id, .. } => {
                 ids.insert(*param_id);
             }
@@ -998,6 +1006,18 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     then: substituted_then,
                     else_: substituted_else,
                     dest: *dest,
+                }
+            }
+            MirStmt::While { cond, body } => {
+                // Recursively substitute in loop body
+                let substituted_body: Vec<MirStmt> = body
+                    .iter()
+                    .map(|stmt| self.substitute_stmt(stmt, substitution))
+                    .collect();
+
+                MirStmt::While {
+                    cond: *cond,
+                    body: substituted_body,
                 }
             }
             MirStmt::TryProp {
@@ -1582,6 +1602,51 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 // Continue at merge block
                 self.builder.position_at_end(merge_bb);
                 // dest is handled by assignments in the branches
+            }
+            MirStmt::While { cond, body } => {
+                let parent_fn = self
+                    .builder
+                    .get_insert_block()
+                    .unwrap()
+                    .get_parent()
+                    .unwrap();
+                
+                // Create basic blocks for loop
+                let loop_cond_bb = self.context.append_basic_block(parent_fn, "while.cond");
+                let loop_body_bb = self.context.append_basic_block(parent_fn, "while.body");
+                let loop_exit_bb = self.context.append_basic_block(parent_fn, "while.exit");
+                
+                // Branch to condition block
+                self.builder.build_unconditional_branch(loop_cond_bb).unwrap();
+                
+                // Generate condition block
+                self.builder.position_at_end(loop_cond_bb);
+                let cond_i64 = self.gen_expr_safe(cond, exprs).into_int_value();
+                let cond_i1 = self
+                    .builder
+                    .build_int_compare(
+                        IntPredicate::NE,
+                        cond_i64,
+                        self.i64_type.const_zero(),
+                        "while.cond",
+                    )
+                    .unwrap();
+                self.builder
+                    .build_conditional_branch(cond_i1, loop_body_bb, loop_exit_bb)
+                    .unwrap();
+                
+                // Generate loop body
+                self.builder.position_at_end(loop_body_bb);
+                for s in body {
+                    self.gen_stmt(s, exprs);
+                }
+                // Branch back to condition (unless body ends with return)
+                if !body.iter().any(|s| matches!(s, MirStmt::Return { .. })) {
+                    self.builder.build_unconditional_branch(loop_cond_bb).unwrap();
+                }
+                
+                // Continue at exit block
+                self.builder.position_at_end(loop_exit_bb);
             }
             MirStmt::ParamInit { .. } => {} // handled at entry
             _ => {}

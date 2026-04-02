@@ -79,6 +79,11 @@ pub enum MirStmt {
         pattern: String, // Variable name to bind to
         body: Vec<MirStmt>,
     },
+    // While loop
+    While {
+        cond: u32,       // Condition expression
+        body: Vec<MirStmt>,
+    },
 }
 
 #[derive(Debug, Clone)]

@@ -1,7 +1,17 @@
-fn test(x: i64, min: i64) -> bool {
-    return x >= min
+// Test comparison
+
+fn test_comparison() -> u64 {
+    let x: u64 = 5
+    let y: u64 = 3
+    
+    // Test if comparison works
+    if x > y {
+        return 1
+    } else {
+        return 0
+    }
 }
 
-fn main() {
-    let result = test(10, 0)
+fn main() -> u64 {
+    return test_comparison()
 }

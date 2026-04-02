@@ -316,10 +316,22 @@ impl Resolver {
             return true;
         }
 
-        // Allow i64 to be assigned to u64 (common in PrimeZeta code)
+        // Allow i64 to be assigned to unsigned integers (common in PrimeZeta code)
         // This is unsafe for negative values but matches common practice
-        if expr_type == &Type::I64 && annotated_type == &Type::U64 {
-            return true;
+        if expr_type == &Type::I64 {
+            match annotated_type {
+                Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize => return true,
+                Type::I8 | Type::I16 | Type::I32 => return true, // Allow truncation
+                _ => {}
+            }
+        }
+
+        // Allow unsigned integers to be assigned to i64 (with potential overflow)
+        if annotated_type == &Type::I64 {
+            match expr_type {
+                Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize => return true,
+                _ => {}
+            }
         }
 
         // Allow i64 to be assigned to i32 (with potential truncation)

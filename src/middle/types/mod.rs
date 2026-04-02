@@ -985,8 +985,20 @@ impl Substitution {
             // i32 and i64 are distinct types
             // Coercions would be handled separately in type checking
             
-            // Special case for PrimeZeta compatibility: allow i64 to unify with u64 and usize
-            // This is unsafe but needed for v0.3.26 compatibility
+            // Special case for PrimeZeta compatibility: allow i64 to unify with unsigned integers
+            // This is unsafe but needed for v0.3.26 compatibility and Murphy's Sieve algorithm
+            (Type::I64, Type::U8) | (Type::U8, Type::I64) => {
+                // Allow unification between i64 and u8 (for array element comparisons)
+                Ok(())
+            }
+            (Type::I64, Type::U16) | (Type::U16, Type::I64) => {
+                // Allow unification between i64 and u16
+                Ok(())
+            }
+            (Type::I64, Type::U32) | (Type::U32, Type::I64) => {
+                // Allow unification between i64 and u32
+                Ok(())
+            }
             (Type::I64, Type::U64) | (Type::U64, Type::I64) => {
                 // Allow unification between i64 and u64
                 // In a real implementation, we would check bounds

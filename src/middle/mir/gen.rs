@@ -417,6 +417,26 @@ impl MirGen {
                 }
                 // TODO: Handle other iterator types
             }
+            AstNode::While { cond, body } => {
+                let cond_id = self.lower_expr(cond);
+                
+                // Save current statements to restore after loop body
+                let stmts_before_body = self.stmts.len();
+                
+                // Generate loop body
+                for stmt in body {
+                    self.lower_ast(stmt);
+                }
+                
+                // Get body statements
+                let body_stmts = self.stmts.split_off(stmts_before_body);
+                
+                // Create While statement in MIR
+                self.stmts.push(MirStmt::While {
+                    cond: cond_id,
+                    body: body_stmts,
+                });
+            }
             _ => {}
         }
     }
