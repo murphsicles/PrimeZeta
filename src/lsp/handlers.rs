@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use crate::lsp::protocol::*;
 use crate::lsp::capabilities::{ServerCapabilities, TextDocumentSyncOptions, TextDocumentSyncKind, CompletionOptions};
 use crate::lsp::LspResult;
-use super::ServerState;
+use crate::lsp::server::ServerState;
 
 /// Handle initialize request
 pub fn handle_initialize(request: Request, _state: &ServerState) -> LspResult<Option<Response>> {

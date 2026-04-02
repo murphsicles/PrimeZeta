@@ -83,14 +83,17 @@ sha2 = "0.10.8"  # SHA256 hashing
 ripemd160 = "0.10.0"  # RIPEMD160 hashing
 ed25519-dalek = { version = "2.1.1", features = ["serde"] }  # Ed25519 for Solana
 bip39 = { version = "1.1.0", features = ["chinese-simplified", "chinese-traditional", "french", "italian", "japanese", "korean", "spanish"] }  # BIP-39 mnemonics
-tiny-bip39 = "2.0.0"  # Lightweight BIP-39
 aes-gcm = "0.10.3"  # Encryption for wallet storage
 argon2 = "0.5.3"  # Password hashing
+thiserror = "1.0.69"  # Error handling
+base64 = "0.22.1"  # Base64 encoding for HTTP auth
 
 # Features
 [features]
 default = []
 integration = []  # Enable integration bridge module
+blockchain = ["solana-sdk", "solana-client", "solana-program"]  # Enable blockchain features
+solana = ["solana-sdk", "solana-client", "solana-program"]  # Enable Solana specifically
 
 # Development dependencies for testing
 [dev-dependencies]
@@ -185,6 +188,11 @@ path = "tests/quantum-computing/test_runner.rs"
 [[test]]
 name = "distributed_systems"
 path = "tests/distributed-systems/test_runner.rs"
+
+# Teranode Integration Tests for v0.3.50
+[[test]]
+name = "teranode_integration"
+path = "tests/teranode_integration.rs"
 
 # Benchmark configurations.
 [[bench]]

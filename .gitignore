@@ -44,6 +44,27 @@ self-improving/
 # Zeta specialization cache
 .zeta_specialization_cache.json
 
+# OpenClaw workspace files (PRIVATE - NEVER COMMIT TO GITHUB)
+AGENTS.md
+SOUL.md
+TOOLS.md
+USER.md
+IDENTITY.md
+HEARTBEAT.md
+MEMORY.md
+memory/
+.openclaw/
+workspace/
+logs/
+agent-status.json
+agent-terminations/
+agent-knowledge/
+agent-identities/
+agent-spawn-templates/
+agent-workflows/
+mission-control/
+self-improving/
+
 # Workspace-specific directories (not part of the Zeta project)
 .openclaw/
 agent-spawn-templates/

@@ -12,7 +12,7 @@ use nom::combinator::opt;
 use nom::multi::separated_list0;
 use nom::sequence::{delimited, preceded, terminated};
 
-/// Parse a pattern: `_`, identifier, literal, tuple pattern, or struct pattern.
+/// Parse a pattern: `_`, identifier, literal, tuple pattern, struct pattern, range pattern, bind pattern, or or-pattern.
 pub fn parse_pattern(input: &str) -> IResult<&str, AstNode> {
     alt((
         // Wildcard pattern
@@ -21,6 +21,12 @@ pub fn parse_pattern(input: &str) -> IResult<&str, AstNode> {
         parse_tuple_pattern,
         // Struct pattern: `Path { field: pattern, ... }` or `Path(pattern, ...)`
         parse_struct_pattern,
+        // Range pattern: `start..end` or `start..=end`
+        parse_range_pattern,
+        // Bind pattern: `ident @ pattern`
+        parse_bind_pattern,
+        // Or pattern: `pattern | pattern | ...`
+        parse_or_pattern,
         // Literal pattern
         parse_lit,
         // Variable pattern
@@ -128,4 +134,57 @@ fn parse_field_pattern(input: &str) -> IResult<&str, (String, AstNode)> {
     };
 
     Ok((input, (name, pat)))
+}
+
+/// Parse a range pattern: `start..end` or `start..=end`
+fn parse_range_pattern(input: &str) -> IResult<&str, AstNode> {
+    let (input, start) = parse_lit(input)?;
+    let (input, _) = ws(tag("..")).parse(input)?;
+    let (input, inclusive): (_, Option<&str>) = opt(ws(tag("="))).parse(input)?;
+    let (input, end) = parse_lit(input)?;
+    
+    Ok((input, AstNode::RangePattern {
+        start: Box::new(start),
+        end: Box::new(end),
+        inclusive: inclusive.is_some(),
+    }))
+}
+
+/// Parse a bind pattern: `ident @ pattern`
+fn parse_bind_pattern(input: &str) -> IResult<&str, AstNode> {
+    let (input, name) = parse_ident(input)?;
+    let (input, _) = ws(tag("@")).parse(input)?;
+    let (input, pattern) = parse_pattern(input)?;
+    
+    Ok((input, AstNode::BindPattern {
+        name,
+        pattern: Box::new(pattern),
+    }))
+}
+
+/// Parse an or-pattern: `pattern | pattern | ...`
+fn parse_or_pattern(input: &str) -> IResult<&str, AstNode> {
+    let (input, first) = parse_simple_pattern(input)?;
+    let (input, patterns) = nom::multi::many0(
+        preceded(ws(tag("|")), ws(parse_simple_pattern))
+    ).parse(input)?;
+    
+    let mut all_patterns = vec![first];
+    all_patterns.extend(patterns);
+    
+    Ok((input, AstNode::OrPattern(all_patterns)))
+}
+
+/// Parse a simple pattern (without | operator) for use in or-patterns
+fn parse_simple_pattern(input: &str) -> IResult<&str, AstNode> {
+    alt((
+        tag("_").map(|_| AstNode::Ignore),
+        parse_tuple_pattern,
+        parse_struct_pattern,
+        parse_range_pattern,
+        parse_bind_pattern,
+        parse_lit,
+        parse_ident.map(AstNode::Var),
+    ))
+    .parse(input)
 }

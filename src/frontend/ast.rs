@@ -286,4 +286,17 @@ pub enum AstNode {
         pub_: bool,
         attrs: Vec<String>,
     },
+    /// Range pattern (e.g., 1..=10, 'a'..='z')
+    RangePattern {
+        start: Box<AstNode>,
+        end: Box<AstNode>,
+        inclusive: bool,
+    },
+    /// Binding pattern with @ (e.g., x @ 1..=10)
+    BindPattern {
+        name: String,
+        pattern: Box<AstNode>,
+    },
+    /// Or pattern for multiple alternatives (e.g., 1 | 2 | 3)
+    OrPattern(Vec<AstNode>),
 }
