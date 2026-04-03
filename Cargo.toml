@@ -4,7 +4,7 @@
 # Package name.
 name = "zetac"
 # Current version.
-version = "0.3.52"  # Workspace organization milestone
+version = "0.3.53"  # Self-compilation testing milestone
 # Rust edition.
 edition = "2024"
 # Minimum Rust version.
