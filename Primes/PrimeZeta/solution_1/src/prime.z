@@ -137,24 +137,11 @@ fn wheel_gap_count() -> u64 {
     return count  // Should be 5760
 }
 
-// Benchmark function that runs for approximately 5 seconds
-// Returns number of iterations completed
-fn run_benchmark() -> u64 {
-    // Target: run for ~5 seconds
-    // Each iteration computes primes up to 1,000,000
-    
-    let iterations = 1000 // This should take ~5 seconds
-    
-    // Run the sieve multiple times
-    let mut total_primes = 0
-    let mut i = 0
-    
-    while i < iterations {
-        total_primes = murphy_sieve(1000000)
-        i = i + 1
-    }
-    
-    return iterations
+// Benchmark function - runs one iteration of the sieve
+// Returns the prime count (for verification)
+fn run_benchmark_iteration() -> u64 {
+    // Run one iteration of the sieve
+    return murphy_sieve(1000000)
 }
 
 // Main function for testing

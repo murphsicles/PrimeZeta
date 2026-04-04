@@ -119,19 +119,11 @@ fn murphy_sieve(limit: u64) -> u64 {
     return count
 }
 
-// Benchmark function
-fn run_benchmark() -> u64 {
-    // Run sieve multiple times
-    let iterations = 1000
-    let mut total: u64 = 0
-    let mut i: u64 = 0
-    
-    while i < iterations {
-        total = murphy_sieve(1000000)
-        i += 1
-    }
-    
-    return iterations
+// Benchmark function - runs one iteration of the sieve
+// Returns the prime count (for verification)
+fn run_benchmark_iteration() -> u64 {
+    // Run one iteration of the sieve
+    return murphy_sieve(1000000)
 }
 
 // Main function for competition

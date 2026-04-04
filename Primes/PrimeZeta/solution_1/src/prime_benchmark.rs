@@ -6,7 +6,6 @@ use std::time::{Instant, Duration};
 // External function from Zeta compiled code
 extern "C" {
     fn murphy_sieve(limit: u64) -> u64;
-    fn run_benchmark() -> u64;
 }
 
 fn main() {
@@ -49,8 +48,8 @@ fn main() {
     // Run benchmark loop
     while start.elapsed() < target_duration {
         unsafe {
-            // Call the Zeta benchmark function
-            let _ = run_benchmark();
+            // Call the Zeta sieve function directly
+            let _ = murphy_sieve(1_000_000);
         }
         iterations += 1;
     }
