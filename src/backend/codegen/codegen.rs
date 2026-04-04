@@ -675,6 +675,14 @@ impl<'ctx> LLVMCodegen<'ctx> {
             MirExpr::Var(id) => {
                 ids.insert(*id);
             }
+            MirExpr::BinaryOp { left, right, .. } => {
+                if let Some(e) = exprs.get(left) {
+                    self.collect_ids_from_expr_safe(e, ids, exprs);
+                }
+                if let Some(e) = exprs.get(right) {
+                    self.collect_ids_from_expr_safe(e, ids, exprs);
+                }
+            }
             MirExpr::FString(inner_ids) => {
                 for &id in inner_ids {
                     if let Some(e) = exprs.get(&id) {
@@ -1058,7 +1066,6 @@ impl<'ctx> LLVMCodegen<'ctx> {
     fn gen_stmt(&mut self, stmt: &MirStmt, exprs: &HashMap<u32, MirExpr>) {
         match stmt {
             MirStmt::Assign { lhs, rhs } => {
-                println!("[DEBUG] Assign: lhs={}, rhs={}", lhs, rhs);
                 let val = self.gen_expr_safe(rhs, exprs);
                 let alloca = *self.locals.get(lhs).unwrap();
                 self.builder.build_store(alloca, val).unwrap();
@@ -1622,7 +1629,6 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 
                 // Generate condition block
                 self.builder.position_at_end(loop_cond_bb);
-                println!("[DEBUG] Evaluating while condition id={}", cond);
                 let cond_i64 = self.gen_expr_safe(cond, exprs).into_int_value();
                 let cond_i1 = self
                     .builder
@@ -1713,6 +1719,55 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 self.builder
                     .build_load(self.i64_type, ptr, "timing_load")
                     .unwrap()
+            }
+            MirExpr::BinaryOp { op, left, right } => {
+                let left_val = self.gen_expr(&exprs[left], exprs).into_int_value();
+                let right_val = self.gen_expr(&exprs[right], exprs).into_int_value();
+                
+                let cmp = match op.as_str() {
+                    "<" => self.builder.build_int_compare(
+                        IntPredicate::SLT,
+                        left_val,
+                        right_val,
+                        "cmp_lt",
+                    ).unwrap(),
+                    ">" => self.builder.build_int_compare(
+                        IntPredicate::SGT,
+                        left_val,
+                        right_val,
+                        "cmp_gt",
+                    ).unwrap(),
+                    "<=" => self.builder.build_int_compare(
+                        IntPredicate::SLE,
+                        left_val,
+                        right_val,
+                        "cmp_le",
+                    ).unwrap(),
+                    ">=" => self.builder.build_int_compare(
+                        IntPredicate::SGE,
+                        left_val,
+                        right_val,
+                        "cmp_ge",
+                    ).unwrap(),
+                    "==" => self.builder.build_int_compare(
+                        IntPredicate::EQ,
+                        left_val,
+                        right_val,
+                        "cmp_eq",
+                    ).unwrap(),
+                    "!=" => self.builder.build_int_compare(
+                        IntPredicate::NE,
+                        left_val,
+                        right_val,
+                        "cmp_ne",
+                    ).unwrap(),
+                    _ => {
+                        // For other operators, we should have created a Call statement instead
+                        // This shouldn't happen for comparison operators
+                        panic!("Unsupported binary operator in BinaryOp: {}", op);
+                    }
+                };
+                self.builder.build_int_z_extend(cmp, self.i64_type, "cmp_ext").unwrap().into()
             }
             MirExpr::Struct { variant, fields } => {
                 // Allocate struct on stack and store field values
@@ -1886,7 +1941,6 @@ impl<'ctx> LLVMCodegen<'ctx> {
     }
 
     fn load_local(&self, id: u32) -> BasicValueEnum<'ctx> {
-        println!("[DEBUG] load_local called for id={}", id);
         let ptr = *self.locals.get(&id).unwrap();
         self.builder
             .build_load(self.i64_type, ptr, &format!("load_{id}"))

@@ -493,13 +493,23 @@ impl MirGen {
                     self.exprs.insert(dest, MirExpr::Var(dest));
                     self.type_map.insert(dest, Type::I64);
                 } else {
-                    self.stmts.push(MirStmt::Call {
-                        func: op.clone(),
-                        args: vec![left_id, right_id],
-                        dest,
-                        type_args: vec![],
-                    });
-                    self.exprs.insert(dest, MirExpr::Var(dest));
+                    // For comparison operators used in loop conditions, create BinaryOp expression
+                    // instead of caching the result in a variable
+                    if op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=" {
+                        self.exprs.insert(dest, MirExpr::BinaryOp {
+                            op: op.clone(),
+                            left: left_id,
+                            right: right_id,
+                        });
+                    } else {
+                        self.stmts.push(MirStmt::Call {
+                            func: op.clone(),
+                            args: vec![left_id, right_id],
+                            dest,
+                            type_args: vec![],
+                        });
+                        self.exprs.insert(dest, MirExpr::Var(dest));
+                    }
                     self.type_map.insert(dest, Type::I64);
                 }
                 return dest;

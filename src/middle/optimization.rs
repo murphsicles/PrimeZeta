@@ -262,6 +262,9 @@ pub fn common_subexpression_elimination(mir: &mut Mir) {
             MirExpr::Range { start, end } => {
                 format!("Range({}-{})", start, end)
             }
+            MirExpr::BinaryOp { op, left, right } => {
+                format!("BinaryOp({} {} {})", left, op, right)
+            }
         };
         
         // Check if we've seen this expression before

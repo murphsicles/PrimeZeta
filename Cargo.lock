@@ -7459,6 +7459,7 @@ dependencies = [
  "aes-gcm",
  "argon2",
  "base64 0.22.1",
+ "bincode",
  "bip39",
  "bs58",
  "chalk-ir",

@@ -113,6 +113,12 @@ pub enum MirExpr {
         start: u32,
         end: u32,
     },
+    // Binary operation
+    BinaryOp {
+        op: String,
+        left: u32,
+        right: u32,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
