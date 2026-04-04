@@ -1204,11 +1204,16 @@ impl InferContext {
                     else_ty = self.infer(stmt)?;
                 }
 
-                // Both branches must have the same type
-                self.constrain_eq(then_ty.clone(), else_ty.clone());
-
-                // The if expression has the type of its branches
-                Ok(then_ty)
+                if else_.is_empty() {
+                    // If there's no else branch, the if statement has unit type
+                    // (This covers both statement usage and expression usage with missing else)
+                    Ok(Type::Tuple(vec![]))
+                } else {
+                    // Both branches must have the same type
+                    self.constrain_eq(then_ty.clone(), else_ty.clone());
+                    // The if expression has the type of its branches
+                    Ok(then_ty)
+                }
             }
 
             AstNode::Match { scrutinee, arms } => {

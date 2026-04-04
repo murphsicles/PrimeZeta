@@ -1,0 +1,34 @@
+// Test simple if without else
+
+fn test_if_simple() -> u64 {
+    let a: u64 = 10
+    let b: u64 = 3
+    
+    let rem: u64 = a % b
+    
+    if rem == 0 {
+        return 0
+    }
+    
+    return 1
+}
+
+fn test_if_with_else() -> u64 {
+    let a: u64 = 10
+    let b: u64 = 3
+    
+    let rem: u64 = a % b
+    
+    if rem == 0 {
+        return 0
+    } else {
+        return 1
+    }
+}
+
+fn main() -> u64 {
+    let test1 = test_if_simple()
+    let test2 = test_if_with_else()
+    
+    return test1 * 10 + test2
+}
