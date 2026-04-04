@@ -1,5 +1,5 @@
 // Test SIMD type system
-use crate::middle::types::Type;
+use zetac::middle::types::Type;
 
 #[test]
 fn test_vector_type() {
@@ -15,7 +15,7 @@ fn test_vector_type() {
     
     // Test as_vector method
     if let Some((inner, size)) = vector_type.as_vector() {
-        assert_eq!(**inner, Type::I32);
+        assert_eq!(*inner, Type::I32);
         assert_eq!(size, 4);
     } else {
         panic!("as_vector should return Some for vector types");
@@ -32,7 +32,7 @@ fn test_vector_type() {
 
 #[test]
 fn test_vector_unification() {
-    use crate::middle::types::{Substitution, TypeVar};
+    use zetac::middle::types::{Substitution, TypeVar};
     
     let mut sub = Substitution::new();
     
