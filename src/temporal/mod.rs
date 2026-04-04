@@ -287,242 +287,128 @@ pub struct TemporalBranch {
     pub context_snapshot: TemporalContext,
 }
 
-/// Temporal programming language constructs
-pub mod language {
-    use super::*;
-    
-    /// Temporal variable declaration
-    pub struct TemporalVar<T> {
-        name: String,
-        value: Arc<Mutex<TemporalValue<T>>>,
+/// Initialize temporal programming module
+pub fn init() {
+    println!("[Zeta] Temporal programming module initialized");
+}
+
+/// Register temporal programming functions
+pub fn register_functions(map: &mut std::collections::HashMap<&'static str, usize>) {
+    // Register temporal programming functions
+    map.insert("temporal_context_new", temporal_context_new as *const () as usize);
+    map.insert("temporal_context_create_variable", temporal_context_create_variable as *const () as usize);
+    map.insert("temporal_context_get_variable", temporal_context_get_variable as *const () as usize);
+    map.insert("temporal_context_set_variable", temporal_context_set_variable as *const () as usize);
+    map.insert("temporal_context_travel_to_time", temporal_context_travel_to_time as *const () as usize);
+}
+
+// Runtime function implementations
+#[unsafe(no_mangle)]
+pub extern "C" fn temporal_context_new() -> *mut TemporalContext {
+    let context = TemporalContext::new();
+    Box::into_raw(Box::new(context))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn temporal_context_create_variable(
+    context: *mut TemporalContext,
+    name: *const u8,
+    name_len: usize,
+    value_json: *const u8,
+    value_len: usize,
+) -> bool {
+    if context.is_null() || name.is_null() || value_json.is_null() {
+        return false;
     }
     
-    impl<T: Clone + serde::Serialize + serde::de::DeserializeOwned> TemporalVar<T> {
-        pub fn new(name: &str, initial_value: T) -> Self {
-            let json_value = serde_json::to_value(&initial_value).unwrap();
-            let temporal_value = TemporalValue::new(json_value, 100);
-            
-            TemporalVar {
-                name: name.to_string(),
-                value: Arc::new(Mutex::new(temporal_value)),
-            }
-        }
+    unsafe {
+        let name_str = std::slice::from_raw_parts(name, name_len);
+        let name = String::from_utf8_lossy(name_str).to_string();
         
-        pub fn get(&self, temporal_id: Option<TemporalId>) -> Option<T> {
-            let value_lock = self.value.lock().unwrap();
-            let json_value = if let Some(tid) = temporal_id {
-                value_lock.at_time(tid).cloned()?
-            } else {
-                value_lock.current.clone()
-            };
-            
-            serde_json::from_value(json_value).ok()
-        }
+        let value_json_str = std::slice::from_raw_parts(value_json, value_len);
+        let value_str = String::from_utf8_lossy(value_json_str);
         
-        pub fn set(&self, value: T) {
-            let json_value = serde_json::to_value(&value).unwrap();
-            let mut value_lock = self.value.lock().unwrap();
-            value_lock.update(json_value);
-        }
-        
-        pub fn undo(&self) -> Option<T> {
-            let mut value_lock = self.value.lock().unwrap();
-            let json_value = value_lock.undo()?;
-            serde_json::from_value(json_value).ok()
-        }
-    }
-    
-    /// Temporal function that can be called at different times
-    pub struct TemporalFunction<F, R>
-    where
-        F: Fn() -> R + Send + Sync + 'static,
-        R: Clone + serde::Serialize + serde::de::DeserializeOwned + 'static,
-    {
-        func: Arc<F>,
-        execution_history: Arc<Mutex<VecDeque<TemporalExecution>>>,
-    }
-    
-    impl<F, R> TemporalFunction<F, R>
-    where
-        F: Fn() -> R + Send + Sync + 'static,
-        R: Clone + serde::Serialize + serde::de::DeserializeOwned + 'static,
-    {
-        pub fn new(func: F) -> Self {
-            TemporalFunction {
-                func: Arc::new(func),
-                execution_history: Arc::new(Mutex::new(VecDeque::new())),
-            }
-        }
-        
-        pub fn call(&self, context: &mut TemporalContext) -> R {
-            let result = (self.func)();
-            
-            // Record execution
-            let execution = TemporalExecution {
-                timestamp: TemporalId::now(),
-                operation: "temporal_function_call".to_string(),
-                variable_snapshot: HashMap::new(), // Would capture context variables
-                result: serde_json::to_value(&result).unwrap(),
-            };
-            
-            context.record_execution(execution.clone());
-            
-            // Also store in function's own history
-            let mut history_lock = self.execution_history.lock().unwrap();
-            history_lock.push_front(execution);
-            if history_lock.len() > 100 {
-                history_lock.pop_back();
-            }
-            
-            result
-        }
-        
-        pub fn call_at_time(&self, temporal_id: TemporalId, context: &mut TemporalContext) -> Result<R, String> {
-            // First travel to the specified time
-            context.travel_to_time(temporal_id)?;
-            
-            // Then call the function
-            Ok(self.call(context))
-        }
-    }
-    
-    /// Temporal control flow: if statement that can be evaluated in past/future
-    pub struct TemporalIf {
-        condition: Box<dyn Fn(&TemporalContext) -> bool + Send + Sync>,
-        then_branch: Box<dyn Fn(&mut TemporalContext) + Send + Sync>,
-        else_branch: Option<Box<dyn Fn(&mut TemporalContext) + Send + Sync>>,
-    }
-    
-    impl TemporalIf {
-        pub fn new<C, T, E>(
-            condition: C,
-            then_branch: T,
-            else_branch: Option<E>,
-        ) -> Self
-        where
-            C: Fn(&TemporalContext) -> bool + Send + Sync + 'static,
-            T: Fn(&mut TemporalContext) + Send + Sync + 'static,
-            E: Fn(&mut TemporalContext) + Send + Sync + 'static,
-        {
-            TemporalIf {
-                condition: Box::new(condition),
-                then_branch: Box::new(then_branch),
-                else_branch: else_branch.map(|e| Box::new(e) as _),
-            }
-        }
-        
-        pub fn evaluate(&self, context: &mut TemporalContext, temporal_id: Option<TemporalId>) {
-            // Save current time
-            let original_time = context.position;
-            
-            // If temporal_id is specified, travel to that time
-            if let Some(tid) = temporal_id {
-                if let Err(e) = context.travel_to_time(tid) {
-                    eprintln!("Failed to travel to time: {}", e);
-                    return;
-                }
-            }
-            
-            // Evaluate condition
-            let condition_result = (self.condition)(context);
-            
-            // Execute appropriate branch
-            if condition_result {
-                (self.then_branch)(context);
-            } else if let Some(else_branch) = &self.else_branch {
-                (else_branch)(context);
-            }
-            
-            // Restore original time if we traveled
-            if temporal_id.is_some() {
-                context.position = original_time;
-            }
-        }
-    }
-    
-    /// Temporal loop that can iterate across time
-    pub struct TemporalLoop {
-        condition: Box<dyn Fn(&TemporalContext) -> bool + Send + Sync>,
-        body: Box<dyn Fn(&mut TemporalContext) + Send + Sync>,
-        step_nanos: u128,
-    }
-    
-    impl TemporalLoop {
-        pub fn new<C, B>(
-            condition: C,
-            body: B,
-            step_nanos: u128,
-        ) -> Self
-        where
-            C: Fn(&TemporalContext) -> bool + Send + Sync + 'static,
-            B: Fn(&mut TemporalContext) + Send + Sync + 'static,
-        {
-            TemporalLoop {
-                condition: Box::new(condition),
-                body: Box::new(body),
-                step_nanos,
-            }
-        }
-        
-        pub fn run(&self, context: &mut TemporalContext, start_time: TemporalId, end_time: TemporalId) {
-            let mut current_time = start_time;
-            
-            while current_time.timestamp <= end_time.timestamp {
-                // Travel to current iteration time
-                if let Err(e) = context.travel_to_time(current_time) {
-                    eprintln!("Failed to travel to time {}: {}", current_time.timestamp, e);
-                    break;
-                }
-                
-                // Check condition at this time
-                if !(self.condition)(context) {
-                    break;
-                }
-                
-                // Execute body
-                (self.body)(context);
-                
-                // Move to next time step
-                current_time = current_time.offset(self.step_nanos as i128);
-            }
+        if let Ok(value) = serde_json::from_str(&value_str) {
+            (*context).create_variable(&name, value);
+            true
+        } else {
+            false
         }
     }
 }
 
-/// Temporal proof system for verifying temporal properties
-pub mod temporal_proof {
-    use super::*;
-    
-    /// Temporal logic formula
-    #[derive(Debug, Clone)]
-    pub enum TemporalFormula {
-        /// Atomic proposition
-        Atom(String),
-        /// Negation
-        Not(Box<TemporalFormula>),
-        /// Conjunction (AND)
-        And(Box<TemporalFormula>, Box<TemporalFormula>),
-        /// Disjunction (OR)
-        Or(Box<TemporalFormula>, Box<TemporalFormula>),
-        /// Implication
-        Implies(Box<TemporalFormula>, Box<TemporalFormula>),
-        /// Always (G in LTL)
-        Always(Box<TemporalFormula>),
-        /// Eventually (F in LTL)
-        Eventually(Box<TemporalFormula>),
-        /// Next (X in LTL)
-        Next(Box<TemporalFormula>),
-        /// Until (U in LTL)
-        Until(Box<TemporalFormula>, Box<TemporalFormula>),
-        /// At a specific time
-        AtTime(TemporalId, Box<TemporalFormula>),
-        /// In a time interval
-        During(TemporalId, TemporalId, Box<TemporalFormula>),
+#[unsafe(no_mangle)]
+pub extern "C" fn temporal_context_get_variable(
+    context: *const TemporalContext,
+    name: *const u8,
+    name_len: usize,
+    timestamp: u128,
+    sequence: u32,
+) -> *mut u8 {
+    if context.is_null() || name.is_null() {
+        return std::ptr::null_mut();
     }
     
-    impl TemporalFormula {
-        pub fn evaluate(&self, context: &TemporalContext, current_time: TemporalId) -> bool {
-            match self {
-                TemporalFormula::Atom(name) => {
-                    // Check if variable exists and is truthy
-                    context.get_variable(name, Some
+    unsafe {
+        let name_str = std::slice::from_raw_parts(name, name_len);
+        let name = String::from_utf8_lossy(name_str).to_string();
+        
+        let temporal_id = if timestamp == 0 {
+            None
+        } else {
+            Some(TemporalId { timestamp, sequence })
+        };
+        
+        if let Some(value) = (*context).get_variable(&name, temporal_id) {
+            let json_str = value.to_string();
+            let bytes = json_str.into_bytes();
+            let ptr = Box::into_raw(bytes.into_boxed_slice());
+            ptr as *mut u8
+        } else {
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn temporal_context_set_variable(
+    context: *const TemporalContext,
+    name: *const u8,
+    name_len: usize,
+    value_json: *const u8,
+    value_len: usize,
+) -> bool {
+    if context.is_null() || name.is_null() || value_json.is_null() {
+        return false;
+    }
+    
+    unsafe {
+        let name_str = std::slice::from_raw_parts(name, name_len);
+        let name = String::from_utf8_lossy(name_str).to_string();
+        
+        let value_json_str = std::slice::from_raw_parts(value_json, value_len);
+        let value_str = String::from_utf8_lossy(value_json_str);
+        
+        if let Ok(value) = serde_json::from_str(&value_str) {
+            (*context).set_variable(&name, value)
+        } else {
+            false
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn temporal_context_travel_to_time(
+    context: *mut TemporalContext,
+    timestamp: u128,
+    sequence: u32,
+) -> bool {
+    if context.is_null() {
+        return false;
+    }
+    
+    unsafe {
+        let temporal_id = TemporalId { timestamp, sequence };
+        (*context).travel_to_time(temporal_id).is_ok()
+    }
+}
