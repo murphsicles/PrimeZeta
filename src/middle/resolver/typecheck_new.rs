@@ -3,7 +3,7 @@
 
 use super::resolver::Resolver;
 use crate::frontend::ast::AstNode;
-use crate::middle::types::{Substitution, Type, UnifyError};
+use crate::middle::types::{ArraySize, Substitution, Type, UnifyError};
 
 /// Extended resolver with new type checking
 pub trait NewTypeCheck {
@@ -150,7 +150,7 @@ impl NewTypeCheck for Resolver {
             if let Some((type_part, size_part)) = inner.split_once(';') {
                 let inner_type = self.string_to_type(type_part.trim());
                 if let Ok(size) = size_part.trim().parse::<usize>() {
-                    return Type::Array(Box::new(inner_type), size);
+                    return Type::Array(Box::new(inner_type), ArraySize::Literal(size));
                 }
             } else {
                 // Slice type: [T]
@@ -403,12 +403,12 @@ mod tests {
         // Test array types
         assert_eq!(
             resolver.string_to_type("[i32; 10]"),
-            Type::Array(Box::new(Type::I32), 10)
+            Type::Array(Box::new(Type::I32), ArraySize::Literal(10))
         );
 
         assert_eq!(
             resolver.string_to_type("[bool; 5]"),
-            Type::Array(Box::new(Type::Bool), 5)
+            Type::Array(Box::new(Type::Bool), ArraySize::Literal(5))
         );
 
         // Test slice types
@@ -475,7 +475,7 @@ mod tests {
         assert_eq!(resolver.type_to_string(&mut_ref_i64), "&'static mut i64");
 
         // Test array type display
-        let array_i32 = Type::Array(Box::new(Type::I32), 10);
+        let array_i32 = Type::Array(Box::new(Type::I32), ArraySize::Literal(10));
         assert_eq!(resolver.type_to_string(&array_i32), "[i32; 10]");
 
         // Test slice type display

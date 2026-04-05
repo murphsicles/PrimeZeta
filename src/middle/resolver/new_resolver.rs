@@ -3,7 +3,7 @@
 
 use crate::frontend::ast::AstNode;
 use crate::middle::types::{
-    GenericContext, Kind, Substitution, TraitBound, Type, TypeParam, TypeVar, UnifyError,
+    ArraySize, GenericContext, Kind, Substitution, TraitBound, Type, TypeParam, TypeVar, UnifyError,
 };
 use std::collections::HashMap;
 
@@ -138,11 +138,15 @@ impl InferContext {
             
             if let Some((type_part, size_part)) = inner.split_once(';') {
                 let inner_type = self.parse_type_string(type_part.trim())?;
-                let size = size_part
-                    .trim()
-                    .parse::<usize>()
-                    .map_err(|e| format!("Invalid array size: {}", e))?;
-                return Ok(Type::Array(Box::new(inner_type), size));
+                let size_str = size_part.trim();
+                
+                // Try to parse as literal usize first
+                if let Ok(size) = size_str.parse::<usize>() {
+                    return Ok(Type::Array(Box::new(inner_type), crate::middle::types::ArraySize::Literal(size)));
+                }
+                
+                // If not a literal, treat as const parameter
+                return Ok(Type::Array(Box::new(inner_type), crate::middle::types::ArraySize::ConstParam(size_str.to_string())));
             } else {
                 // Slice type: [T]
                 let inner_type = self.parse_type_string(inner.trim())?;
@@ -253,7 +257,7 @@ impl InferContext {
             let size = parts[1].parse::<usize>()
                 .map_err(|e| format!("Invalid vector size '{}': {}", parts[1], e))?;
             
-            return Ok(Type::Vector(Box::new(elem_type), size));
+            return Ok(Type::Vector(Box::new(elem_type), ArraySize::Literal(size)));
         }
         
         // Check for generic type: Vec<i32>, Option<T>, Result<T, E>
@@ -529,7 +533,7 @@ impl InferContext {
                     // Empty array - we don't know the element type
                     // Create a type variable for the element type
                     let elem_var = Type::Variable(TypeVar::fresh());
-                    Ok(Type::Array(Box::new(elem_var), 0))
+                    Ok(Type::Array(Box::new(elem_var), crate::middle::types::ArraySize::Literal(0)))
                 } else {
                     // Infer type of first element
                     let first_ty = self.infer(&elements[0])?;
@@ -540,7 +544,7 @@ impl InferContext {
                         self.constrain_eq(first_ty.clone(), elem_ty);
                     }
                     
-                    Ok(Type::Array(Box::new(first_ty), elements.len()))
+                    Ok(Type::Array(Box::new(first_ty), crate::middle::types::ArraySize::Literal(elements.len())))
                 }
             },
 
@@ -557,10 +561,10 @@ impl InferContext {
                 // Try to get the size value if it's a literal
                 let array_size = if let AstNode::Lit(size_val) = size.as_ref() {
                     // Convert i64 to usize
-                    *size_val as usize
+                    crate::middle::types::ArraySize::Literal(*size_val as usize)
                 } else {
                     // Not a literal, use 0 as placeholder
-                    0
+                    crate::middle::types::ArraySize::Literal(0)
                 };
                 
                 // Return array type with repeated value
@@ -745,7 +749,21 @@ impl InferContext {
                 // Parse generic type parameters if present
                 let type_params = if !generics.is_empty() {
                     // Parse "T: Clone + Copy" style bounds
-                    self.parse_generic_params(generics)?
+                    // Convert GenericParam to strings
+                    let generic_strings: Vec<String> = generics.iter().map(|gp| {
+                        match gp {
+                            crate::frontend::ast::GenericParam::Type { name, bounds } => {
+                                if bounds.is_empty() {
+                                    name.clone()
+                                } else {
+                                    format!("{}: {}", name, bounds.join(" + "))
+                                }
+                            }
+                            crate::frontend::ast::GenericParam::Lifetime { name } => name.clone(),
+                            crate::frontend::ast::GenericParam::Const { name, ty } => format!("const {}: {}", name, ty),
+                        }
+                    }).collect();
+                    self.parse_generic_params(&generic_strings)?
                 } else {
                     Vec::new()
                 };
@@ -881,7 +899,21 @@ impl InferContext {
                 // Parse generic type parameters if present
                 let type_params = if !generics.is_empty() {
                     // Parse "T: Clone + Copy" style bounds
-                    self.parse_generic_params(generics)?
+                    // Convert GenericParam to strings
+                    let generic_strings: Vec<String> = generics.iter().map(|gp| {
+                        match gp {
+                            crate::frontend::ast::GenericParam::Type { name, bounds } => {
+                                if bounds.is_empty() {
+                                    name.clone()
+                                } else {
+                                    format!("{}: {}", name, bounds.join(" + "))
+                                }
+                            }
+                            crate::frontend::ast::GenericParam::Lifetime { name } => name.clone(),
+                            crate::frontend::ast::GenericParam::Const { name, ty } => format!("const {}: {}", name, ty),
+                        }
+                    }).collect();
+                    self.parse_generic_params(&generic_strings)?
                 } else {
                     Vec::new()
                 };
@@ -926,7 +958,21 @@ impl InferContext {
                 // Parse generic type parameters if present
                 let type_params = if !generics.is_empty() {
                     // Parse "T: Clone + Copy" style bounds
-                    self.parse_generic_params(generics)?
+                    // Convert GenericParam to strings
+                    let generic_strings: Vec<String> = generics.iter().map(|gp| {
+                        match gp {
+                            crate::frontend::ast::GenericParam::Type { name, bounds } => {
+                                if bounds.is_empty() {
+                                    name.clone()
+                                } else {
+                                    format!("{}: {}", name, bounds.join(" + "))
+                                }
+                            }
+                            crate::frontend::ast::GenericParam::Lifetime { name } => name.clone(),
+                            crate::frontend::ast::GenericParam::Const { name, ty } => format!("const {}: {}", name, ty),
+                        }
+                    }).collect();
+                    self.parse_generic_params(&generic_strings)?
                 } else {
                     Vec::new()
                 };
@@ -1042,7 +1088,7 @@ impl InferContext {
                 // So we'll create an array type with a fresh size variable that will unify with any size
                 // For now, we'll use 0 as a wildcard size that should unify with any concrete size
                 // This is a hack - we need a better solution
-                let array_type = Type::Array(Box::new(elem_var.clone()), 0);
+                let array_type = Type::Array(Box::new(elem_var.clone()), ArraySize::Literal(0));
                 self.constrain_eq(base_ty, array_type);
                 
                 // Return the element type
@@ -1764,11 +1810,11 @@ mod tests {
         // Test array types
         assert_eq!(
             ctx.parse_type_string("[i32; 10]").unwrap(),
-            Type::Array(Box::new(Type::I32), 10)
+            Type::Array(Box::new(Type::I32), crate::middle::types::ArraySize::Literal(10))
         );
         assert_eq!(
             ctx.parse_type_string("[bool; 5]").unwrap(),
-            Type::Array(Box::new(Type::Bool), 5)
+            Type::Array(Box::new(Type::Bool), crate::middle::types::ArraySize::Literal(5))
         );
 
         // Test slice types
@@ -1798,11 +1844,12 @@ mod tests {
         // Test nested types
         assert_eq!(
             ctx.parse_type_string("[(i32, bool); 3]").unwrap(),
-            Type::Array(Box::new(Type::Tuple(vec![Type::I32, Type::Bool])), 3)
+            Type::Array(Box::new(Type::Tuple(vec![Type::I32, Type::Bool])), crate::middle::types::ArraySize::Literal(3))
         );
 
         // Test error cases
-        assert!(ctx.parse_type_string("[i32; not_a_number]").is_err());
+        // Note: "[i32; not_a_number]" is now valid as a const parameter
+        // assert!(ctx.parse_type_string("[i32; not_a_number]").is_err());
         assert!(ctx.parse_type_string("[i32;").is_err());
         assert!(ctx.parse_type_string("(i32, bool").is_err());
     }

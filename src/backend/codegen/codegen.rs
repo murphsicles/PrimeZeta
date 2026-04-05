@@ -2235,29 +2235,33 @@ impl<'ctx> LLVMCodegen<'ctx> {
             Type::Range => self.context.struct_type(&[self.context.i64_type().into(), self.context.i64_type().into()], false).into(),
             Type::Array(element_type, size) => {
                 let element_llvm_type = self.type_to_llvm_type(element_type);
+                let array_size = match size {
+                    crate::middle::types::ArraySize::Literal(n) => *n as u32,
+                    _ => 0, // Default for non-literal sizes
+                };
                 match element_llvm_type {
                     inkwell::types::BasicTypeEnum::IntType(int_type) => {
-                        int_type.array_type(*size as u32).into()
+                        int_type.array_type(array_size).into()
                     }
                     inkwell::types::BasicTypeEnum::FloatType(float_type) => {
-                        float_type.array_type(*size as u32).into()
+                        float_type.array_type(array_size).into()
                     }
                     inkwell::types::BasicTypeEnum::StructType(struct_type) => {
-                        struct_type.array_type(*size as u32).into()
+                        struct_type.array_type(array_size).into()
                     }
                     inkwell::types::BasicTypeEnum::PointerType(ptr_type) => {
-                        ptr_type.array_type(*size as u32).into()
+                        ptr_type.array_type(array_size).into()
                     }
                     inkwell::types::BasicTypeEnum::VectorType(vec_type) => {
-                        vec_type.array_type(*size as u32).into()
+                        vec_type.array_type(array_size).into()
                     }
                     inkwell::types::BasicTypeEnum::ArrayType(array_type) => {
-                        array_type.array_type(*size as u32).into()
+                        array_type.array_type(array_size).into()
                     }
                     inkwell::types::BasicTypeEnum::ScalableVectorType(scalable_vec_type) => {
                         // For now, treat scalable vectors as regular vectors
                         // This might need to be adjusted based on actual usage
-                        scalable_vec_type.array_type(*size as u32).into()
+                        scalable_vec_type.array_type(array_size).into()
                     }
                 }
             }
@@ -2294,21 +2298,25 @@ impl<'ctx> LLVMCodegen<'ctx> {
             Type::Vector(element_type, size) => {
                 let element_llvm_type = self.type_to_llvm_type(element_type);
                 // Create SIMD vector type
+                let vector_size = match size {
+                    crate::middle::types::ArraySize::Literal(n) => *n as u32,
+                    _ => 0, // Default for non-literal sizes
+                };
                 match element_llvm_type {
                     inkwell::types::BasicTypeEnum::IntType(int_type) => {
-                        int_type.vec_type(*size as u32).into()
+                        int_type.vec_type(vector_size).into()
                     }
                     inkwell::types::BasicTypeEnum::FloatType(float_type) => {
-                        float_type.vec_type(*size as u32).into()
+                        float_type.vec_type(vector_size).into()
                     }
                     inkwell::types::BasicTypeEnum::ScalableVectorType(_) => {
                         // For scalable vectors, use regular vector for now
-                        self.context.i64_type().vec_type(*size as u32).into()
+                        self.context.i64_type().vec_type(vector_size).into()
                     }
                     _ => {
                         // Fallback: treat as array for unsupported element types
                         // Use i64 array as fallback
-                        self.context.i64_type().array_type(*size as u32).into()
+                        self.context.i64_type().array_type(vector_size).into()
                     }
                 }
             }

@@ -47,6 +47,41 @@ pub enum Mutability {
     Mutable,
 }
 
+/// Array size representation for const generics
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ArraySize {
+    Literal(usize),
+    ConstParam(String), // Name of const parameter
+    Expr(Box<ConstExpr>),
+}
+
+impl std::fmt::Display for ArraySize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArraySize::Literal(n) => write!(f, "{}", n),
+            ArraySize::ConstParam(name) => write!(f, "{}", name),
+            ArraySize::Expr(expr) => write!(f, "{:?}", expr),
+        }
+    }
+}
+
+/// Constant expression for compile-time evaluation
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ConstExpr {
+    Literal(ConstValue),
+    Var(String),
+    Add(Box<ConstExpr>, Box<ConstExpr>),
+    Mul(Box<ConstExpr>, Box<ConstExpr>),
+}
+
+/// Constant value for compile-time evaluation
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ConstValue {
+    Int(i64),
+    UInt(u64),
+    Bool(bool),
+}
+
 /// Algebraic type representation
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
@@ -71,7 +106,7 @@ pub enum Type {
     Range,
 
     // Compound types
-    Array(Box<Type>, usize),              // [T; N]
+    Array(Box<Type>, ArraySize),              // [T; N]
     Slice(Box<Type>),                     // [T]
     DynamicArray(Box<Type>),              // [dynamic]T
     Tuple(Vec<Type>),                     // (T1, T2, ...)
@@ -93,7 +128,7 @@ pub enum Type {
     Variable(TypeVar),
 
     // SIMD vector types
-    Vector(Box<Type>, usize), // Vector<T, N> - SIMD vector of N elements of type T
+    Vector(Box<Type>, ArraySize), // Vector<T, N> - SIMD vector of N elements of type T
 
     // Type constructor (higher-kinded type)
     Constructor(String, Vec<Type>, Kind), // Name, type arguments, kind
@@ -270,11 +305,11 @@ impl Type {
                         let size_part = &inner[pos + 1..];
                         let inner_type = Type::from_string(type_part.trim());
                         if let Ok(size) = size_part.trim().parse::<usize>() {
-                            return Type::Array(Box::new(inner_type), size);
+                            return Type::Array(Box::new(inner_type), ArraySize::Literal(size));
                         }
                         // If size doesn't parse as usize, treat it as a variable size (use 0 as wildcard)
                         // This allows [bool; limit] to unify with [bool; 0]
-                        return Type::Array(Box::new(inner_type), 0);
+                        return Type::Array(Box::new(inner_type), ArraySize::Literal(0));
                     } else {
                         // Slice type: [T]
                         let inner_type = Type::from_string(inner.trim());
@@ -372,7 +407,7 @@ impl Type {
                         
                         let inner_type = Type::from_string(type_part);
                         if let Ok(size) = size_part.parse::<usize>() {
-                            return Type::Vector(Box::new(inner_type), size);
+                            return Type::Vector(Box::new(inner_type), ArraySize::Literal(size));
                         }
                     }
                 }
@@ -748,7 +783,7 @@ impl Type {
             // For other types, we might need to recursively instantiate
             Type::Array(inner, size) => {
                 let instantiated_inner = inner.instantiate_generic(type_args)?;
-                Ok(Type::Array(Box::new(instantiated_inner), *size))
+                Ok(Type::Array(Box::new(instantiated_inner), size.clone()))
             }
 
             Type::Slice(inner) => {
@@ -815,7 +850,10 @@ impl Type {
     /// Get the element type and size of a vector if this is a vector type
     pub fn as_vector(&self) -> Option<(&Type, usize)> {
         match self {
-            Type::Vector(inner, size) => Some((inner, *size)),
+            Type::Vector(inner, size) => Some((inner, match size {
+                ArraySize::Literal(n) => *n,
+                _ => 0, // Default for non-literal sizes
+            })),
             _ => None,
         }
     }
@@ -903,10 +941,10 @@ impl Substitution {
                 .get(var)
                 .cloned()
                 .unwrap_or(Type::Variable(var.clone())),
-            Type::Array(inner, size) => Type::Array(Box::new(self.apply(inner)), *size),
+            Type::Array(inner, size) => Type::Array(Box::new(self.apply(inner)), size.clone()),
             Type::Slice(inner) => Type::Slice(Box::new(self.apply(inner))),
             Type::DynamicArray(inner) => Type::DynamicArray(Box::new(self.apply(inner))),
-            Type::Vector(inner, size) => Type::Vector(Box::new(self.apply(inner)), *size),
+            Type::Vector(inner, size) => Type::Vector(Box::new(self.apply(inner)), size.clone()),
             Type::Tuple(types) => Type::Tuple(types.iter().map(|t| self.apply(t)).collect()),
             Type::Ptr(inner, mutability) => Type::Ptr(Box::new(self.apply(inner)), *mutability),
             Type::Ref(inner, lifetime, mutability) => {
@@ -943,6 +981,65 @@ impl Substitution {
                 params.iter().any(|p| self.occurs_check(var, p)) || self.occurs_check(var, ret)
             }
             _ => false,
+        }
+    }
+    
+    /// Unify two array sizes
+    fn unify_array_size(&mut self, size1: &ArraySize, size2: &ArraySize) -> Result<(), UnifyError> {
+        match (size1, size2) {
+            // Literal sizes must match exactly
+            (ArraySize::Literal(n1), ArraySize::Literal(n2)) => {
+                if n1 == n2 {
+                    Ok(())
+                } else {
+                    // Create dummy array types for error reporting
+                    let t1 = Type::Array(Box::new(Type::Error), size1.clone());
+                    let t2 = Type::Array(Box::new(Type::Error), size2.clone());
+                    Err(UnifyError::Mismatch(t1, t2))
+                }
+            }
+            
+            // Const parameter can unify with literal or another const parameter
+            (ArraySize::ConstParam(name1), ArraySize::ConstParam(name2)) => {
+                if name1 == name2 {
+                    Ok(())
+                } else {
+                    // Different const parameters don't unify
+                    let t1 = Type::Array(Box::new(Type::Error), size1.clone());
+                    let t2 = Type::Array(Box::new(Type::Error), size2.clone());
+                    Err(UnifyError::Mismatch(t1, t2))
+                }
+            }
+            
+            // Const parameter can unify with literal (const parameter gets bound to literal)
+            // This is a simplification - in full const generics, we'd need to track const parameter values
+            (ArraySize::ConstParam(_), ArraySize::Literal(_)) => {
+                // For now, allow unification (const parameter can have any value)
+                Ok(())
+            }
+            (ArraySize::Literal(_), ArraySize::ConstParam(_)) => {
+                // Symmetric case
+                Ok(())
+            }
+            
+            // Expressions are more complex - for now, require exact match
+            (ArraySize::Expr(e1), ArraySize::Expr(e2)) => {
+                if e1 == e2 {
+                    Ok(())
+                } else {
+                    let t1 = Type::Array(Box::new(Type::Error), size1.clone());
+                    let t2 = Type::Array(Box::new(Type::Error), size2.clone());
+                    Err(UnifyError::Mismatch(t1, t2))
+                }
+            }
+            
+            // Mixed expression with literal/const - for now, don't unify
+            // In a full implementation, we'd need to evaluate/simplify expressions
+            _ => {
+                let t1 = Type::Array(Box::new(Type::Error), size1.clone());
+                let t2 = Type::Array(Box::new(Type::Error), size2.clone());
+                Err(UnifyError::Mismatch(t1, t2))
+            }
         }
     }
 }
@@ -1094,7 +1191,9 @@ impl Substitution {
             (Type::Array(inner1, size1), Type::Array(inner2, size2)) => {
                 // Allow size 0 as a wildcard (for type inference)
                 // This is a hack to support array subscripting
-                if *size1 != *size2 && *size1 != 0usize && *size2 != 0usize {
+                if size1 != size2 && 
+                   !matches!(size1, ArraySize::Literal(0)) && 
+                   !matches!(size2, ArraySize::Literal(0)) {
                     return Err(UnifyError::Mismatch(t1, t2));
                 }
                 self.unify(inner1, inner2)
@@ -1320,7 +1419,7 @@ impl Substitution {
             Type::Array(inner, size) => {
                 let instantiated_inner =
                     self.instantiate_generic_with_bounds(inner, type_args, context)?;
-                Ok(Type::Array(Box::new(instantiated_inner), *size))
+                Ok(Type::Array(Box::new(instantiated_inner), size.clone()))
             }
 
             Type::Slice(inner) => {
@@ -1338,7 +1437,7 @@ impl Substitution {
             Type::Vector(inner, size) => {
                 let instantiated_inner =
                     self.instantiate_generic_with_bounds(inner, type_args, context)?;
-                Ok(Type::Vector(Box::new(instantiated_inner), *size))
+                Ok(Type::Vector(Box::new(instantiated_inner), size.clone()))
             }
 
             Type::Tuple(types) => {
@@ -1554,7 +1653,7 @@ mod tests {
         assert_eq!(Type::Bool.display_name(), "bool");
         assert_eq!(Type::Str.display_name(), "str");
 
-        let array = Type::Array(Box::new(Type::I32), 10);
+        let array = Type::Array(Box::new(Type::I32), ArraySize::Literal(10));
         assert_eq!(array.display_name(), "[i32; 10]");
 
         let tuple = Type::Tuple(vec![Type::I32, Type::Bool]);

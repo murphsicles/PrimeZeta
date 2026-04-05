@@ -10,6 +10,8 @@ use nom::combinator::{map, opt, recognize, value, verify};
 use nom::multi::{many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated};
 
+use crate::frontend::ast::GenericParam;
+
 pub fn line_comment(input: &str) -> IResult<&str, ()> {
     value((), pair(tag("//"), take_while(|c| c != '\n' && c != '\r'))).parse(input)
 }
@@ -472,7 +474,24 @@ pub fn parse_where_clause(input: &str) -> IResult<&str, Vec<(String, Vec<String>
 
 /// Parse a single generic parameter with optional trait bounds
 /// Examples: "T", "T: Display", "T: Display + Debug"
-pub fn parse_generic_param(input: &str) -> IResult<&str, String> {
+pub fn parse_generic_param_as_string(input: &str) -> IResult<&str, String> {
+    // Try to parse const parameter first: const N: usize
+    let mut const_parser = map(
+        (
+            ws(tag("const")),
+            ws(parse_ident),
+            ws(tag(":")),
+            ws(parse_type),
+        ),
+        |(_, name, _, ty)| format!("const {}: {}", name, ty),
+    );
+    
+    // Try const parameter first
+    if let Ok(result) = const_parser.parse(input) {
+        return Ok(result);
+    }
+    
+    // Fall back to type parameter
     let (input, param_name) = ws(parse_ident).parse(input)?;
 
     // Check for trait bounds
@@ -485,8 +504,46 @@ pub fn parse_generic_param(input: &str) -> IResult<&str, String> {
     Ok((input, format!("{}{}", param_name, bounds_str)))
 }
 
-/// Parse generic parameters including both lifetime and type parameters
-/// Examples: "<'a, T>", "<'a, 'b, T: Display, U>", "<T>"
+/// Parse a single generic parameter as GenericParam enum
+pub fn parse_generic_param_as_enum(input: &str) -> IResult<&str, GenericParam> {
+    // Try to parse const parameter first: const N: usize
+    let mut const_parser = map(
+        (
+            ws(tag("const")),
+            ws(parse_ident),
+            ws(tag(":")),
+            ws(parse_type),
+        ),
+        |(_, name, _, ty)| GenericParam::Const { name, ty },
+    );
+    
+    // Try const parameter first
+    if let Ok(result) = const_parser.parse(input) {
+        return Ok(result);
+    }
+    
+    // Try to parse lifetime parameter
+    if let Ok((input, lifetime)) = parse_lifetime_param(input) {
+        return Ok((input, GenericParam::Lifetime { name: lifetime }));
+    }
+    
+    // Fall back to type parameter
+    let (input, param_name) = ws(parse_ident).parse(input)?;
+    let mut bounds = Vec::new();
+    
+    // Check for trait bounds
+    let input = if let Ok((input, parsed_bounds)) = parse_trait_bounds(input) {
+        bounds = parsed_bounds;
+        input
+    } else {
+        input
+    };
+
+    Ok((input, GenericParam::Type { name: param_name, bounds }))
+}
+
+/// Parse generic parameters including lifetime, type, and const parameters
+/// Examples: "<'a, T>", "<'a, 'b, T: Display, U>", "<const N: usize, T>"
 pub fn parse_generic_params(input: &str) -> IResult<&str, (Vec<String>, Vec<String>)> {
     let (input, params) = delimited(
         ws(tag("<")),
@@ -497,7 +554,7 @@ pub fn parse_generic_params(input: &str) -> IResult<&str, (Vec<String>, Vec<Stri
                     // Try to parse as lifetime parameter first
                     map(parse_lifetime_param, |p| (p, true)),
                     // Fall back to type parameter
-                    map(parse_generic_param, |p| (p, false)),
+                    map(parse_generic_param_as_string, |p| (p, false)),
                 ))),
             ),
             opt(ws(tag(","))),
@@ -519,6 +576,24 @@ pub fn parse_generic_params(input: &str) -> IResult<&str, (Vec<String>, Vec<Stri
     }
 
     Ok((input, (lifetimes, type_params)))
+}
+
+/// Parse generic parameters as GenericParam enum values
+pub fn parse_generic_params_as_enum(input: &str) -> IResult<&str, Vec<GenericParam>> {
+    let (input, params) = delimited(
+        ws(tag("<")),
+        terminated(
+            separated_list0(
+                ws(tag(",")),
+                ws(parse_generic_param_as_enum),
+            ),
+            opt(ws(tag(","))),
+        ),
+        ws(tag(">")),
+    )
+    .parse(input)?;
+
+    Ok((input, params))
 }
 
 /// Parse a single attribute (e.g., #[test] or #[derive(Clone, Debug)])

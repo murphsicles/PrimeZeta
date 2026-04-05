@@ -10,6 +10,7 @@ use crate::frontend::macro_expand::MacroExpander;
 use crate::middle::mir::mir::Mir;
 use crate::middle::resolver::module_resolver::ModuleResolver;
 use crate::middle::resolver::typecheck_new::NewTypeCheck;
+use crate::middle::types::ArraySize;
 use crate::middle::specialization::{
     CACHE, MonoKey, MonoValue, is_cache_safe, record_specialization,
 };
@@ -874,7 +875,7 @@ impl Resolver {
                      ("a5".to_string(), Type::U64),
                      ("a6".to_string(), Type::U64),
                      ("a7".to_string(), Type::U64)],
-                Type::Vector(Box::new(Type::U64), 8),
+                Type::Vector(Box::new(Type::U64), ArraySize::Literal(8)),
                 false, // not async
             ),
         );
@@ -883,7 +884,7 @@ impl Resolver {
             "Vector::splat".to_string(),
             (
                 vec![("value".to_string(), Type::U64)],
-                Type::Vector(Box::new(Type::U64), 8),
+                Type::Vector(Box::new(Type::U64), ArraySize::Literal(8)),
                 false, // not async
             ),
         );
