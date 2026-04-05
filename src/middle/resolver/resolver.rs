@@ -679,6 +679,97 @@ impl Resolver {
             ),
         );
 
+        // String runtime functions
+        // str_concat(a: str, b: str) -> str
+        self.funcs.insert(
+            "str_concat".to_string(),
+            (
+                vec![("a".to_string(), Type::Str), ("b".to_string(), Type::Str)],
+                Type::Str,
+                false, // not async
+            ),
+        );
+
+        // str_len(s: str) -> i64
+        self.funcs.insert(
+            "str_len".to_string(),
+            (
+                vec![("s".to_string(), Type::Str)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+
+        // str_to_lowercase(s: str) -> str
+        self.funcs.insert(
+            "str_to_lowercase".to_string(),
+            (
+                vec![("s".to_string(), Type::Str)],
+                Type::Str,
+                false, // not async
+            ),
+        );
+
+        // str_to_uppercase(s: str) -> str
+        self.funcs.insert(
+            "str_to_uppercase".to_string(),
+            (
+                vec![("s".to_string(), Type::Str)],
+                Type::Str,
+                false, // not async
+            ),
+        );
+
+        // str_trim(s: str) -> str
+        self.funcs.insert(
+            "str_trim".to_string(),
+            (
+                vec![("s".to_string(), Type::Str)],
+                Type::Str,
+                false, // not async
+            ),
+        );
+
+        // str_starts_with(haystack: str, needle: str) -> bool
+        self.funcs.insert(
+            "str_starts_with".to_string(),
+            (
+                vec![("haystack".to_string(), Type::Str), ("needle".to_string(), Type::Str)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+
+        // str_ends_with(haystack: str, needle: str) -> bool
+        self.funcs.insert(
+            "str_ends_with".to_string(),
+            (
+                vec![("haystack".to_string(), Type::Str), ("needle".to_string(), Type::Str)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+
+        // str_contains(haystack: str, needle: str) -> bool
+        self.funcs.insert(
+            "str_contains".to_string(),
+            (
+                vec![("haystack".to_string(), Type::Str), ("needle".to_string(), Type::Str)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+
+        // str_replace(s: str, old: str, new: str) -> str
+        self.funcs.insert(
+            "str_replace".to_string(),
+            (
+                vec![("s".to_string(), Type::Str), ("old".to_string(), Type::Str), ("new".to_string(), Type::Str)],
+                Type::Str,
+                false, // not async
+            ),
+        );
+
         // Array runtime functions
         // array_new() -> i64 (pointer to array)
         self.funcs.insert(

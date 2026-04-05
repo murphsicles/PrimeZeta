@@ -948,6 +948,15 @@ impl<'ctx> LLVMCodegen<'ctx> {
             );
             return dummy_fn;
         }
+        // Handle string functions - map from str_* to host_str_*
+        if name.starts_with("str_") {
+            let host_name = format!("host_{}", name);
+            eprintln!("[DEBUG get_function] Mapping {} to {}", name, host_name);
+            if let Some(f) = self.module.get_function(&host_name) {
+                return f;
+            }
+        }
+
         // Handle Vector::extract (method call, not static method)
         // Note: This is handled differently - as a method call on a vector value
         // Check if it's an external function declared in the module
