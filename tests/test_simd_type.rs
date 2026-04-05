@@ -5,7 +5,7 @@ use zetac::middle::types::Type;
 fn test_vector_type() {
     // Create a vector type
     let element_type = Box::new(Type::I32);
-    let vector_type = Type::Vector(element_type, 4);
+    let vector_type = Type::Vector(element_type, zetac::middle::types::ArraySize::Literal(4));
     
     // Test display name
     assert_eq!(vector_type.display_name(), "Vector<i32, 4>");
