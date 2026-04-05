@@ -28,6 +28,10 @@ pub use family::{
     TypeFamilyEquationBuilder, TypeFamilyPattern, TypeFamilyConstraint,
 };
 
+// Re-export identity types
+pub mod identity;
+pub use identity::{CapabilityLevel, IdentityConstraint, IdentityContext, IdentityOp, IdentityType};
+
 /// Type variable for inference
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeVar(pub u32);
@@ -138,6 +142,9 @@ pub enum Type {
 
     // Error type (when inference fails)
     Error,
+
+    // Identity types (string-based capabilities)
+    Identity(Box<IdentityType>),
 }
 
 /// Trait bounds for generic type parameters
@@ -257,6 +264,17 @@ impl Type {
             "bool" => Type::Bool,
             "char" => Type::Char,
             "str" => Type::Str,
+            // Check for identity type: identity("value")[read, write]
+            s if s.starts_with("identity(") => {
+                // For now, just create a basic identity type
+                // TODO: Implement proper parsing
+                Type::Identity(Box::new(IdentityType {
+                    value: None,
+                    capabilities: Vec::new(),
+                    delegatable: false,
+                    constraints: Vec::new(),
+                }))
+            }
             _ => {
                 // Check for &mut prefix (must check before & prefix)
                 if let Some(rest) = s.strip_prefix("&mut ") {
@@ -527,6 +545,7 @@ impl Type {
             Type::PartialApplication(constructor, args) => {
                 constructor.contains_vars() || args.iter().any(|t| t.contains_vars())
             }
+            Type::Identity(_) => false,
             _ => false,
         }
     }
@@ -621,6 +640,7 @@ impl Type {
                 format!("{}<{}>", constructor_str, args_str)
             }
             Type::Error => "<?>".to_string(),
+            Type::Identity(identity) => identity.to_string(),
         }
     }
 
@@ -710,6 +730,24 @@ impl Type {
                     .collect::<Vec<_>>()
                     .join("_");
                 format!("AsyncFunction_{}_{}", param_str, ret.mangled_name())
+            }
+            Type::Identity(identity) => {
+                let mut mangled = "Identity_".to_string();
+                if let Some(value) = &identity.value {
+                    let replaced = value.replace(" ", "_").replace("\"", "");
+                    mangled.push_str(&replaced);
+                } else {
+                    mangled.push_str("Unknown");
+                }
+                for cap in &identity.capabilities {
+                    mangled.push('_');
+                    let cap_str = cap.to_string();
+                    mangled.push_str(&cap_str);
+                }
+                if identity.delegatable {
+                    mangled.push_str("_Delegatable");
+                }
+                mangled
             }
             Type::Constructor(name, args, kind) => {
                 let mut mangled = format!("Constructor_{}_kind_{}", name, kind.mangled_name());
@@ -836,6 +874,9 @@ impl Type {
                     var.0
                 ))
             }
+
+            // Identity types remain unchanged
+            Type::Identity(identity) => Ok(Type::Identity(identity.clone())),
 
             // Primitive types and error type remain unchanged
             _ => Ok(self.clone()),

@@ -2520,6 +2520,10 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 // Error type - use i64 as placeholder
                 self.context.i64_type().into()
             }
+            Type::Identity(_) => {
+                // Identity type - treat as string for now
+                self.context.ptr_type(AddressSpace::default()).into()
+            }
         }
     }
 
