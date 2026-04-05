@@ -189,6 +189,89 @@ impl<'ctx> LLVMCodegen<'ctx> {
             void_type.fn_type(&[ptr_type.into()], false),
             Some(Linkage::External),
         );
+        // I/O functions
+        module.add_function(
+            "print_i64",
+            void_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "print_bool",
+            void_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "print_str",
+            void_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "println",
+            void_type.fn_type(&[], false),
+            Some(Linkage::External),
+ );
+        module.add_function(
+            "println_i64",
+            void_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "flush",
+            void_type.fn_type(&[], false),
+            Some(Linkage::External),
+        );
+        // Memory allocation functions
+        module.add_function(
+            "runtime_malloc",
+            i64_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "runtime_free",
+            void_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "runtime_calloc",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "runtime_realloc",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        // Array functions
+        module.add_function(
+            "array_new",
+            i64_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "array_len",
+            i64_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "array_get",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "array_set",
+            void_type.fn_type(&[i64_type.into(), i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "array_push",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "array_free",
+            void_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
         module.add_function(
             "host_str_concat",
             i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),

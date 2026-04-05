@@ -272,7 +272,9 @@ impl Type {
                         if let Ok(size) = size_part.trim().parse::<usize>() {
                             return Type::Array(Box::new(inner_type), size);
                         }
-                        // If size doesn't parse as usize, fall through to Named type
+                        // If size doesn't parse as usize, treat it as a variable size (use 0 as wildcard)
+                        // This allows [bool; limit] to unify with [bool; 0]
+                        return Type::Array(Box::new(inner_type), 0);
                     } else {
                         // Slice type: [T]
                         let inner_type = Type::from_string(inner.trim());

@@ -830,6 +830,36 @@ impl Resolver {
                 false, // not async
             ),
         );
+        
+        // map_get(map: i64, key: i64) -> i64
+        self.funcs.insert(
+            "map_get".to_string(),
+            (
+                vec![("map".to_string(), Type::I64), ("key".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        
+        // print_i64(value: i64) -> void
+        self.funcs.insert(
+            "print_i64".to_string(),
+            (
+                vec![("value".to_string(), Type::I64)],
+                Type::Tuple(vec![]), // void
+                false, // not async
+            ),
+        );
+        
+        // println() -> void
+        self.funcs.insert(
+            "println".to_string(),
+            (
+                vec![],
+                Type::Tuple(vec![]), // void
+                false, // not async
+            ),
+        );
 
         // Vector constructor for Vector<u64, 8> (most common for Murphy's Sieve)
         // Note: This is a hack - we should handle generic vector types properly
@@ -859,7 +889,7 @@ impl Resolver {
         );
         
         println!(
-            "[RESOLVER] Registered built-in runtime functions: clone_i64, is_null_i64, to_string_str, to_string_i64, to_string_bool, array_new, array_push, array_len, array_get, array_set, array_free, Vector::new"
+            "[RESOLVER] Registered built-in runtime functions: clone_i64, is_null_i64, to_string_str, to_string_i64, to_string_bool, array_new, array_push, array_len, array_get, array_set, array_free, map_get, print_i64, println, Vector::new"
         );
     }
 }

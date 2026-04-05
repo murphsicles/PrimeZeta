@@ -10,3 +10,7 @@ pub mod std;
 pub mod sync;
 pub mod vector;
 pub mod xai;
+pub mod array;
+pub mod memory;
+pub mod io;
+pub mod map;
