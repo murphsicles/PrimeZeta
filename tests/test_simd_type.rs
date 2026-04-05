@@ -37,23 +37,23 @@ fn test_vector_unification() {
     let mut sub = Substitution::new();
     
     // Two identical vector types should unify
-    let vec1 = Type::Vector(Box::new(Type::I32), 4);
-    let vec2 = Type::Vector(Box::new(Type::I32), 4);
+    let vec1 = Type::Vector(Box::new(Type::I32), zetac::middle::types::ArraySize::Literal(4));
+    let vec2 = Type::Vector(Box::new(Type::I32), zetac::middle::types::ArraySize::Literal(4));
     
     assert!(sub.unify(&vec1, &vec2).is_ok());
     
     // Different sizes should not unify
-    let vec3 = Type::Vector(Box::new(Type::I32), 8);
+    let vec3 = Type::Vector(Box::new(Type::I32), zetac::middle::types::ArraySize::Literal(8));
     assert!(sub.unify(&vec1, &vec3).is_err());
     
     // Different element types should not unify
-    let vec4 = Type::Vector(Box::new(Type::F32), 4);
+    let vec4 = Type::Vector(Box::new(Type::F32), zetac::middle::types::ArraySize::Literal(4));
     assert!(sub.unify(&vec1, &vec4).is_err());
     
     // Vector with type variable
     let tvar = Type::Variable(TypeVar::fresh());
-    let vec5 = Type::Vector(Box::new(tvar.clone()), 4);
-    let vec6 = Type::Vector(Box::new(Type::I32), 4);
+    let vec5 = Type::Vector(Box::new(tvar.clone()), zetac::middle::types::ArraySize::Literal(4));
+    let vec6 = Type::Vector(Box::new(Type::I32), zetac::middle::types::ArraySize::Literal(4));
     
     assert!(sub.unify(&vec5, &vec6).is_ok());
     // After unification, tvar should be bound to i32

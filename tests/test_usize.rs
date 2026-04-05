@@ -116,7 +116,7 @@ fn test_primezeta_compatibility() {
     match array_type {
         Type::Array(inner, size) => {
             assert_eq!(*inner, Type::Usize);
-            assert_eq!(size, 5760);
+            assert_eq!(size, zetac::middle::types::ArraySize::Literal(5760));
         }
         _ => panic!("Expected Array type for [usize; 5760]"),
     }

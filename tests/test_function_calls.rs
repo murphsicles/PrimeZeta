@@ -1,5 +1,7 @@
 // Test function calls in comptime
 
+extern crate zetac;
+
 #[test]
 fn test_comptime_function_calls() {
     use zetac::frontend::parser::top_level::parse_zeta;

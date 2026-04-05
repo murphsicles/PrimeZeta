@@ -1,8 +1,10 @@
 //! Integration tests for Teranode mining software
 
+extern crate zetac;
+
 #[cfg(test)]
 mod tests {
-    use crate::blockchain::bsv::teranode::{
+    use zetac::blockchain::bsv::teranode::{
         TeranodeClient, 
         TeranodeClientConfig,
         TeranodeError,
@@ -117,7 +119,7 @@ mod tests {
     #[test]
     fn test_mining_types_serialization() {
         use serde_json;
-        use crate::blockchain::bsv::teranode::types::{MiningCandidate, MiningSolution};
+        use zetac::blockchain::bsv::teranode::types::{MiningCandidate, MiningSolution};
         
         // Test MiningCandidate serialization
         let candidate = MiningCandidate {
