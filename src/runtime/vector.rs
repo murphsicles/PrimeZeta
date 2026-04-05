@@ -100,3 +100,223 @@ pub unsafe extern "C" fn vector_free_i32x4(ptr: i64) {
         }
     }
 }
+
+/// Add two Vector<u64, 8> vectors element-wise
+/// 
+/// # Safety
+/// a and b must be valid pointers to VectorU64x8
+/// Returns a new VectorU64x8
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_add_u64x8(a: i64, b: i64) -> i64 {
+    if a == 0 || b == 0 {
+        return 0;
+    }
+    
+    let a_ptr = a as *const VectorU64x8;
+    let b_ptr = b as *const VectorU64x8;
+    
+    let a_data = unsafe { &(*a_ptr).data };
+    let b_data = unsafe { &(*b_ptr).data };
+    
+    let mut result_data = [0i64; 8];
+    for i in 0..8 {
+        result_data[i] = a_data[i].wrapping_add(b_data[i]);
+    }
+    
+    let boxed = Box::new(VectorU64x8 { data: result_data });
+    Box::into_raw(boxed) as i64
+}
+
+/// Subtract two Vector<u64, 8> vectors element-wise
+/// 
+/// # Safety
+/// a and b must be valid pointers to VectorU64x8
+/// Returns a new VectorU64x8
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_sub_u64x8(a: i64, b: i64) -> i64 {
+    if a == 0 || b == 0 {
+        return 0;
+    }
+    
+    let a_ptr = a as *const VectorU64x8;
+    let b_ptr = b as *const VectorU64x8;
+    
+    let a_data = unsafe { &(*a_ptr).data };
+    let b_data = unsafe { &(*b_ptr).data };
+    
+    let mut result_data = [0i64; 8];
+    for i in 0..8 {
+        result_data[i] = a_data[i].wrapping_sub(b_data[i]);
+    }
+    
+    let boxed = Box::new(VectorU64x8 { data: result_data });
+    Box::into_raw(boxed) as i64
+}
+
+/// Multiply two Vector<u64, 8> vectors element-wise
+/// 
+/// # Safety
+/// a and b must be valid pointers to VectorU64x8
+/// Returns a new VectorU64x8
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_mul_u64x8(a: i64, b: i64) -> i64 {
+    if a == 0 || b == 0 {
+        return 0;
+    }
+    
+    let a_ptr = a as *const VectorU64x8;
+    let b_ptr = b as *const VectorU64x8;
+    
+    let a_data = unsafe { &(*a_ptr).data };
+    let b_data = unsafe { &(*b_ptr).data };
+    
+    let mut result_data = [0i64; 8];
+    for i in 0..8 {
+        result_data[i] = a_data[i].wrapping_mul(b_data[i]);
+    }
+    
+    let boxed = Box::new(VectorU64x8 { data: result_data });
+    Box::into_raw(boxed) as i64
+}
+
+/// Get element from Vector<u64, 8>
+/// 
+/// # Safety
+/// ptr must be a valid pointer to VectorU64x8
+/// index must be in range 0..8
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_get_u64x8(ptr: i64, index: i64) -> i64 {
+    if ptr == 0 || index < 0 || index >= 8 {
+        return 0;
+    }
+    
+    let vec_ptr = ptr as *const VectorU64x8;
+    let data = unsafe { &(*vec_ptr).data };
+    data[index as usize] as i64
+}
+
+/// Set element in Vector<u64, 8>
+/// 
+/// # Safety
+/// ptr must be a valid pointer to VectorU64x8
+/// index must be in range 0..8
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_set_u64x8(ptr: i64, index: i64, value: i64) {
+    if ptr == 0 || index < 0 || index >= 8 {
+        return;
+    }
+    
+    let vec_ptr = ptr as *mut VectorU64x8;
+    let data = unsafe { &mut (*vec_ptr).data };
+    data[index as usize] = value;
+}
+
+/// Add two Vector<i32, 4> vectors element-wise
+/// 
+/// # Safety
+/// a and b must be valid pointers to VectorI32x4
+/// Returns a new VectorI32x4
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_add_i32x4(a: i64, b: i64) -> i64 {
+    if a == 0 || b == 0 {
+        return 0;
+    }
+    
+    let a_ptr = a as *const VectorI32x4;
+    let b_ptr = b as *const VectorI32x4;
+    
+    let a_data = unsafe { &(*a_ptr).data };
+    let b_data = unsafe { &(*b_ptr).data };
+    
+    let mut result_data = [0i32; 4];
+    for i in 0..4 {
+        result_data[i] = a_data[i].wrapping_add(b_data[i]);
+    }
+    
+    let boxed = Box::new(VectorI32x4 { data: result_data });
+    Box::into_raw(boxed) as i64
+}
+
+/// Subtract two Vector<i32, 4> vectors element-wise
+/// 
+/// # Safety
+/// a and b must be valid pointers to VectorI32x4
+/// Returns a new VectorI32x4
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_sub_i32x4(a: i64, b: i64) -> i64 {
+    if a == 0 || b == 0 {
+        return 0;
+    }
+    
+    let a_ptr = a as *const VectorI32x4;
+    let b_ptr = b as *const VectorI32x4;
+    
+    let a_data = unsafe { &(*a_ptr).data };
+    let b_data = unsafe { &(*b_ptr).data };
+    
+    let mut result_data = [0i32; 4];
+    for i in 0..4 {
+        result_data[i] = a_data[i].wrapping_sub(b_data[i]);
+    }
+    
+    let boxed = Box::new(VectorI32x4 { data: result_data });
+    Box::into_raw(boxed) as i64
+}
+
+/// Multiply two Vector<i32, 4> vectors element-wise
+/// 
+/// # Safety
+/// a and b must be valid pointers to VectorI32x4
+/// Returns a new VectorI32x4
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_mul_i32x4(a: i64, b: i64) -> i64 {
+    if a == 0 || b == 0 {
+        return 0;
+    }
+    
+    let a_ptr = a as *const VectorI32x4;
+    let b_ptr = b as *const VectorI32x4;
+    
+    let a_data = unsafe { &(*a_ptr).data };
+    let b_data = unsafe { &(*b_ptr).data };
+    
+    let mut result_data = [0i32; 4];
+    for i in 0..4 {
+        result_data[i] = a_data[i].wrapping_mul(b_data[i]);
+    }
+    
+    let boxed = Box::new(VectorI32x4 { data: result_data });
+    Box::into_raw(boxed) as i64
+}
+
+/// Get element from Vector<i32, 4>
+/// 
+/// # Safety
+/// ptr must be a valid pointer to VectorI32x4
+/// index must be in range 0..4
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_get_i32x4(ptr: i64, index: i64) -> i64 {
+    if ptr == 0 || index < 0 || index >= 4 {
+        return 0;
+    }
+    
+    let vec_ptr = ptr as *const VectorI32x4;
+    let data = unsafe { &(*vec_ptr).data };
+    data[index as usize] as i64
+}
+
+/// Set element in Vector<i32, 4>
+/// 
+/// # Safety
+/// ptr must be a valid pointer to VectorI32x4
+/// index must be in range 0..4
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn vector_set_i32x4(ptr: i64, index: i64, value: i64) {
+    if ptr == 0 || index < 0 || index >= 4 {
+        return;
+    }
+    
+    let vec_ptr = ptr as *mut VectorI32x4;
+    let data = unsafe { &mut (*vec_ptr).data };
+    data[index as usize] = value as i32;
+}
