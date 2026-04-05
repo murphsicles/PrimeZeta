@@ -1029,16 +1029,21 @@ impl InferContext {
                 let base_ty = self.infer(base)?;
                 let index_ty = self.infer(index)?;
                 
-                // For now, assume array subscripting
-                // The base should be an array type [T; N] or slice [T]
-                // The index should be an integer type
-                // The result is T
+                // Constrain index to be integer
+                self.constrain_eq(index_ty, Type::I64);
                 
                 // Create a fresh type variable for the element type
                 let elem_var = Type::Variable(TypeVar::fresh());
                 
-                // Constrain index to be integer
-                // For now, just accept any type for index
+                // Constrain base type to be an array type with element type elem_var
+                // We don't care about the size for subscripting
+                // Create a fresh type variable to represent any array size
+                // Actually, we can't use a type variable for size since Type::Array uses usize
+                // So we'll create an array type with a fresh size variable that will unify with any size
+                // For now, we'll use 0 as a wildcard size that should unify with any concrete size
+                // This is a hack - we need a better solution
+                let array_type = Type::Array(Box::new(elem_var.clone()), 0);
+                self.constrain_eq(base_ty, array_type);
                 
                 // Return the element type
                 Ok(elem_var)

@@ -345,6 +345,36 @@ impl Type {
                     return Type::Ptr(Box::new(inner_type), Mutability::Mutable);
                 }
 
+                // Check for Vector<T, N> type
+                if s.starts_with("Vector<") && s.ends_with('>') {
+                    let inner = &s[7..s.len() - 1]; // Remove "Vector<" and ">"
+                    // Find the comma separating type and size
+                    let mut comma_pos = None;
+                    let mut depth = 0;
+                    
+                    for (i, ch) in inner.chars().enumerate() {
+                        match ch {
+                            '<' => depth += 1,
+                            '>' => depth -= 1,
+                            ',' if depth == 0 => {
+                                comma_pos = Some(i);
+                                break;
+                            }
+                            _ => {}
+                        }
+                    }
+                    
+                    if let Some(comma) = comma_pos {
+                        let type_part = &inner[..comma].trim();
+                        let size_part = &inner[comma + 1..].trim();
+                        
+                        let inner_type = Type::from_string(type_part);
+                        if let Ok(size) = size_part.parse::<usize>() {
+                            return Type::Vector(Box::new(inner_type), size);
+                        }
+                    }
+                }
+
                 // Check for trait objects: dyn Trait
                 if let Some(trait_name) = s.strip_prefix("dyn ") {
                     return Type::TraitObject(trait_name.trim().to_string());
@@ -1060,7 +1090,9 @@ impl Substitution {
 
             // Array types
             (Type::Array(inner1, size1), Type::Array(inner2, size2)) => {
-                if size1 != size2 {
+                // Allow size 0 as a wildcard (for type inference)
+                // This is a hack to support array subscripting
+                if *size1 != *size2 && *size1 != 0usize && *size2 != 0usize {
                     return Err(UnifyError::Mismatch(t1, t2));
                 }
                 self.unify(inner1, inner2)

@@ -364,6 +364,12 @@ pub unsafe extern "C" fn array_push(arr_ptr: i64, value: i64) {
         let new_size = (new_capacity as usize) * std::mem::size_of::<i64>();
         let new_data = std_malloc(new_size) as *mut i64;
         
+        // Check if allocation succeeded
+        if new_data.is_null() {
+            // Allocation failed - cannot resize
+            return;
+        }
+        
         if !arr.data.is_null() {
             // Copy existing data
             ptr::copy_nonoverlapping(arr.data, new_data, arr.length as usize);

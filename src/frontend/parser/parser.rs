@@ -190,15 +190,15 @@ pub fn parse_array_type(input: &str) -> IResult<&str, String> {
     match parse_dynamic_array(original_input) {
         Ok(result) => return Ok(result),
         Err(_) => {
-            // Dynamic array failed, try Zeta style
-            match parse_zeta_array(original_input) {
-                Ok(result) => return Ok(result),
+            // Dynamic array failed, try PrimeZeta style first (for [limit]bool syntax)
+            match parse_primezeta_array(original_input) {
+                Ok((remaining, (size, elem_type))) => {
+                    return Ok((remaining, format!("[{}; {}]", elem_type, size)));
+                }
                 Err(_) => {
-                    // Zeta style failed, try PrimeZeta style
-                    match parse_primezeta_array(original_input) {
-                        Ok((remaining, (size, elem_type))) => {
-                            return Ok((remaining, format!("[{}; {}]", elem_type, size)));
-                        }
+                    // PrimeZeta style failed, try Zeta style
+                    match parse_zeta_array(original_input) {
+                        Ok(result) => return Ok(result),
                         Err(e) => {
                             // All failed, return the error
                             return Err(e);

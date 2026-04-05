@@ -831,28 +831,29 @@ impl Resolver {
             ),
         );
 
-        // Vector constructor (placeholder)
-        // Note: Vector::new is generic and takes N arguments of type T
-        // For now, we register it with 4 parameters for Vector<f32, 4>
-        // This is a hack - in a real implementation, we would handle
-        // different vector sizes and element types
+        // Vector constructor for Vector<u64, 8> (most common for Murphy's Sieve)
+        // Note: This is a hack - we should handle generic vector types properly
         self.funcs.insert(
             "Vector::new".to_string(),
             (
-                vec![("a".to_string(), Type::I64), 
-                     ("b".to_string(), Type::I64),
-                     ("c".to_string(), Type::I64),
-                     ("d".to_string(), Type::I64)],
-                Type::I64, // TODO: Should return Vector<T, N>
+                vec![("a0".to_string(), Type::U64), 
+                     ("a1".to_string(), Type::U64),
+                     ("a2".to_string(), Type::U64),
+                     ("a3".to_string(), Type::U64),
+                     ("a4".to_string(), Type::U64),
+                     ("a5".to_string(), Type::U64),
+                     ("a6".to_string(), Type::U64),
+                     ("a7".to_string(), Type::U64)],
+                Type::Vector(Box::new(Type::U64), 8),
                 false, // not async
             ),
         );
-        // Vector splat (create vector with all elements equal)
+        // Vector splat for Vector<u64, 8>
         self.funcs.insert(
             "Vector::splat".to_string(),
             (
-                vec![("value".to_string(), Type::I64)],
-                Type::I64, // TODO: Should return Vector<T, N>
+                vec![("value".to_string(), Type::U64)],
+                Type::Vector(Box::new(Type::U64), 8),
                 false, // not async
             ),
         );

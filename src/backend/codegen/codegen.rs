@@ -141,18 +141,31 @@ impl<'ctx> LLVMCodegen<'ctx> {
             void_type.fn_type(&[ptr_type.into()], false),
             Some(Linkage::External),
         );
-        // Vector constructor
-        // Note: Takes 4 i64 arguments (for Vector<f32, 4>)
-        // This is a hack - in a real implementation, we would handle
-        // different vector sizes and element types
+        // Vector constructors for common SIMD types
+        // Vector<u64, 8>
         module.add_function(
-            "vector_make",
-            i64_type.fn_type(&[i64_type.into(), i64_type.into(), i64_type.into(), i64_type.into()], false),
+            "vector_make_u64x8",
+            i64_type.fn_type(&[
+                i64_type.into(), i64_type.into(), i64_type.into(), i64_type.into(),
+                i64_type.into(), i64_type.into(), i64_type.into(), i64_type.into()
+            ], false),
             Some(Linkage::External),
         );
-        // Vector splat (create vector with all elements equal)
         module.add_function(
-            "vector_splat",
+            "vector_splat_u64x8",
+            i64_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        // Vector<i32, 4>
+        module.add_function(
+            "vector_make_i32x4",
+            i64_type.fn_type(&[
+                i64_type.into(), i64_type.into(), i64_type.into(), i64_type.into()
+            ], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "vector_splat_i32x4",
             i64_type.fn_type(&[i64_type.into()], false),
             Some(Linkage::External),
         );
@@ -912,12 +925,19 @@ impl<'ctx> LLVMCodegen<'ctx> {
             return f;
         }
         // Handle Vector::new constructor
+        // Note: This is a hack - we assume Vector<u64, 8> for now
+        // In a real implementation, we would need to know the actual vector type
         eprintln!("[DEBUG get_function BEFORE CHECK] name = {}", name);
         if name == "Vector::new" {
             eprintln!("[DEBUG get_function] Handling Vector::new");
-            // Try to find vector_make function
-            if let Some(f) = self.module.get_function("vector_make") {
-                eprintln!("[DEBUG get_function] Found vector_make");
+            // Try to find vector_make_u64x8 function (most common for Murphy's Sieve)
+            if let Some(f) = self.module.get_function("vector_make_u64x8") {
+                eprintln!("[DEBUG get_function] Found vector_make_u64x8");
+                return f;
+            }
+            // Fall back to i32x4
+            if let Some(f) = self.module.get_function("vector_make_i32x4") {
+                eprintln!("[DEBUG get_function] Found vector_make_i32x4");
                 return f;
             }
             eprintln!("[DEBUG get_function] vector_make not found, creating dummy");
