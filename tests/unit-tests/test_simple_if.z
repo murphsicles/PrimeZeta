@@ -1,34 +1,10 @@
-// Test simple if without else
-
-fn test_if_simple() -> u64 {
-    let a: u64 = 10
-    let b: u64 = 3
+fn main() -> () {
+    let x = 10;
+    let y = 20;
     
-    let rem: u64 = a % b
-    
-    if rem == 0 {
-        return 0
-    }
-    
-    return 1
-}
-
-fn test_if_with_else() -> u64 {
-    let a: u64 = 10
-    let b: u64 = 3
-    
-    let rem: u64 = a % b
-    
-    if rem == 0 {
-        return 0
+    if (x < y) {
+        print("x is less than y");
     } else {
-        return 1
+        print("x is not less than y");
     }
-}
-
-fn main() -> u64 {
-    let test1 = test_if_simple()
-    let test2 = test_if_with_else()
-    
-    return test1 * 10 + test2
 }
