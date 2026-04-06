@@ -876,8 +876,34 @@ impl Type {
                 ))
             }
 
-            // Identity types remain unchanged
-            Type::Identity(identity) => Ok(Type::Identity(identity.clone())),
+            // Identity types
+            Type::Identity(identity) => {
+                if identity.is_parametric() {
+                    // Convert type_args from Type to IdentityType
+                    let identity_type_args: Result<Vec<IdentityType>, String> = type_args
+                        .iter()
+                        .map(|ty| {
+                            if let Type::Identity(id_ty) = ty {
+                                Ok((**id_ty).clone())
+                            } else {
+                                Err(format!(
+                                    "Expected identity type argument, got {}",
+                                    ty.display_name()
+                                ))
+                            }
+                        })
+                        .collect();
+                    
+                    let identity_type_args = identity_type_args?;
+                    
+                    // Instantiate the identity type
+                    let instantiated = identity.instantiate(identity_type_args)?;
+                    Ok(Type::Identity(Box::new(instantiated)))
+                } else {
+                    // Non-parametric identity type remains unchanged
+                    Ok(Type::Identity(identity.clone()))
+                }
+            },
 
             // Primitive types and error type remain unchanged
             _ => Ok(self.clone()),
@@ -1360,6 +1386,38 @@ impl Substitution {
                 Ok(())
             }
 
+            // Identity types
+            (Type::Identity(id1), Type::Identity(id2)) => {
+                // For now, require exact equality
+                // TODO: Add proper constraint checking and subtyping
+                if id1 == id2 {
+                    Ok(())
+                } else {
+                    // Check if they can be unified through constraints
+                    // For now, just check if they have the same structure
+                    if id1.is_parametric() && id2.is_parametric() {
+                        // Both are parametric - check if they have same number of parameters
+                        if id1.type_params.len() == id2.type_params.len() {
+                            // For now, allow unification of parametric identity types with same arity
+                            // Actual constraint checking happens during instantiation
+                            Ok(())
+                        } else {
+                            Err(UnifyError::Mismatch(t1, t2))
+                        }
+                    } else if !id1.is_parametric() && !id2.is_parametric() {
+                        // Both are concrete - require exact equality
+                        if id1 == id2 {
+                            Ok(())
+                        } else {
+                            Err(UnifyError::Mismatch(t1, t2))
+                        }
+                    } else {
+                        // One is parametric, one is concrete - can't unify
+                        Err(UnifyError::Mismatch(t1, t2))
+                    }
+                }
+            }
+
             // Mismatch
             _ => Err(UnifyError::Mismatch(t1, t2)),
         }
@@ -1404,6 +1462,10 @@ impl Substitution {
                     Self::collect_type_vars(param, type_vars);
                 }
                 Self::collect_type_vars(ret, type_vars);
+            }
+            Type::Identity(_) => {
+                // Identity types don't contain type variables directly
+                // Type variables would be in the type parameters, which are handled separately
             }
             _ => {} // Primitive types don't contain type variables
         }

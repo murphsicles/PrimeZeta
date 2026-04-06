@@ -14,6 +14,7 @@ use nom::multi::{separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, tuple};
 
 use crate::frontend::parser::parser::ws;
+use crate::middle::types::identity::{IdentityConstraint, CapabilityLevel};
 
 /// Parse an identity capability (read, write, execute, owned)
 pub fn parse_capability(input: &str) -> IResult<&str, String> {
@@ -39,9 +40,21 @@ pub fn parse_identifier(input: &str) -> IResult<&str, String> {
 }
 
 /// Parse a constraint (e.g., "Read", "length >= 5", "matches 'pattern'")
-pub fn parse_constraint(input: &str) -> IResult<&str, String> {
+pub fn parse_constraint(input: &str) -> IResult<&str, IdentityConstraint> {
     // Parse capability constraint
-    let capability_constraint = parse_capability;
+    let capability_constraint = map(
+        parse_capability,
+        |cap_str: String| {
+            match cap_str.to_lowercase().as_str() {
+                "read" => IdentityConstraint::Capability(CapabilityLevel::Read),
+                "write" => IdentityConstraint::Capability(CapabilityLevel::Write),
+                "execute" => IdentityConstraint::Capability(CapabilityLevel::Execute),
+                "owned" => IdentityConstraint::Capability(CapabilityLevel::Owned),
+                "immutable" => IdentityConstraint::Capability(CapabilityLevel::Immutable),
+                _ => IdentityConstraint::Capability(CapabilityLevel::Read), // Default
+            }
+        },
+    );
     
     // Parse length constraint
     let length_constraint = map(
@@ -51,7 +64,12 @@ pub fn parse_constraint(input: &str) -> IResult<&str, String> {
             ws(digit1),
         )),
         |(_, op, num): (&str, &str, &str)| {
-            format!("length {} {}", op, num)
+            let length = num.parse::<usize>().unwrap_or(0);
+            match op {
+                ">=" => IdentityConstraint::MinLength(length),
+                "<=" => IdentityConstraint::MaxLength(length),
+                _ => IdentityConstraint::MinLength(0), // Should not happen
+            }
         },
     );
     
@@ -64,7 +82,7 @@ pub fn parse_constraint(input: &str) -> IResult<&str, String> {
             ws(tag("'")),
         )),
         |(_, _, pattern, _): (&str, &str, &str, &str)| {
-            format!("matches '{}'", pattern)
+            IdentityConstraint::Pattern(pattern.to_string())
         },
     );
     
@@ -77,7 +95,7 @@ pub fn parse_constraint(input: &str) -> IResult<&str, String> {
 
 /// Parse a type parameter with optional constraint
 /// Syntax: `T` or `T: Read` or `T: length >= 5`
-pub fn parse_type_param(input: &str) -> IResult<&str, (String, Option<String>)> {
+pub fn parse_type_param(input: &str) -> IResult<&str, (String, Option<IdentityConstraint>)> {
     let (input, param_name) = parse_identifier(input)?;
     
     let (input, constraint_opt) = opt(preceded(
@@ -90,7 +108,7 @@ pub fn parse_type_param(input: &str) -> IResult<&str, (String, Option<String>)> 
 
 /// Parse a list of type parameters
 /// Syntax: `<T>` or `<T, U>` or `<T: Read, U: Write>`
-pub fn parse_type_params(input: &str) -> IResult<&str, Vec<(String, Option<String>)>> {
+pub fn parse_type_params(input: &str) -> IResult<&str, Vec<(String, Option<IdentityConstraint>)>> {
     delimited(
         ws(tag("<")),
         separated_list1(ws(tag(",")), parse_type_param),
@@ -100,7 +118,7 @@ pub fn parse_type_params(input: &str) -> IResult<&str, Vec<(String, Option<Strin
 
 /// Parse a parametric identity type
 /// Syntax: `Identity<T>` or `Identity<T: Read>` or `Identity<T: Read, U: Write>`
-pub fn parse_parametric_identity(input: &str) -> IResult<&str, (String, Vec<(String, Option<String>)>)> {
+pub fn parse_parametric_identity(input: &str) -> IResult<&str, (String, Vec<(String, Option<IdentityConstraint>)>)> {
     let (input, type_name) = parse_identifier(input)?;
     
     if type_name != "Identity" && type_name != "identity" {
@@ -224,30 +242,42 @@ mod tests {
 
     #[test]
     fn test_parse_constraint() {
-        assert_eq!(parse_constraint("read"), Ok(("", "read".to_string())));
-        assert_eq!(parse_constraint("length >= 5"), Ok(("", "length >= 5".to_string())));
-        assert_eq!(parse_constraint("length <= 10"), Ok(("", "length <= 10".to_string())));
-        assert_eq!(parse_constraint("matches 'pattern'"), Ok(("", "matches 'pattern'".to_string())));
+        use crate::middle::types::identity::{IdentityConstraint, CapabilityLevel};
+        
+        assert_eq!(parse_constraint("read"), Ok(("", IdentityConstraint::Capability(CapabilityLevel::Read))));
+        assert_eq!(parse_constraint("write"), Ok(("", IdentityConstraint::Capability(CapabilityLevel::Write))));
+        assert_eq!(parse_constraint("execute"), Ok(("", IdentityConstraint::Capability(CapabilityLevel::Execute))));
+        assert_eq!(parse_constraint("owned"), Ok(("", IdentityConstraint::Capability(CapabilityLevel::Owned))));
+        assert_eq!(parse_constraint("immutable"), Ok(("", IdentityConstraint::Capability(CapabilityLevel::Immutable))));
+        assert_eq!(parse_constraint("length >= 5"), Ok(("", IdentityConstraint::MinLength(5))));
+        assert_eq!(parse_constraint("length <= 10"), Ok(("", IdentityConstraint::MaxLength(10))));
+        assert_eq!(parse_constraint("matches 'pattern'"), Ok(("", IdentityConstraint::Pattern("pattern".to_string()))));
     }
 
     #[test]
     fn test_parse_type_param() {
+        use crate::middle::types::identity::{IdentityConstraint, CapabilityLevel};
+        
         assert_eq!(parse_type_param("T"), Ok(("", ("T".to_string(), None))));
-        assert_eq!(parse_type_param("T: read"), Ok(("", ("T".to_string(), Some("read".to_string())))));
-        assert_eq!(parse_type_param("T: length >= 5"), Ok(("", ("T".to_string(), Some("length >= 5".to_string())))));
+        assert_eq!(parse_type_param("T: read"), Ok(("", ("T".to_string(), Some(IdentityConstraint::Capability(CapabilityLevel::Read))))));
+        assert_eq!(parse_type_param("T: length >= 5"), Ok(("", ("T".to_string(), Some(IdentityConstraint::MinLength(5))))));
     }
 
     #[test]
     fn test_parse_type_params() {
+        use crate::middle::types::identity::{IdentityConstraint, CapabilityLevel};
+        
         assert_eq!(parse_type_params("<T>"), Ok(("", vec![("T".to_string(), None)])));
         assert_eq!(parse_type_params("<T, U>"), Ok(("", vec![("T".to_string(), None), ("U".to_string(), None)])));
-        assert_eq!(parse_type_params("<T: read, U: write>"), Ok(("", vec![("T".to_string(), Some("read".to_string())), ("U".to_string(), Some("write".to_string()))])));
+        assert_eq!(parse_type_params("<T: read, U: write>"), Ok(("", vec![("T".to_string(), Some(IdentityConstraint::Capability(CapabilityLevel::Read))), ("U".to_string(), Some(IdentityConstraint::Capability(CapabilityLevel::Write)))])));
     }
 
     #[test]
     fn test_parse_parametric_identity() {
+        use crate::middle::types::identity::{IdentityConstraint, CapabilityLevel};
+        
         assert_eq!(parse_parametric_identity("Identity<T>"), Ok(("", ("Identity".to_string(), vec![("T".to_string(), None)]))));
-        assert_eq!(parse_parametric_identity("Identity<T: read>"), Ok(("", ("Identity".to_string(), vec![("T".to_string(), Some("read".to_string()))]))));
-        assert_eq!(parse_parametric_identity("Identity<T: read, U: write>"), Ok(("", ("Identity".to_string(), vec![("T".to_string(), Some("read".to_string())), ("U".to_string(), Some("write".to_string()))]))));
+        assert_eq!(parse_parametric_identity("Identity<T: read>"), Ok(("", ("Identity".to_string(), vec![("T".to_string(), Some(IdentityConstraint::Capability(CapabilityLevel::Read)))]))));
+        assert_eq!(parse_parametric_identity("Identity<T: read, U: write>"), Ok(("", ("Identity".to_string(), vec![("T".to_string(), Some(IdentityConstraint::Capability(CapabilityLevel::Read))), ("U".to_string(), Some(IdentityConstraint::Capability(CapabilityLevel::Write)))]))));
     }
 }
