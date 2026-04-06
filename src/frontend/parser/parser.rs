@@ -12,6 +12,7 @@ use nom::sequence::{delimited, pair, preceded, terminated};
 
 use crate::frontend::ast::GenericParam;
 use crate::frontend::parser::expr::parse_expr;
+use crate::frontend::parser::identity_type::parse_string_with_identity;
 
 pub fn line_comment(input: &str) -> IResult<&str, ()> {
     value((), pair(tag("//"), take_while(|c| c != '\n' && c != '\r'))).parse(input)
@@ -377,6 +378,7 @@ pub fn parse_type(input: &str) -> IResult<&str, String> {
         tag("char").map(|_| "char".to_string()),
         tag("str").map(|_| "str".to_string()),
         tag("String").map(|_| "String".to_string()),
+        parse_string_with_identity,
     ));
     
     // Try special types first, then built-in types, then type paths
