@@ -7,6 +7,7 @@
 use super::resolver::{Resolver, Type};
 use super::unified_typecheck::{TypeCheckResult, UnifiedTypeCheck};
 use crate::frontend::ast::AstNode;
+use crate::middle::passes::identity_verification::verify_identities;
 
 impl Resolver {
     pub fn typecheck(&mut self, asts: &[AstNode]) -> bool {
@@ -25,7 +26,7 @@ impl Resolver {
         }
 
         // Use unified type checking interface
-        match self.typecheck_unified(asts) {
+        let typecheck_result = match self.typecheck_unified(asts) {
             TypeCheckResult::Success(_) => {
                 // Unified type checking succeeded
                 true
@@ -49,6 +50,13 @@ impl Resolver {
                 }
                 ok
             }
+        };
+        
+        // Run identity verification pass if type checking succeeded
+        if typecheck_result {
+            self.run_identity_verification(asts)
+        } else {
+            false
         }
     }
 
@@ -379,5 +387,31 @@ impl Resolver {
 
         // TODO: Add more compatibility rules as needed
         false
+    }
+    
+    /// Run identity verification pass on the AST
+    fn run_identity_verification(&self, asts: &[AstNode]) -> bool {
+        let mut all_ok = true;
+        
+        for ast in asts {
+            match verify_identities(ast) {
+                Ok(warnings) => {
+                    // Print warnings but don't fail compilation
+                    for warning in warnings {
+                        eprintln!("Identity warning: {}", warning);
+                    }
+                }
+                Err(errors) => {
+                    // Identity verification failed
+                    eprintln!("Identity verification failed with errors:");
+                    for error in errors {
+                        eprintln!("  Identity error: {}", error);
+                    }
+                    all_ok = false;
+                }
+            }
+        }
+        
+        all_ok
     }
 }

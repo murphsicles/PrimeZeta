@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 pub mod string_ops;
+pub mod inference;
 
 /// Identity capability level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
