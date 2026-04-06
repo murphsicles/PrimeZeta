@@ -50,6 +50,25 @@ impl CapabilityLevel {
     }
 }
 
+/// Generic type parameter for identity types
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct IdentityTypeParam {
+    /// Parameter name
+    pub name: String,
+    /// Optional constraint on the parameter
+    pub constraint: Option<IdentityConstraint>,
+}
+
+impl fmt::Display for IdentityTypeParam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)?;
+        if let Some(constraint) = &self.constraint {
+            write!(f, ": {}", constraint)?;
+        }
+        Ok(())
+    }
+}
+
 /// Identity type - represents a string with specific capabilities
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentityType {
@@ -61,6 +80,8 @@ pub struct IdentityType {
     pub delegatable: bool,
     /// Constraints on this identity (e.g., must match pattern)
     pub constraints: Vec<IdentityConstraint>,
+    /// Generic type parameters (for parametric identities)
+    pub type_params: Vec<IdentityTypeParam>,
 }
 
 impl IdentityType {
@@ -71,6 +92,7 @@ impl IdentityType {
             capabilities,
             delegatable: false,
             constraints: Vec::new(),
+            type_params: Vec::new(),
         }
     }
 
@@ -81,7 +103,55 @@ impl IdentityType {
             capabilities,
             delegatable: false,
             constraints: Vec::new(),
+            type_params: Vec::new(),
         }
+    }
+
+    /// Create a new parametric identity type
+    pub fn parametric(capabilities: Vec<CapabilityLevel>, type_params: Vec<IdentityTypeParam>) -> Self {
+        Self {
+            value: None,
+            capabilities,
+            delegatable: false,
+            constraints: Vec::new(),
+            type_params,
+        }
+    }
+
+    /// Check if this is a parametric identity type
+    pub fn is_parametric(&self) -> bool {
+        !self.type_params.is_empty()
+    }
+
+    /// Instantiate a parametric identity type with concrete types
+    pub fn instantiate(&self, type_args: Vec<IdentityType>) -> Result<Self, String> {
+        if type_args.len() != self.type_params.len() {
+            return Err(format!(
+                "Expected {} type arguments, got {}",
+                self.type_params.len(),
+                type_args.len()
+            ));
+        }
+
+        // Check constraints
+        for (param, arg) in self.type_params.iter().zip(type_args.iter()) {
+            if let Some(constraint) = &param.constraint {
+                if !arg.satisfies_constraint(constraint) {
+                    return Err(format!(
+                        "Type argument {} does not satisfy constraint {}",
+                        arg, constraint
+                    ));
+                }
+            }
+        }
+
+        Ok(Self {
+            value: self.value.clone(),
+            capabilities: self.capabilities.clone(),
+            delegatable: self.delegatable,
+            constraints: self.constraints.clone(),
+            type_params: Vec::new(), // Instantiated types have no type parameters
+        })
     }
 
     /// Check if this identity has a specific capability
@@ -174,6 +244,18 @@ impl fmt::Display for IdentityType {
             write!(f, "identity")?;
         }
         
+        // Display type parameters if any
+        if !self.type_params.is_empty() {
+            write!(f, "<")?;
+            for (i, param) in self.type_params.iter().enumerate() {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}", param)?;
+            }
+            write!(f, ">")?;
+        }
+        
         if !self.capabilities.is_empty() {
             write!(f, "[")?;
             for (i, cap) in self.capabilities.iter().enumerate() {
@@ -190,6 +272,16 @@ impl fmt::Display for IdentityType {
         }
         
         Ok(())
+    }
+}
+
+impl fmt::Display for IdentityConstraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IdentityConstraint::Pattern(pattern) => write!(f, "matches '{}'", pattern),
+            IdentityConstraint::MaxLength(max) => write!(f, "length <= {}", max),
+            IdentityConstraint::MinLength(min) => write!(f, "length >= {}", min),
+        }
     }
 }
 
@@ -278,6 +370,11 @@ impl IdentityContext {
         let mut constraints = t1.constraints.clone();
         constraints.extend(t2.constraints.clone());
         
+        // For type parameters, they must match exactly
+        if t1.type_params != t2.type_params {
+            return None;
+        }
+        
         // Use the known value if either has one
         let value = t1.value.clone().or_else(|| t2.value.clone());
         
@@ -286,6 +383,7 @@ impl IdentityContext {
             capabilities,
             delegatable,
             constraints,
+            type_params: t1.type_params.clone(),
         })
     }
 }

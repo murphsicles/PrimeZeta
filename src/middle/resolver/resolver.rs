@@ -713,6 +713,7 @@ impl Resolver {
                     capabilities: vec![CapabilityLevel::Read],
                     delegatable: false,
                     constraints: vec![],
+                    type_params: vec![],
                 })),
                 false, // not async
             ),
@@ -728,6 +729,7 @@ impl Resolver {
                     capabilities: vec![CapabilityLevel::Read, CapabilityLevel::Write],
                     delegatable: false,
                     constraints: vec![],
+                    type_params: vec![],
                 })),
                 false, // not async
             ),
@@ -743,6 +745,7 @@ impl Resolver {
                     capabilities: vec![CapabilityLevel::Read, CapabilityLevel::Write, CapabilityLevel::Owned],
                     delegatable: false,
                     constraints: vec![],
+                    type_params: vec![],
                 })),
                 false, // not async
             ),

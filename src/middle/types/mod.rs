@@ -273,6 +273,7 @@ impl Type {
                     capabilities: Vec::new(),
                     delegatable: false,
                     constraints: Vec::new(),
+                    type_params: vec![],
                 }))
             }
             _ => {
