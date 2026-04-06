@@ -1010,14 +1010,20 @@ impl MirGen {
                         element_ids.push(elem_id);
                     }
                     
+                    // Clone element_ids before moving it
+                    let element_ids_clone = element_ids.clone();
+                    
                     // Create StackArray expression
                     self.exprs.insert(id, MirExpr::StackArray {
                         elements: element_ids,
                         size,
                     });
                     
-                    // Set the type to Array(u64, size) for subscript access
-                    self.type_map.insert(id, Type::Array(Box::new(Type::I64), ArraySize::Literal(size)));
+                    // Determine element type from elements
+                    let elem_type = self.get_common_element_type(&element_ids_clone);
+                    
+                    // Set the type to Array(elem_type, size) for subscript access
+                    self.type_map.insert(id, Type::Array(Box::new(elem_type), ArraySize::Literal(size)));
                 } else {
                     // Large array, use heap allocation
                     println!("[MIR GEN DEBUG] Using heap array for large array with {} elements", size);
@@ -1041,9 +1047,11 @@ impl MirGen {
                         args: vec![array_data_ptr, len_id],
                     });
                     
-                    // Set each element at its index
+                    // Set each element at its index and collect element IDs
+                    let mut heap_element_ids = Vec::new();
                     for (i, element) in elements.iter().enumerate() {
                         let elem_id = self.lower_expr(element);
+                        heap_element_ids.push(elem_id);
                         let index_id = self.next_id();
                         self.exprs.insert(index_id, MirExpr::Lit(i as i64));
                         self.stmts.push(MirStmt::VoidCall {
@@ -1052,47 +1060,71 @@ impl MirGen {
                         });
                     }
                     
+                    // Clone heap_element_ids before using it
+                    let heap_element_ids_clone = heap_element_ids.clone();
+                    
                     // Return the data pointer (after header)
                     self.exprs.insert(id, MirExpr::Var(array_data_ptr));
-                    // Set the type to Array(u64, size) for subscript access
-                    self.type_map.insert(id, Type::Array(Box::new(Type::I64), ArraySize::Literal(size)));
+                    // Determine element type from elements
+                    let elem_type = self.get_common_element_type(&heap_element_ids_clone);
+                    // Set the type to Array(elem_type, size) for subscript access
+                    self.type_map.insert(id, Type::Array(Box::new(elem_type), ArraySize::Literal(size)));
                 }
             }
             AstNode::ArrayRepeat { value, size } => {
                 println!("[MIR GEN DEBUG] ArrayRepeat: [value; size]");
                 let value_id = self.lower_expr(value);
                 
+                // Get the type of the value expression
+                let elem_type = self.type_map.get(&value_id).cloned().unwrap_or(Type::I64);
+                
                 // Check if size is a literal by examining the AST node directly
                 // We need to pattern match on the boxed value
                 match size.as_ref() {
                     AstNode::Lit(size_lit) => {
                         let size_val = *size_lit as usize;
-                        println!("[MIR GEN DEBUG] ArrayRepeat with constant size: {}", size_val);
+                        println!("[MIR GEN DEBUG] ArrayRepeat with constant size: {}, elem_type: {:?}", size_val, elem_type);
                         
-                        // Allocate array using array_new with capacity = size
-                        let array_ptr = self.next_id();
-                        let capacity_id = self.next_id();
-                        self.exprs.insert(capacity_id, MirExpr::Lit(size_val as i64));
-                        self.stmts.push(MirStmt::Call {
-                            func: "array_new".to_string(),
-                            args: vec![capacity_id],
-                            dest: array_ptr,
-                            type_args: vec![],
-                        });
-                        
-                        // Push the value size_val times
-                        for _ in 0..size_val {
-                            self.stmts.push(MirStmt::VoidCall {
-                                func: "array_push".to_string(),
-                                args: vec![array_ptr, value_id],
+                        // HYBRID MEMORY SYSTEM: Use StackArray for small fixed-size arrays
+                        if size_val <= 1024 { // Reasonable stack size limit
+                            println!("[MIR GEN DEBUG] Using StackArray for array repeat with {} elements", size_val);
+                            
+                            // Create StackArray expression with repeated value
+                            self.exprs.insert(id, MirExpr::StackArray {
+                                elements: vec![value_id; size_val],
+                                size: size_val,
                             });
+                            
+                            // Set the type to Array(elem_type, size) for subscript access
+                            self.type_map.insert(id, Type::Array(Box::new(elem_type), ArraySize::Literal(size_val)));
+                        } else {
+                            // Large array, use heap allocation
+                            println!("[MIR GEN DEBUG] Using heap array for large array repeat with {} elements", size_val);
+                            
+                            // Allocate array using array_new with capacity = size
+                            let array_ptr = self.next_id();
+                            let capacity_id = self.next_id();
+                            self.exprs.insert(capacity_id, MirExpr::Lit(size_val as i64));
+                            self.stmts.push(MirStmt::Call {
+                                func: "array_new".to_string(),
+                                args: vec![capacity_id],
+                                dest: array_ptr,
+                                type_args: vec![],
+                            });
+                            
+                            // Push the value size_val times
+                            for _ in 0..size_val {
+                                self.stmts.push(MirStmt::VoidCall {
+                                    func: "array_push".to_string(),
+                                    args: vec![array_ptr, value_id],
+                                });
+                            }
+                            
+                            // Return the array pointer
+                            self.exprs.insert(id, MirExpr::Var(array_ptr));
+                            // Set the type to Array(elem_type, size) for subscript access
+                            self.type_map.insert(id, Type::Array(Box::new(elem_type), ArraySize::Literal(size_val)));
                         }
-                        
-                        // Return the array pointer
-                        self.exprs.insert(id, MirExpr::Var(array_ptr));
-                        // Set the type to Array(u64, size) for subscript access
-                        // Note: We assume all elements are u64 for now
-                        self.type_map.insert(id, Type::Array(Box::new(Type::I64), ArraySize::Literal(size_val)));
                     }
                     _ => {
                         // Size is not a literal constant
@@ -1199,6 +1231,16 @@ impl MirGen {
         let id = self.next_id;
         self.next_id += 1;
         id
+    }
+
+    /// Get the common type of element expressions.
+    /// If elements is empty, returns Type::I64 as default.
+    fn get_common_element_type(&self, element_ids: &[u32]) -> Type {
+        if let Some(first_elem_id) = element_ids.first() {
+            self.type_map.get(first_elem_id).cloned().unwrap_or(Type::I64)
+        } else {
+            Type::I64
+        }
     }
 
     fn next_id_with_lit(&mut self, n: i64) -> u32 {
