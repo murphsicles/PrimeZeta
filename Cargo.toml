@@ -96,6 +96,7 @@ base64 = "0.22.1"  # Base64 encoding for HTTP auth
 [features]
 default = []
 integration = []  # Enable integration bridge module
+identity = []  # Enable identity-aware string operations
 blockchain = ["solana-sdk", "solana-client", "solana-program"]  # Enable blockchain features
 solana = ["solana-sdk", "solana-client", "solana-program"]  # Enable Solana specifically
 

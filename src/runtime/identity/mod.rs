@@ -5,6 +5,7 @@
 
 mod validation;
 mod bridge;
+pub mod integration;
 
 pub use validation::{
     CapabilityValidator, IdentityContext, IdentityValidationHook,
@@ -13,6 +14,19 @@ pub use validation::{
 pub use bridge::{
     IdentityRuntimeManager, GlobalIdentityRuntime,
     RuntimeIdentityHooks, DefaultRuntimeHooks,
+};
+pub use integration::{
+    init_global_identity_context,
+    reset_global_identity_context,
+    identity_host_str_concat,
+    identity_host_str_len,
+    identity_host_str_to_lowercase,
+    identity_host_str_to_uppercase,
+    identity_host_str_trim,
+    identity_host_str_starts_with,
+    identity_host_str_ends_with,
+    identity_host_str_contains,
+    identity_host_str_replace,
 };
 
 /// Runtime identity operations module.

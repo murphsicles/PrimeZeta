@@ -36,6 +36,20 @@ impl fmt::Display for CapabilityLevel {
     }
 }
 
+impl CapabilityLevel {
+    /// Convert from i64 representation
+    pub fn from_i64(value: i64) -> Self {
+        match value {
+            0 => CapabilityLevel::Immutable,
+            1 => CapabilityLevel::Read,
+            2 => CapabilityLevel::Write,
+            3 => CapabilityLevel::Execute,
+            4 => CapabilityLevel::Owned,
+            _ => CapabilityLevel::Read, // Default to Read for invalid values
+        }
+    }
+}
+
 /// Identity type - represents a string with specific capabilities
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentityType {

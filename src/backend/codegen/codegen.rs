@@ -380,6 +380,62 @@ impl<'ctx> LLVMCodegen<'ctx> {
             i64_type.fn_type(&[i64_type.into(), i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
         );
+        
+        // Identity-aware runtime functions (only declared when identity feature is enabled)
+        #[cfg(feature = "identity")]
+        {
+            module.add_function(
+                "identity_host_str_concat",
+                i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+                Some(Linkage::External),
+            );
+            module.add_function(
+                "identity_host_str_len",
+                i64_type.fn_type(&[i64_type.into()], false),
+                Some(Linkage::External),
+            );
+            module.add_function(
+                "identity_host_str_to_lowercase",
+                i64_type.fn_type(&[i64_type.into()], false),
+                Some(Linkage::External),
+            );
+            module.add_function(
+                "identity_host_str_to_uppercase",
+                i64_type.fn_type(&[i64_type.into()], false),
+                Some(Linkage::External),
+            );
+            module.add_function(
+                "identity_host_str_trim",
+                i64_type.fn_type(&[i64_type.into()], false),
+                Some(Linkage::External),
+            );
+            module.add_function(
+                "identity_host_str_starts_with",
+                i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+                Some(Linkage::External),
+            );
+            module.add_function(
+                "identity_host_str_ends_with",
+                i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+                Some(Linkage::External),
+            );
+            module.add_function(
+                "identity_host_str_contains",
+                i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+                Some(Linkage::External),
+            );
+            module.add_function(
+                "identity_host_str_replace",
+                i64_type.fn_type(&[i64_type.into(), i64_type.into(), i64_type.into()], false),
+                Some(Linkage::External),
+            );
+            module.add_function(
+                "init_global_identity_context",
+                void_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+                Some(Linkage::External),
+            );
+        }
+        
         // Array runtime functions
         module.add_function(
             "array_new",
@@ -1122,8 +1178,19 @@ impl<'ctx> LLVMCodegen<'ctx> {
             );
             return dummy_fn;
         }
-        // Handle string functions - map from str_* to host_str_*
+        // Handle string functions - map from str_* to host_str_* or identity_host_str_*
         if name.starts_with("str_") {
+            #[cfg(feature = "identity")]
+            {
+                // Try identity-aware version first if identity feature is enabled
+                let identity_host_name = format!("identity_host_{}", name);
+                eprintln!("[DEBUG get_function] Trying identity-aware mapping {} to {}", name, identity_host_name);
+                if let Some(f) = self.module.get_function(&identity_host_name) {
+                    return f;
+                }
+            }
+            
+            // Fall back to regular host function
             let host_name = format!("host_{}", name);
             eprintln!("[DEBUG get_function] Mapping {} to {}", name, host_name);
             if let Some(f) = self.module.get_function(&host_name) {
