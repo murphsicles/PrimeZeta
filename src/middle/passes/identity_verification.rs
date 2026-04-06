@@ -3,6 +3,7 @@
 //! Compile-time verification of identity capabilities and constraints.
 
 use crate::frontend::ast::AstNode;
+use crate::middle::types::identity::{IdentityType, CapabilityLevel, IdentityConstraint};
 use crate::middle::types::identity::inference::{CapabilityInferencer, IdentityInferenceContext};
 
 /// Identity verification pass
@@ -74,8 +75,11 @@ impl IdentityVerificationPass {
                 // Check if this identifier has an identity type
                 self.check_identifier_for_identity(name);
             }
-            AstNode::Call { .. } => {
-                // For now, just visit children
+            AstNode::Call { method, args, .. } => {
+                // Check function call for capability requirements
+                self.check_function_call_for_capabilities(method, args);
+                
+                // Visit children
                 self.visit_children(node);
             }
             AstNode::BinaryOp { .. } => {
@@ -193,6 +197,9 @@ impl IdentityVerificationPass {
         if type_str.contains("identity") {
             self.warnings.push(format!("Potential identity type in {}: {}", context, type_str));
         }
+        
+        // Check for capability constraints
+        self.check_type_annotation_for_constraints(type_str, context);
     }
 
     /// Check if an identifier has an identity type
@@ -237,6 +244,56 @@ impl IdentityVerificationPass {
         // Check if we're assigning an identity-like string
         if let AstNode::StringLit(value_str) = value {
             self.check_literal_for_identity(value_str);
+        }
+    }
+
+    /// Check a function call for capability requirements
+    fn check_function_call_for_capabilities(&mut self, func_name: &String, args: &[AstNode]) {
+        // Check if this function has known capability requirements
+        if let Some(required_caps) = self.capability_inferencer.infer_capabilities(func_name) {
+            // For now, just warn about capability requirements
+            let caps_str = required_caps.iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            
+            self.warnings.push(format!(
+                "Function '{}' requires capabilities: {}",
+                func_name, caps_str
+            ));
+            
+            // Check if any arguments look like identities
+            for arg in args {
+                if let AstNode::Var(name) = arg {
+                    if name.starts_with("identity_") || name.ends_with("_id") || name.ends_with("_token") {
+                        self.warnings.push(format!(
+                            "Argument '{}' to function '{}' appears to be an identity - ensure it has required capabilities",
+                            name, func_name
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Check type annotation for capability constraints
+    fn check_type_annotation_for_constraints(&mut self, type_str: &str, context: &str) {
+        // Parse capability constraints from type string
+        if type_str.contains("[identity:") {
+            // Extract capability list
+            if let Some(start) = type_str.find("[identity:") {
+                if let Some(end) = type_str[start..].find(']') {
+                    let constraint_str = &type_str[start + 9..start + end];
+                    let capabilities: Vec<&str> = constraint_str.split('+').collect();
+                    
+                    if !capabilities.is_empty() {
+                        self.warnings.push(format!(
+                            "Type annotation for {} has capability constraints: {}",
+                            context, constraint_str
+                        ));
+                    }
+                }
+            }
         }
     }
 
