@@ -376,10 +376,10 @@ pub fn parse_type(input: &str) -> IResult<&str, String> {
         tag("f64").map(|_| "f64".to_string()),
         tag("bool").map(|_| "bool".to_string()),
         tag("char").map(|_| "char".to_string()),
+        parse_string_with_identity,
+        tag("string").map(|_| "string".to_string()),
         tag("str").map(|_| "str".to_string()),
         tag("String").map(|_| "String".to_string()),
-        tag("string").map(|_| "string".to_string()),
-        parse_string_with_identity,
     ));
     
     // Try special types first, then built-in types, then type paths

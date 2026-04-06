@@ -103,6 +103,7 @@ impl NewTypeCheck for Resolver {
             "i32" => return Type::I32,
             "bool" => return Type::Bool,
             "str" => return Type::Str,
+            "string" => return Type::Str,
             "String" => return Type::Named("String".to_string(), Vec::new()),
             "i8" => return Type::I8,
             "i16" => return Type::I16,
