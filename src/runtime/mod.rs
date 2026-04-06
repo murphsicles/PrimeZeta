@@ -14,3 +14,4 @@ pub mod array;
 pub mod memory;
 pub mod io;
 pub mod map;
+pub mod identity;
