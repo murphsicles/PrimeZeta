@@ -23,8 +23,12 @@ struct ArrayHeader {
 }
 
 const ARRAY_HEADER_SIZE: usize = std::mem::size_of::<ArrayHeader>();
-const MAGIC_VALUE: u64 = 0xCAFEBABE; // Simple magic value for testing
-const CANARY_VALUE: u64 = 0xDEADBEEF;
+const MAGIC_VALUE: u64 = 0x41525241; // "ARRA" in hex for corruption detection
+const CANARY_VALUE: u64 = 0xDEADBEEFCAFEBABE; // 64-bit canary for overflow detection
+
+// Memory sanitization patterns
+const UNINITIALIZED_PATTERN: u8 = 0xCD; // Pattern for uninitialized memory
+const FREED_PATTERN: u8 = 0xFD; // Pattern for freed memory
 
 /// Get header from data pointer
 unsafe fn get_header(data_ptr: *mut i64) -> *mut ArrayHeader {
@@ -108,9 +112,9 @@ pub unsafe extern "C" fn array_new(capacity: usize) -> i64 {
     let data_ptr = unsafe { get_data(header_ptr) };
     println!("[ARRAY_NEW] header_ptr = {:?}, data_ptr = {:?}", header_ptr, data_ptr);
     
-    // Initialize data to zero
+    // Initialize data with sanitization pattern (0xCD for uninitialized)
     unsafe {
-        ptr::write_bytes(data_ptr as *mut u8, 0, data_size);
+        ptr::write_bytes(data_ptr as *mut u8, UNINITIALIZED_PATTERN, data_size);
     }
     
     // Return data pointer (not header pointer)
@@ -135,13 +139,17 @@ pub unsafe extern "C" fn array_len(ptr: i64) -> i64 {
     // Check header integrity
     if !unsafe { check_header(header) } {
         // Magic corrupted - memory corruption detected
-        return -1;
+        println!("[ARRAY_LEN] ERROR: Memory corruption detected! Magic value corrupted.");
+        println!("[ARRAY_LEN] Expected magic: 0x{:X}, Found: 0x{:X}", MAGIC_VALUE, unsafe { (*header).magic });
+        return -1; // Error code for memory corruption
     }
     
     // Check canary for overflow detection
     if !unsafe { check_canary(header) } {
         // Canary corrupted - buffer overflow detected
-        return -2;
+        println!("[ARRAY_LEN] ERROR: Buffer overflow detected! Canary value corrupted.");
+        println!("[ARRAY_LEN] Expected canary: 0x{:X}, Found: 0x{:X}", CANARY_VALUE, unsafe { (*header).canary });
+        return -2; // Error code for buffer overflow
     }
     
     unsafe { (*header).len as i64 }
@@ -177,17 +185,24 @@ pub unsafe extern "C" fn array_get(ptr: i64, index: i64) -> i64 {
         // Check canary for overflow detection
         if !unsafe { check_canary(header) } {
             // Canary corrupted - buffer overflow detected
-            println!("[ARRAY_GET] Canary corrupted, returning -2");
-            return -2;
+            println!("[ARRAY_GET] ERROR: Buffer overflow detected! Canary value corrupted.");
+            println!("[ARRAY_GET] Expected canary: 0x{:X}, Found: 0x{:X}", CANARY_VALUE, unsafe { (*header).canary });
+            return -2; // Error code for buffer overflow
         }
         
         // Bounds checking
         let len = unsafe { (*header).len };
-        println!("[ARRAY_GET] Array length = {}", len);
+        let capacity = unsafe { (*header).capacity };
+        println!("[ARRAY_GET] Array length = {}, capacity = {}", len, capacity);
         if index < 0 || index as usize >= len {
             // Index out of bounds
-            println!("[ARRAY_GET] Index {} out of bounds (len={}), returning 0", index, len);
-            return 0;
+            println!("[ARRAY_GET] ERROR: Index out of bounds! Index={}, Length={}", index, len);
+            return -3; // Error code for index out of bounds
+        }
+        if index as usize >= capacity {
+            // Index exceeds capacity (should never happen if length <= capacity)
+            println!("[ARRAY_GET] ERROR: Index exceeds capacity! Index={}, Capacity={}", index, capacity);
+            return -4; // Error code for capacity exceeded
         }
         
         let value = unsafe { *data_ptr.offset(index as isize) };
@@ -232,16 +247,23 @@ pub unsafe extern "C" fn array_set(ptr: i64, index: i64, value: i64) {
         // Check canary for overflow detection
         if !unsafe { check_canary(header) } {
             // Canary corrupted - buffer overflow detected
-            println!("[ARRAY_SET] Canary corrupted, returning early");
+            println!("[ARRAY_SET] ERROR: Buffer overflow detected! Canary value corrupted.");
+            println!("[ARRAY_SET] Expected canary: 0x{:X}, Found: 0x{:X}", CANARY_VALUE, unsafe { (*header).canary });
             return;
         }
         
         // Bounds checking
         let len = unsafe { (*header).len };
-        println!("[ARRAY_SET] Array length = {}", len);
+        let capacity = unsafe { (*header).capacity };
+        println!("[ARRAY_SET] Array length = {}, capacity = {}", len, capacity);
         if index < 0 || index as usize >= len {
             // Index out of bounds
-            println!("[ARRAY_SET] Index {} out of bounds (len={}), returning early", index, len);
+            println!("[ARRAY_SET] ERROR: Index out of bounds! Index={}, Length={}", index, len);
+            return;
+        }
+        if index as usize >= capacity {
+            // Index exceeds capacity (should never happen if length <= capacity)
+            println!("[ARRAY_SET] ERROR: Index exceeds capacity! Index={}, Capacity={}", index, capacity);
             return;
         }
         
@@ -281,7 +303,8 @@ pub unsafe extern "C" fn array_push(ptr: i64, value: i64) {
         // Check canary for overflow detection
         if !unsafe { check_canary(header) } {
             // Canary corrupted - buffer overflow detected
-            println!("[ARRAY_PUSH] Canary corrupted, returning early");
+            println!("[ARRAY_PUSH] ERROR: Buffer overflow detected! Canary value corrupted.");
+            println!("[ARRAY_PUSH] Expected canary: 0x{:X}, Found: 0x{:X}", CANARY_VALUE, unsafe { (*header).canary });
             return;
         }
         
@@ -291,7 +314,7 @@ pub unsafe extern "C" fn array_push(ptr: i64, value: i64) {
         
         if len >= capacity {
             // Array is full
-            println!("[ARRAY_PUSH] Array full (len >= capacity), returning early");
+            println!("[ARRAY_PUSH] ERROR: Array capacity exceeded! Length={}, Capacity={}", len, capacity);
             return;
         }
         
@@ -359,6 +382,11 @@ pub unsafe extern "C" fn array_free(ptr: i64) {
     
     // Get the original allocation pointer (start of header)
     let block_ptr = header as *mut u8;
+    
+    // Fill memory with freed pattern (0xFD) before deallocation
+    unsafe {
+        ptr::write_bytes(block_ptr, FREED_PATTERN, total_size);
+    }
     
     // Deallocate the entire block
     let align = std::cmp::max(std::mem::align_of::<ArrayHeader>(), std::mem::align_of::<i64>());
