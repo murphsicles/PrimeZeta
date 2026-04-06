@@ -272,4 +272,89 @@ mod tests {
             assert!(part.has_capability(CapabilityLevel::Write));
         }
     }
+    
+    #[test]
+    fn test_new_string_operations() {
+        // Test the newly added string operations
+        
+        // Test chars() operation
+        let str1 = read_only_string("Hello".to_string());
+        let chars: Vec<char> = str1.chars().collect();
+        assert_eq!(chars, vec!['H', 'e', 'l', 'l', 'o']);
+        
+        // Test as_bytes() operation
+        let bytes = str1.as_bytes();
+        assert_eq!(bytes, b"Hello");
+        
+        // Test repeat() operation
+        let repeated = str1.repeat(3);
+        assert_eq!(repeated.get(), "HelloHelloHello");
+        assert!(repeated.has_capability(CapabilityLevel::Read));
+        
+        // Test trim_start() and trim_end()
+        let mut str2 = read_write_string("  Hello World  ".to_string());
+        str2.trim_start();
+        assert_eq!(str2.get(), "Hello World  ");
+        
+        str2.trim_end();
+        assert_eq!(str2.get(), "Hello World");
+        
+        // Test lines() operation
+        let multiline = read_only_string("Line 1\nLine 2\nLine 3".to_string());
+        let lines = multiline.lines();
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].get(), "Line 1");
+        assert_eq!(lines[1].get(), "Line 2");
+        assert_eq!(lines[2].get(), "Line 3");
+        
+        // Test matches() operation
+        let text = read_only_string("apple banana apple cherry".to_string());
+        let matches = text.matches("apple");
+        assert_eq!(matches, vec!["apple".to_string(), "apple".to_string()]);
+        
+        // Test rmatches() operation
+        let rmatches = text.rmatches("apple");
+        assert_eq!(rmatches, vec!["apple".to_string(), "apple".to_string()]);
+        
+        // Test trim_matches() operation
+        let mut str3 = read_write_string("xxxHelloxxx".to_string());
+        str3.trim_matches('x'); // Use char pattern instead of &str
+        assert_eq!(str3.get(), "Hello");
+        
+        // Test escape_debug() operation
+        let special = read_only_string("Hello\nWorld\t!".to_string());
+        let escaped = special.escape_debug();
+        assert!(escaped.get().contains("\\n"));
+        assert!(escaped.get().contains("\\t"));
+        
+        // Test escape_default() operation
+        let escaped_default = special.escape_default();
+        assert!(escaped_default.get().contains("\\n"));
+        assert!(escaped_default.get().contains("\\t"));
+    }
+    
+    #[test]
+    fn test_capability_checking_for_new_operations() {
+        // Test capability checking for the new operations
+        
+        let read_only_str = read_only_string("test".to_string());
+        let read_write_str = read_write_string("test".to_string());
+        
+        // Operations that only require Read capability
+        let read_ops = vec!["chars", "as_bytes", "repeat", "lines", "matches", "rmatches", "escape_debug", "escape_default"];
+        for op in read_ops {
+            let result = check_string_op_capabilities(&read_only_str, op);
+            assert!(result.is_ok(), "Operation '{}' should work with read-only string", op);
+        }
+        
+        // Operations that require Read+Write capability
+        let read_write_ops = vec!["trim_start", "trim_end", "trim_matches"];
+        for op in read_write_ops {
+            let result = check_string_op_capabilities(&read_only_str, op);
+            assert!(result.is_err(), "Operation '{}' should fail with read-only string", op);
+            
+            let result = check_string_op_capabilities(&read_write_str, op);
+            assert!(result.is_ok(), "Operation '{}' should work with read-write string", op);
+        }
+    }
 }

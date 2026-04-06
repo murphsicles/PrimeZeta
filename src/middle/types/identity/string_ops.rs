@@ -225,6 +225,131 @@ impl StringWithIdentity {
         }
         self.value.find(needle)
     }
+    
+    /// Get an iterator over the characters (requires Read capability)
+    pub fn chars(&self) -> std::str::Chars {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for chars()");
+        }
+        self.value.chars()
+    }
+    
+    /// Get the string as bytes (requires Read capability)
+    pub fn as_bytes(&self) -> &[u8] {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for as_bytes()");
+        }
+        self.value.as_bytes()
+    }
+    
+    /// Repeat the string n times (requires Read capability)
+    /// Returns a new string with the same capabilities
+    pub fn repeat(&self, n: usize) -> Self {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for repeat()");
+        }
+        let repeated = self.value.repeat(n);
+        Self {
+            value: repeated,
+            identity: self.identity.clone(),
+        }
+    }
+    
+    /// Trim whitespace from the start (requires Read and Write capabilities)
+    pub fn trim_start(&mut self) {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for trim_start()");
+        }
+        if !self.identity.has_capability(CapabilityLevel::Write) {
+            panic!("String requires Write capability for trim_start()");
+        }
+        self.value = self.value.trim_start().to_string();
+    }
+    
+    /// Trim whitespace from the end (requires Read and Write capabilities)
+    pub fn trim_end(&mut self) {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for trim_end()");
+        }
+        if !self.identity.has_capability(CapabilityLevel::Write) {
+            panic!("String requires Write capability for trim_end()");
+        }
+        self.value = self.value.trim_end().to_string();
+    }
+    
+    /// Split the string by lines (requires Read capability)
+    /// Returns a vector of strings with the same capabilities
+    pub fn lines(&self) -> Vec<Self> {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for lines()");
+        }
+        
+        self.value
+            .lines()
+            .map(|line| {
+                Self {
+                    value: line.to_string(),
+                    identity: self.identity.clone(),
+                }
+            })
+            .collect()
+    }
+    
+    /// Find all matches of a pattern (requires Read capability)
+    /// Returns a vector of matches
+    pub fn matches(&self, pattern: &str) -> Vec<String> {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for matches()");
+        }
+        self.value.matches(pattern).map(|m| m.to_string()).collect()
+    }
+    
+    /// Find all matches of a pattern in reverse order (requires Read capability)
+    /// Returns a vector of matches in reverse order
+    pub fn rmatches(&self, pattern: &str) -> Vec<String> {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for rmatches()");
+        }
+        self.value.rmatches(pattern).map(|m| m.to_string()).collect()
+    }
+    
+    /// Trim specific characters from both ends (requires Read and Write capabilities)
+    pub fn trim_matches(&mut self, pattern: char) {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for trim_matches()");
+        }
+        if !self.identity.has_capability(CapabilityLevel::Write) {
+            panic!("String requires Write capability for trim_matches()");
+        }
+        // Use trim_start_matches and trim_end_matches for simplicity
+        self.value = self.value.trim_start_matches(pattern).trim_end_matches(pattern).to_string();
+    }
+    
+    /// Escape debug representation (requires Read capability)
+    /// Returns a new string with the same capabilities
+    pub fn escape_debug(&self) -> Self {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for escape_debug()");
+        }
+        let escaped = self.value.escape_debug().to_string();
+        Self {
+            value: escaped,
+            identity: self.identity.clone(),
+        }
+    }
+    
+    /// Escape default representation (requires Read capability)
+    /// Returns a new string with the same capabilities
+    pub fn escape_default(&self) -> Self {
+        if !self.identity.has_capability(CapabilityLevel::Read) {
+            panic!("String requires Read capability for escape_default()");
+        }
+        let escaped = self.value.escape_default().to_string();
+        Self {
+            value: escaped,
+            identity: self.identity.clone(),
+        }
+    }
 }
 
 /// Create a string with read-only capabilities
@@ -257,8 +382,10 @@ pub fn infer_string_op_capabilities(op: &str) -> Vec<CapabilityLevel> {
         "to_uppercase" | "to_lowercase" | "trim" | "replace" => {
             vec![CapabilityLevel::Read, CapabilityLevel::Write]
         }
-        "substring" | "split" => vec![CapabilityLevel::Read],
+        "substring" | "split" | "lines" => vec![CapabilityLevel::Read],
         "concat" => vec![CapabilityLevel::Read], // Both strings need Read capability
+        "chars" | "as_bytes" | "repeat" | "matches" | "rmatches" | "escape_debug" | "escape_default" => vec![CapabilityLevel::Read],
+        "trim_start" | "trim_end" | "trim_matches" => vec![CapabilityLevel::Read, CapabilityLevel::Write],
         _ => vec![],
     }
 }
