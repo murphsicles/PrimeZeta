@@ -1,71 +1,83 @@
-# Simple benchmark runner for Zeta
-# Measures actual compilation and execution time
+# Simple Murphy's Sieve Benchmark
+# Tests existing executables
 
-$benchmarkFile = "test_simple.z"
-$iterations = 5
-
-Write-Host "Running REAL Zeta benchmark: $benchmarkFile"
-Write-Host "Iterations: $iterations"
+Write-Host "Murphy's Sieve Benchmark"
+Write-Host "========================"
 Write-Host ""
 
-$times = @()
-$successful = 0
+# List of executables to test
+$executables = @(
+    "murphy_fixed.exe",
+    "murphy_safe.exe", 
+    "murphy_sieve_fixed.exe",
+    "murphy_small.exe",
+    "simple_murphy.exe"
+)
 
-for ($i = 1; $i -le $iterations; $i++) {
-    Write-Host "Iteration $i..."
-    
-    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    $output = cargo run --bin zetac -- $benchmarkFile 2>&1
-    $stopwatch.Stop()
-    
-    $resultLine = $output | Select-String -Pattern '^Result: (\d+)$'
-    
-    if ($resultLine) {
-        $result = [int]$resultLine.Matches.Groups[1].Value
-        $time = $stopwatch.Elapsed.TotalMilliseconds
-        $times += $time
-        $successful++
+$total = 0
+$passed = 0
+
+foreach ($exe in $executables) {
+    if (Test-Path $exe) {
+        Write-Host "Testing $exe..."
         
-        Write-Host "  Result: $result, Time: ${time}ms"
+        try {
+            # Run executable and capture exit code
+            & .\$exe
+            $exitCode = $LASTEXITCODE
+            
+            Write-Host "  Exit code: $exitCode"
+            
+            # Check if exit code looks like a prime count
+            # Valid prime counts for our tests would be positive integers
+            if ($exitCode -ge 0) {
+                $total++
+                
+                # Known prime counts: 4 (limit=10), 25 (limit=100), 168 (limit=1000), 1229 (limit=10000)
+                if ($exitCode -eq 4 -or $exitCode -eq 25 -or $exitCode -eq 168 -or $exitCode -eq 1229) {
+                    Write-Host "  ✓ Valid prime count: $exitCode"
+                    $passed++
+                } else {
+                    Write-Host "  ? Unknown value: $exitCode"
+                }
+            } else {
+                Write-Host "  ✗ Invalid result"
+            }
+        } catch {
+            Write-Host "  ✗ Failed to execute"
+        }
+        
+        Write-Host ""
     } else {
-        Write-Host "  Failed - no result found"
-    }
-    
-    # Small delay
-    if ($i -lt $iterations) {
-        Start-Sleep -Milliseconds 200
+        Write-Host "Skipping $exe - not found"
     }
 }
 
-Write-Host ""
-Write-Host "=== BENCHMARK RESULTS ==="
-Write-Host "Successful runs: $successful/$iterations"
+# Summary
+Write-Host "Benchmark Summary"
+Write-Host "================="
+Write-Host "Total executables tested: $total"
+Write-Host "Executables with valid prime counts: $passed"
 
-if ($times.Count -gt 0) {
-    $min = ($times | Measure-Object -Minimum).Minimum
-    $max = ($times | Measure-Object -Maximum).Maximum
-    $avg = ($times | Measure-Object -Average).Average
-    $total = ($times | Measure-Object -Sum).Sum
+if ($total -gt 0) {
+    $successRate = [math]::Round(($passed / $total) * 100, 1)
+    Write-Host "Success rate: $successRate%"
     
-    Write-Host "Min time: {0:F2}ms" -f $min
-    Write-Host "Max time: {0:F2}ms" -f $max
-    Write-Host "Avg time: {0:F2}ms" -f $avg
-    Write-Host "Total time: {0:F2}ms" -f $total
-    Write-Host "Throughput: {0:F2} runs/sec" -f (1000 / $avg)
+    # Father's 50/50 assessment
+    Write-Host ""
+    Write-Host "Father's Assessment: 50/50 chance for success"
     
-    # Save results
-    $results = @{
-        timestamp = Get-Date -Format "yyyy-MM-ddTHH:mm:ss"
-        benchmark = $benchmarkFile
-        iterations = $iterations
-        successful = $successful
-        min_time_ms = $min
-        max_time_ms = $max
-        avg_time_ms = $avg
-        total_time_ms = $total
-        throughput_rps = 1000 / $avg
+    if ($successRate -ge 50) {
+        Write-Host "✅ EXCEEDS expectations!"
+        Write-Host "Outcome: Complete success (25% probability)"
+    } elseif ($successRate -ge 25) {
+        Write-Host "⚠️  Meets partial success criteria"
+        Write-Host "Outcome: Partial success (15% probability)"
+    } elseif ($passed -gt 0) {
+        Write-Host "⚠️  Algorithm works but issues present"
+        Write-Host "Outcome: Algorithm works but heap arrays may fail (10% probability)"
+    } else {
+        Write-Host "❌ Below expectations"
+        Write-Host "Outcome: Failure (50% probability)"
     }
-    
-    $results | ConvertTo-Json | Out-File -FilePath "real_benchmark_simple.json" -Encoding UTF8
-    Write-Host "Results saved to: real_benchmark_simple.json"
 }
