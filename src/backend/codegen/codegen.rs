@@ -1473,8 +1473,8 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     return;
                 }
 
-                // Handle array_get specially for stack arrays
-                if func == "array_get" && args.len() == 2 {
+                // Handle array_get and stack_array_get specially for direct memory access
+                if (func == "array_get" || func == "stack_array_get") && args.len() == 2 {
                     // Get array pointer and index
                     let array_ptr_val = self.gen_expr_safe(&args[0], exprs).into_int_value();
                     let index_val = self.gen_expr_safe(&args[1], exprs).into_int_value();
@@ -1839,8 +1839,8 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     return;
                 }
 
-                // Handle array_set specially for stack arrays
-                if func == "array_set" && args.len() == 3 {
+                // Handle array_set and stack_array_set specially for direct memory access
+                if (func == "array_set" || func == "stack_array_set") && args.len() == 3 {
                     // Get array pointer, index, and value
                     let array_ptr_val = self.gen_expr_safe(&args[0], exprs).into_int_value();
                     let index_val = self.gen_expr_safe(&args[1], exprs).into_int_value();

@@ -132,11 +132,24 @@ impl MirGen {
                             args: vec![base_id, index_id, rhs_id],
                         });
                     } else if let Type::Array(_, size) = base_ty {
-                        // Generate array_set for array types (both stack and heap)
-                        self.stmts.push(MirStmt::VoidCall {
-                            func: "array_set".to_string(),
-                            args: vec![base_id, index_id, rhs_id],
-                        });
+                        // Check if this is a stack array (fixed size) or heap array
+                        match size {
+                            ArraySize::Literal(n) if n <= 1024 => {
+                                // Small fixed-size array - treat as stack array
+                                // Use stack_array_set for direct memory access
+                                self.stmts.push(MirStmt::VoidCall {
+                                    func: "stack_array_set".to_string(),
+                                    args: vec![base_id, index_id, rhs_id],
+                                });
+                            }
+                            _ => {
+                                // Dynamic or large array - use heap array access
+                                self.stmts.push(MirStmt::VoidCall {
+                                    func: "array_set".to_string(),
+                                    args: vec![base_id, index_id, rhs_id],
+                                });
+                            }
+                        }
                     } else {
                         // Use DictInsert for other types (maps/dicts)
                         self.stmts.push(MirStmt::DictInsert {
@@ -1161,11 +1174,10 @@ impl MirGen {
                     match size {
                         ArraySize::Literal(n) if n <= 1024 => {
                             // Small fixed-size array - treat as stack array
-                            // We need to generate a different access pattern
-                            // For now, we'll use array_get but with a flag or different handling
-                            println!("[MIR GEN DEBUG] Using array_get for fixed-size array subscript (size={})", n);
+                            // Use stack_array_get for direct memory access
+                            println!("[MIR GEN DEBUG] Using stack_array_get for stack array subscript (size={})", n);
                             self.stmts.push(MirStmt::Call {
-                                func: "array_get".to_string(),
+                                func: "stack_array_get".to_string(),
                                 args: vec![bid, iid],
                                 dest: id,
                                 type_args: vec![],
