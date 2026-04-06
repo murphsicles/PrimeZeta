@@ -11,6 +11,7 @@ use crate::middle::mir::mir::Mir;
 use crate::middle::resolver::module_resolver::ModuleResolver;
 use crate::middle::resolver::typecheck_new::NewTypeCheck;
 use crate::middle::types::ArraySize;
+use crate::middle::types::identity::{CapabilityLevel, IdentityType};
 use crate::middle::specialization::{
     CACHE, MonoKey, MonoValue, is_cache_safe, record_specialization,
 };
@@ -697,6 +698,52 @@ impl Resolver {
             (
                 vec![("s".to_string(), Type::Str)],
                 Type::I64,
+                false, // not async
+            ),
+        );
+
+        // Identity-aware string functions
+        // read_only_string(value: str) -> identity(value)[read]
+        self.funcs.insert(
+            "read_only_string".to_string(),
+            (
+                vec![("value".to_string(), Type::Str)],
+                Type::Identity(Box::new(IdentityType {
+                    value: None,
+                    capabilities: vec![CapabilityLevel::Read],
+                    delegatable: false,
+                    constraints: vec![],
+                })),
+                false, // not async
+            ),
+        );
+
+        // read_write_string(value: str) -> identity(value)[read, write]
+        self.funcs.insert(
+            "read_write_string".to_string(),
+            (
+                vec![("value".to_string(), Type::Str)],
+                Type::Identity(Box::new(IdentityType {
+                    value: None,
+                    capabilities: vec![CapabilityLevel::Read, CapabilityLevel::Write],
+                    delegatable: false,
+                    constraints: vec![],
+                })),
+                false, // not async
+            ),
+        );
+
+        // owned_string(value: str) -> identity(value)[read, write, owned]
+        self.funcs.insert(
+            "owned_string".to_string(),
+            (
+                vec![("value".to_string(), Type::Str)],
+                Type::Identity(Box::new(IdentityType {
+                    value: None,
+                    capabilities: vec![CapabilityLevel::Read, CapabilityLevel::Write, CapabilityLevel::Owned],
+                    delegatable: false,
+                    constraints: vec![],
+                })),
                 false, // not async
             ),
         );
