@@ -464,6 +464,12 @@ impl MirGen {
                 self.exprs.insert(id, MirExpr::Lit(*n));
                 self.type_map.insert(id, Type::I32);
             }
+            AstNode::Bool(b) => {
+                // Convert bool to i64: true = 1, false = 0
+                let value = if *b { 1 } else { 0 };
+                self.exprs.insert(id, MirExpr::Lit(value));
+                self.type_map.insert(id, Type::Bool);
+            }
             AstNode::StringLit(s) => {
                 self.exprs.insert(id, MirExpr::StringLit(s.clone()));
                 self.type_map.insert(id, Type::Str);
