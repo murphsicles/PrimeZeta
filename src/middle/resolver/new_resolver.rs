@@ -5,6 +5,7 @@ use crate::frontend::ast::AstNode;
 use crate::middle::types::{
     ArraySize, GenericContext, Kind, Substitution, TraitBound, Type, TypeParam, TypeVar, UnifyError,
 };
+use crate::middle::types::identity::{CapabilityLevel, IdentityType};
 use std::collections::HashMap;
 
 /// Type inference constraint
@@ -367,6 +368,33 @@ impl InferContext {
             };
 
             return Ok(Type::Function(param_types, Box::new(ret_ty)));
+        }
+
+        // Check for identity types: string[identity:read] or string[identity:read+write]
+        if s.starts_with("string[identity:") && s.ends_with(']') {
+            // Extract capabilities from between [identity: and ]
+            let start_idx = "string[identity:".len();
+            let capabilities_str = &s[start_idx..s.len() - 1];
+            
+            // Parse capabilities
+            let mut capabilities = Vec::new();
+            let capability_parts: Vec<&str> = capabilities_str.split('+').map(|p| p.trim()).collect();
+            
+            for cap_str in capability_parts {
+                match cap_str.to_lowercase().as_str() {
+                    "immutable" => capabilities.push(CapabilityLevel::Immutable),
+                    "read" => capabilities.push(CapabilityLevel::Read),
+                    "write" => capabilities.push(CapabilityLevel::Write),
+                    "execute" => capabilities.push(CapabilityLevel::Execute),
+                    "owned" => capabilities.push(CapabilityLevel::Owned),
+                    _ => return Err(format!("Unknown capability: {}", cap_str)),
+                }
+            }
+            
+            // Create identity type
+            let identity_type = IdentityType::new(capabilities);
+            
+            return Ok(Type::Identity(Box::new(identity_type)));
         }
 
         // Handle base types
