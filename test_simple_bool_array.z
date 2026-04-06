@@ -1,0 +1,4 @@
+fn main() -> i64 {
+    let arr: [bool; 3] = [true, false, true];
+    arr[0] as i64  // Should return 1
+}

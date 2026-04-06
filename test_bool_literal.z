@@ -1,0 +1,4 @@
+// Test bool literal directly
+fn main() -> bool {
+    true
+}

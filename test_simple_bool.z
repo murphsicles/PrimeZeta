@@ -1,0 +1,5 @@
+// Simple bool test
+fn main() -> bool {
+    let b: bool = false;
+    b
+}
