@@ -1388,33 +1388,28 @@ impl Substitution {
 
             // Identity types
             (Type::Identity(id1), Type::Identity(id2)) => {
-                // For now, require exact equality
-                // TODO: Add proper constraint checking and subtyping
-                if id1 == id2 {
-                    Ok(())
-                } else {
-                    // Check if they can be unified through constraints
-                    // For now, just check if they have the same structure
-                    if id1.is_parametric() && id2.is_parametric() {
-                        // Both are parametric - check if they have same number of parameters
-                        if id1.type_params.len() == id2.type_params.len() {
-                            // For now, allow unification of parametric identity types with same arity
-                            // Actual constraint checking happens during instantiation
-                            Ok(())
-                        } else {
-                            Err(UnifyError::Mismatch(t1, t2))
-                        }
-                    } else if !id1.is_parametric() && !id2.is_parametric() {
-                        // Both are concrete - require exact equality
-                        if id1 == id2 {
-                            Ok(())
-                        } else {
-                            Err(UnifyError::Mismatch(t1, t2))
-                        }
+                // Check if they can be unified through constraints
+                if id1.is_parametric() && id2.is_parametric() {
+                    // Both are parametric - check if they have same number of parameters
+                    if id1.type_params.len() == id2.type_params.len() {
+                        // For now, allow unification of parametric identity types with same arity
+                        // Actual constraint checking happens during instantiation
+                        Ok(())
                     } else {
-                        // One is parametric, one is concrete - can't unify
                         Err(UnifyError::Mismatch(t1, t2))
                     }
+                } else if !id1.is_parametric() && !id2.is_parametric() {
+                    // Both are concrete - check capability compatibility
+                    // For identity types, unification succeeds if either can substitute the other
+                    // This allows for capability subtyping (e.g., read+write can substitute read)
+                    if id1.can_substitute(&id2) || id2.can_substitute(&id1) {
+                        Ok(())
+                    } else {
+                        Err(UnifyError::Mismatch(t1, t2))
+                    }
+                } else {
+                    // One is parametric, one is concrete - can't unify
+                    Err(UnifyError::Mismatch(t1, t2))
                 }
             }
 
