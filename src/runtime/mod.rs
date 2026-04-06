@@ -12,6 +12,7 @@ pub mod vector;
 pub mod xai;
 pub mod array;
 pub mod memory;
+pub mod memory_bulletproof;
 pub mod io;
 pub mod map;
 pub mod identity;
