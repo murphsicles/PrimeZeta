@@ -1,7 +1,8 @@
 //! Tests for identity-aware type inference
 
 use super::*;
-use crate::middle::types::identity::{CapabilityLevel, IdentityConstraint, IdentityInferenceContext, IdentityType};
+use crate::middle::types::identity::{CapabilityLevel, IdentityConstraint, IdentityType};
+use crate::middle::types::identity::inference::IdentityInferenceContext;
 
 #[test]
 fn test_identity_type_inference_basic() {
@@ -15,7 +16,7 @@ fn test_identity_type_inference_basic() {
     ctx.add_type_var("s".to_string(), identity_type);
     
     // Add constraint that it's used in a read context
-    ctx.add_constraint(IdentityConstraint::HasCapability(CapabilityLevel::Read));
+    ctx.add_constraint(IdentityConstraint::Capability(CapabilityLevel::Read));
     
     // Check that the type variable exists
     let result = ctx.get_type_var("s");

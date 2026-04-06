@@ -41,6 +41,9 @@ pub struct LLVMCodegen<'ctx> {
 
     // NEW: Map from generic function names to their MIR definitions
     pub generic_defs: HashMap<String, crate::middle::mir::mir::Mir>,
+    
+    // Current type map for the function being compiled
+    pub current_type_map: Option<std::collections::HashMap<u32, crate::middle::types::Type>>,
 }
 
 impl<'ctx> LLVMCodegen<'ctx> {
@@ -336,6 +339,11 @@ impl<'ctx> LLVMCodegen<'ctx> {
             Some(Linkage::External),
         );
         module.add_function(
+            "array_set_len",
+            void_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
             "host_str_concat",
             i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
@@ -465,6 +473,11 @@ impl<'ctx> LLVMCodegen<'ctx> {
         module.add_function(
             "array_free",
             void_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "array_set_len",
+            void_type.fn_type(&[i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
         );
         module.add_function(
@@ -733,6 +746,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
             specialized_fns: HashMap::new(),
             specialized_types: HashMap::new(),
             generic_defs: HashMap::new(),
+            current_type_map: None,
         }
     }
 }
@@ -796,6 +810,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
         let entry = self.context.append_basic_block(fn_val, "entry");
         self.builder.position_at_end(entry);
         self.locals.clear();
+        self.current_type_map = Some(mir.type_map.clone());
         let all_ids = self.collect_all_local_ids(mir);
         for &id in &all_ids {
             let alloca = self
@@ -1458,6 +1473,38 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     return;
                 }
 
+                // Handle array_get specially for stack arrays
+                if func == "array_get" && args.len() == 2 {
+                    // Get array pointer and index
+                    let array_ptr_val = self.gen_expr_safe(&args[0], exprs).into_int_value();
+                    let index_val = self.gen_expr_safe(&args[1], exprs).into_int_value();
+                    
+                    // Convert array pointer (i64) to LLVM pointer
+                    let array_ptr = self.builder.build_int_to_ptr(
+                        array_ptr_val,
+                        self.i64_type.ptr_type(AddressSpace::default()),
+                        "array_ptr"
+                    ).unwrap();
+                    
+                    // Generate GEP to get element pointer
+                    let elem_ptr = unsafe {
+                        self.builder.build_gep(
+                            self.i64_type,
+                            array_ptr,
+                            &[index_val],
+                            "elem_ptr"
+                        ).unwrap()
+                    };
+                    
+                    // Load the value
+                    let value = self.builder.build_load(self.i64_type, elem_ptr, "array_elem").unwrap();
+                    
+                    // Store result
+                    let dest_alloca = *self.locals.get(dest).unwrap();
+                    self.builder.build_store(dest_alloca, value).unwrap();
+                    return;
+                }
+                
                 // Handle operator functions inline
                 if self.is_operator(func) {
                     // Handle unary operators
@@ -2138,13 +2185,13 @@ impl<'ctx> LLVMCodegen<'ctx> {
 
     fn gen_expr_safe(&mut self, id: &u32, exprs: &HashMap<u32, MirExpr>) -> BasicValueEnum<'ctx> {
         if let Some(expr) = exprs.get(id) {
-            self.gen_expr(expr, exprs)
+            self.gen_expr(expr, exprs, Some(*id))
         } else {
             self.i64_type.const_zero().into()
         }
     }
 
-    fn gen_expr(&mut self, expr: &MirExpr, exprs: &HashMap<u32, MirExpr>) -> BasicValueEnum<'ctx> {
+    fn gen_expr(&mut self, expr: &MirExpr, exprs: &HashMap<u32, MirExpr>, expr_id: Option<u32>) -> BasicValueEnum<'ctx> {
         match expr {
             MirExpr::Var(id) => self.load_local(*id),
             MirExpr::Lit(n) => self.i64_type.const_int(*n as u64, true).into(),
@@ -2173,9 +2220,9 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 if ids.is_empty() {
                     return self.i64_type.const_int(0, false).into();
                 }
-                let mut res = self.gen_expr(&exprs[&ids[0]], exprs);
+                let mut res = self.gen_expr(&exprs[&ids[0]], exprs, None);
                 for &id in &ids[1..] {
-                    let next = self.gen_expr(&exprs[&id], exprs);
+                    let next = self.gen_expr(&exprs[&id], exprs, None);
                     let call = self
                         .builder
                         .build_call(
@@ -2196,8 +2243,8 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     .unwrap()
             }
             MirExpr::BinaryOp { op, left, right } => {
-                let left_val = self.gen_expr(&exprs[left], exprs).into_int_value();
-                let right_val = self.gen_expr(&exprs[right], exprs).into_int_value();
+                let left_val = self.gen_expr(&exprs[left], exprs, None).into_int_value();
+                let right_val = self.gen_expr(&exprs[right], exprs, None).into_int_value();
                 
                 let cmp = match op.as_str() {
                     "<" => self.builder.build_int_compare(
@@ -2281,7 +2328,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
                         )
                         .unwrap();
 
-                    let field_val = self.gen_expr(&exprs[field_id], exprs).into_int_value();
+                    let field_val = self.gen_expr(&exprs[field_id], exprs, None).into_int_value();
                     self.builder.build_store(field_ptr, field_val).unwrap();
                 }
 
@@ -2295,7 +2342,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
             }
             MirExpr::FieldAccess { base, field } => {
                 // Handle field access for structs
-                let base_val = self.gen_expr(&exprs[base], exprs);
+                let base_val = self.gen_expr(&exprs[base], exprs, None);
 
                 // Convert base value to pointer if it's an integer (pointer stored as i64)
                 let ptr = if let BasicValueEnum::IntValue(int_val) = base_val {
@@ -2366,7 +2413,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
             }
             MirExpr::As { expr, target_type } => {
                 // Generate the expression value
-                let expr_val = self.gen_expr(&exprs[expr], exprs);
+                let expr_val = self.gen_expr(&exprs[expr], exprs, None);
                 
                 // For now, handle basic numeric conversions
                 // TODO: Implement proper type conversion logic
@@ -2407,10 +2454,46 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     }
                 }
             }
+            MirExpr::StackArray { elements, size } => {
+                // Allocate stack array and initialize with elements
+                println!("[CODEGEN] Generating StackArray with {} elements, size = {}", elements.len(), size);
+                
+                // Always use i64 for array elements to match runtime expectations
+                // This wastes memory for bool arrays but ensures compatibility
+                let elem_type = self.i64_type;
+                println!("[CODEGEN] Creating array with i64 elements (size={})", size);
+                
+                // Create array type
+                let array_type = elem_type.array_type(*size as u32);
+                
+                // Allocate on stack
+                let alloca = self.builder.build_alloca(array_type, "stack_array").unwrap();
+                
+                // Initialize each element
+                for (i, element_id) in elements.iter().enumerate() {
+                    let element_val = self.gen_expr(&exprs[element_id], exprs, None).into_int_value();
+                    let element_ptr = unsafe {
+                        self.builder.build_gep(
+                            array_type,
+                            alloca,
+                            &[
+                                self.i64_type.const_int(0, false),
+                                self.i64_type.const_int(i as u64, false)
+                            ],
+                            &format!("elem_{}_ptr", i)
+                        ).unwrap()
+                    };
+                    self.builder.build_store(element_ptr, element_val).unwrap();
+                }
+                
+                // Return pointer to array (as i64)
+                let ptr_as_int = self.builder.build_ptr_to_int(alloca, self.i64_type, "array_ptr_to_int").unwrap();
+                ptr_as_int.into()
+            }
             MirExpr::Range { start, end } => {
                 // For now, just return the start value
                 // TODO: Implement proper range type
-                self.gen_expr(&exprs[start], exprs)
+                self.gen_expr(&exprs[start], exprs, None)
             }
         }
     }

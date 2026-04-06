@@ -992,30 +992,65 @@ impl MirGen {
                 
                 let size = elements.len();
                 
-                // Call array_new with capacity = size
-                let array_data_ptr = self.next_id();
-                let capacity_id = self.next_id();
-                self.exprs.insert(capacity_id, MirExpr::Lit(size as i64));
-                self.stmts.push(MirStmt::Call {
-                    func: "array_new".to_string(),
-                    args: vec![capacity_id],
-                    dest: array_data_ptr,
-                    type_args: vec![],
-                });
-                
-                // Push each element (array_push handles length updates)
-                for element in elements.iter() {
-                    let elem_id = self.lower_expr(element);
-                    self.stmts.push(MirStmt::VoidCall {
-                        func: "array_push".to_string(),
-                        args: vec![array_data_ptr, elem_id],
+                // HYBRID MEMORY SYSTEM: Check if this should be a stack array
+                // For small, fixed-size arrays, use stack allocation
+                if size <= 1024 { // Reasonable stack size limit
+                    println!("[MIR GEN DEBUG] Using StackArray for array literal with {} elements", size);
+                    
+                    // Lower each element expression
+                    let mut element_ids = Vec::new();
+                    for element in elements {
+                        let elem_id = self.lower_expr(element);
+                        element_ids.push(elem_id);
+                    }
+                    
+                    // Create StackArray expression
+                    self.exprs.insert(id, MirExpr::StackArray {
+                        elements: element_ids,
+                        size,
                     });
+                    
+                    // Set the type to Array(u64, size) for subscript access
+                    self.type_map.insert(id, Type::Array(Box::new(Type::I64), ArraySize::Literal(size)));
+                } else {
+                    // Large array, use heap allocation
+                    println!("[MIR GEN DEBUG] Using heap array for large array with {} elements", size);
+                    
+                    // Call array_new with capacity = size
+                    let array_data_ptr = self.next_id();
+                    let capacity_id = self.next_id();
+                    self.exprs.insert(capacity_id, MirExpr::Lit(size as i64));
+                    self.stmts.push(MirStmt::Call {
+                        func: "array_new".to_string(),
+                        args: vec![capacity_id],
+                        dest: array_data_ptr,
+                        type_args: vec![],
+                    });
+                    
+                    // For heap arrays, we need to set the length
+                    let len_id = self.next_id();
+                    self.exprs.insert(len_id, MirExpr::Lit(size as i64));
+                    self.stmts.push(MirStmt::VoidCall {
+                        func: "array_set_len".to_string(),
+                        args: vec![array_data_ptr, len_id],
+                    });
+                    
+                    // Set each element at its index
+                    for (i, element) in elements.iter().enumerate() {
+                        let elem_id = self.lower_expr(element);
+                        let index_id = self.next_id();
+                        self.exprs.insert(index_id, MirExpr::Lit(i as i64));
+                        self.stmts.push(MirStmt::VoidCall {
+                            func: "array_set".to_string(),
+                            args: vec![array_data_ptr, index_id, elem_id],
+                        });
+                    }
+                    
+                    // Return the data pointer (after header)
+                    self.exprs.insert(id, MirExpr::Var(array_data_ptr));
+                    // Set the type to Array(u64, size) for subscript access
+                    self.type_map.insert(id, Type::Array(Box::new(Type::I64), ArraySize::Literal(size)));
                 }
-                
-                // Return the data pointer (after header)
-                self.exprs.insert(id, MirExpr::Var(array_data_ptr));
-                // Set the type to Array(u64, size) for subscript access
-                self.type_map.insert(id, Type::Array(Box::new(Type::I64), ArraySize::Literal(size)));
             }
             AstNode::ArrayRepeat { value, size } => {
                 println!("[MIR GEN DEBUG] ArrayRepeat: [value; size]");
@@ -1076,15 +1111,33 @@ impl MirGen {
                         dest: id,
                         type_args: vec![],
                     });
-                } else if let Type::Array(_, _) = base_ty {
-                    // Generate array_get call for static arrays too
-                    println!("[MIR GEN DEBUG] Using array_get for static array subscript");
-                    self.stmts.push(MirStmt::Call {
-                        func: "array_get".to_string(),
-                        args: vec![bid, iid],
-                        dest: id,
-                        type_args: vec![],
-                    });
+                } else if let Type::Array(_, size) = base_ty {
+                    // Check if this is a stack array (fixed size) or heap array
+                    println!("[MIR GEN DEBUG] Array subscript with size: {:?}", size);
+                    match size {
+                        ArraySize::Literal(n) if n <= 1024 => {
+                            // Small fixed-size array - treat as stack array
+                            // We need to generate a different access pattern
+                            // For now, we'll use array_get but with a flag or different handling
+                            println!("[MIR GEN DEBUG] Using array_get for fixed-size array subscript (size={})", n);
+                            self.stmts.push(MirStmt::Call {
+                                func: "array_get".to_string(),
+                                args: vec![bid, iid],
+                                dest: id,
+                                type_args: vec![],
+                            });
+                        }
+                        _ => {
+                            // Dynamic or large array - use heap array access
+                            println!("[MIR GEN DEBUG] Using array_get for heap/dynamic array subscript");
+                            self.stmts.push(MirStmt::Call {
+                                func: "array_get".to_string(),
+                                args: vec![bid, iid],
+                                dest: id,
+                                type_args: vec![],
+                            });
+                        }
+                    }
                 } else {
                     // Use DictGet for other types (maps/dicts)
                     self.stmts.push(MirStmt::DictGet {

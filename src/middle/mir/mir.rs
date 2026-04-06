@@ -120,6 +120,11 @@ pub enum MirExpr {
         left: u32,
         right: u32,
     },
+    // Stack array literal (for hybrid memory system)
+    StackArray {
+        elements: Vec<u32>,
+        size: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

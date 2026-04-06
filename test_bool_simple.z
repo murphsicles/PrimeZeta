@@ -1,0 +1,5 @@
+// Simple bool array test
+fn main() -> bool {
+    let arr: [bool; 3] = [true, false, true];
+    arr[0]
+}

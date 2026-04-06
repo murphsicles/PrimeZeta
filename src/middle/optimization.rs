@@ -173,6 +173,11 @@ fn mark_expr_used(id: u32, used: &mut HashMap<u32, bool>, exprs: &HashMap<u32, M
             MirExpr::TimingOwned(inner_id) => {
                 used.insert(*inner_id, true);
             }
+            MirExpr::StackArray { elements, .. } => {
+                for element_id in elements {
+                    used.insert(*element_id, true);
+                }
+            }
             _ => {}
         }
     }
@@ -265,6 +270,13 @@ pub fn common_subexpression_elimination(mir: &mut Mir) {
             }
             MirExpr::BinaryOp { op, left, right } => {
                 format!("BinaryOp({} {} {})", left, op, right)
+            }
+            MirExpr::StackArray { elements, size } => {
+                let elements_str = elements.iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!("StackArray(size={}, elements=[{}])", size, elements_str)
             }
         };
         
