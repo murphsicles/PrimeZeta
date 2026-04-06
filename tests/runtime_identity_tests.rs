@@ -56,6 +56,43 @@ fn test_runtime_constraint_validation() {
 }
 
 #[test]
+fn test_capability_constraints() {
+    // Create an identity with read and write capabilities
+    let identity = IdentityType::with_value(
+        "test_user".to_string(),
+        vec![CapabilityLevel::Read, CapabilityLevel::Write],
+    );
+    
+    let validator = CapabilityValidator::new(identity);
+    
+    // Should allow read capability constraint
+    assert!(validator.check_constraint(&IdentityConstraint::Capability(CapabilityLevel::Read), "any_value").is_ok());
+    
+    // Should allow write capability constraint
+    assert!(validator.check_constraint(&IdentityConstraint::Capability(CapabilityLevel::Write), "any_value").is_ok());
+    
+    // Should fail for owned capability constraint
+    assert!(validator.check_constraint(&IdentityConstraint::Capability(CapabilityLevel::Owned), "any_value").is_err());
+    
+    // Should fail for execute capability constraint
+    assert!(validator.check_constraint(&IdentityConstraint::Capability(CapabilityLevel::Execute), "any_value").is_err());
+    
+    // Create an identity with only read capability
+    let read_only_identity = IdentityType::with_value(
+        "read_only_user".to_string(),
+        vec![CapabilityLevel::Read],
+    );
+    
+    let read_only_validator = CapabilityValidator::new(read_only_identity);
+    
+    // Should allow read capability constraint
+    assert!(read_only_validator.check_constraint(&IdentityConstraint::Capability(CapabilityLevel::Read), "any_value").is_ok());
+    
+    // Should fail for write capability constraint
+    assert!(read_only_validator.check_constraint(&IdentityConstraint::Capability(CapabilityLevel::Write), "any_value").is_err());
+}
+
+#[test]
 fn test_identity_runtime_manager() {
     let identity = IdentityType::with_value(
         "runtime_test".to_string(),

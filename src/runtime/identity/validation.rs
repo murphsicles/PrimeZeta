@@ -138,6 +138,17 @@ impl CapabilityValidator {
                     })
                 }
             }
+            IdentityConstraint::Capability(required_cap) => {
+                // Check if the identity has at least the required capability
+                if self.identity.capabilities().iter().any(|cap| cap >= required_cap) {
+                    Ok(())
+                } else {
+                    Err(ValidationError::MissingCapability {
+                        required: *required_cap,
+                        actual: self.identity.capabilities().iter().max().cloned().unwrap_or(CapabilityLevel::Read),
+                    })
+                }
+            }
         }
     }
 

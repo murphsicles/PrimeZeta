@@ -109,6 +109,17 @@ impl IdentityInferenceContext {
                         }
                     }
                 }
+                IdentityConstraint::Capability(required_cap) => {
+                    // Apply capability constraint to all type variables
+                    for (name, identity_type) in self.type_vars.iter_mut() {
+                        if !identity_type.capabilities.iter().any(|cap| cap >= required_cap) {
+                            self.errors.push(format!(
+                                "Identity '{}' does not have required capability {}",
+                                name, required_cap
+                            ));
+                        }
+                    }
+                }
             }
         }
     }

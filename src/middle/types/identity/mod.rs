@@ -232,6 +232,10 @@ impl IdentityType {
                     true
                 }
             }
+            IdentityConstraint::Capability(required_cap) => {
+                // Check if identity has at least the required capability
+                self.capabilities.iter().any(|cap| cap >= required_cap)
+            }
         }
     }
 }
@@ -281,6 +285,37 @@ impl fmt::Display for IdentityConstraint {
             IdentityConstraint::Pattern(pattern) => write!(f, "matches '{}'", pattern),
             IdentityConstraint::MaxLength(max) => write!(f, "length <= {}", max),
             IdentityConstraint::MinLength(min) => write!(f, "length >= {}", min),
+            IdentityConstraint::Capability(cap) => write!(f, "{}", cap),
+        }
+    }
+}
+
+impl IdentityConstraint {
+    /// Create an IdentityConstraint from a string representation
+    pub fn from_str(s: &str) -> Result<Self, String> {
+        if s.starts_with("matches '") && s.ends_with("'") {
+            let pattern = s.trim_start_matches("matches '").trim_end_matches("'").to_string();
+            Ok(IdentityConstraint::Pattern(pattern))
+        } else if s.starts_with("length <=") {
+            let max_str = s.trim_start_matches("length <=").trim();
+            let max = max_str.parse::<usize>()
+                .map_err(|e| format!("Invalid max length '{}': {}", max_str, e))?;
+            Ok(IdentityConstraint::MaxLength(max))
+        } else if s.starts_with("length >=") {
+            let min_str = s.trim_start_matches("length >=").trim();
+            let min = min_str.parse::<usize>()
+                .map_err(|e| format!("Invalid min length '{}': {}", min_str, e))?;
+            Ok(IdentityConstraint::MinLength(min))
+        } else {
+            // Try to parse as capability
+            match s.to_lowercase().as_str() {
+                "read" => Ok(IdentityConstraint::Capability(CapabilityLevel::Read)),
+                "write" => Ok(IdentityConstraint::Capability(CapabilityLevel::Write)),
+                "execute" => Ok(IdentityConstraint::Capability(CapabilityLevel::Execute)),
+                "owned" => Ok(IdentityConstraint::Capability(CapabilityLevel::Owned)),
+                "immutable" => Ok(IdentityConstraint::Capability(CapabilityLevel::Immutable)),
+                _ => Err(format!("Unknown constraint: '{}'", s)),
+            }
         }
     }
 }
@@ -294,6 +329,8 @@ pub enum IdentityConstraint {
     MaxLength(usize),
     /// Minimum length
     MinLength(usize),
+    /// Must have at least the specified capability level
+    Capability(CapabilityLevel),
 }
 
 /// Identity context for tracking identity relationships

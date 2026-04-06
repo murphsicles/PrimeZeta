@@ -149,13 +149,18 @@
    - ⏳ **Implement constraint checking** - Validate constraints at compile time
    - ⏳ **Add constraint inference** - Infer constraints from usage
    - ⏳ **Test constraint system** - Comprehensive constraint testing
+   - ✅ **Add capability constraints** - Support for `T: Read`, `T: Write`, etc.
 
 #### **Immediate Next Steps for Day 2:**
-1. **Implement compile-time constraint checking** - Validate constraints during type checking
-2. **Add constraint inference** - Infer constraints from identity usage patterns
-3. **Extend parser for more constraint types** - Support additional constraint syntax
-4. **Integrate constraints with type inference** - Handle constraints in unification
-5. **Create comprehensive test suite** - Verify constraint system functionality
+1. ✅ **Add capability constraints to IdentityConstraint enum** - Support `T: Read`, `T: Write`, etc.
+2. ✅ **Update satisfies_constraint method** - Handle capability constraint validation
+3. ✅ **Update Display implementation** - Proper string representation for capability constraints
+4. ✅ **Add tests for capability constraints** - Verify capability constraint functionality
+5. ⏳ **Update parser to create capability constraints** - Convert parsed strings to IdentityConstraint::Capability
+6. ⏳ **Implement compile-time constraint checking** - Validate constraints during type checking
+7. ⏳ **Add constraint inference** - Infer constraints from identity usage patterns
+8. ⏳ **Integrate constraints with type inference** - Handle constraints in unification
+9. ⏳ **Create comprehensive test suite** - Verify constraint system functionality
 
 ### **Ready for Implementation:**
 
