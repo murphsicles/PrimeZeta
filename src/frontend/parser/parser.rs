@@ -404,11 +404,9 @@ pub fn parse_type_args(input: &str) -> IResult<&str, Vec<String>> {
     .parse(input)
 }
 
-/// Parse generic argument text (simple version that just captures text)
+/// Parse generic argument text (now parses a full type)
 pub fn parse_generic_arg_text(input: &str) -> IResult<&str, String> {
-    // Parse until we hit a comma, >, or whitespace
-    let (input, text) = take_while(|c: char| c != ',' && c != '>' && !c.is_whitespace())(input)?;
-    Ok((input, text.to_string()))
+    parse_type(input)
 }
 
 /// Parse Zeta's lt() syntax for generic types: lt(Result, i64)
