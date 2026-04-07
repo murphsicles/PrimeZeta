@@ -293,6 +293,38 @@ impl Type {
                     }
                 }
 
+                // Check for identity type shorthand: string[identity:read] or string[identity:read+write]
+                if let Some(base_end) = s.find('[') {
+                    if s[base_end..].contains("identity:") {
+                        // Parse base type (should be "string")
+                        let base = &s[..base_end];
+                        // Extract the part inside brackets
+                        let bracket_end = s.find(']').unwrap_or(s.len());
+                        let inner = &s[base_end + 1..bracket_end];
+                        // inner should be "identity:read" or "identity:read+write"
+                        if let Some(caps_str) = inner.strip_prefix("identity:") {
+                            // Parse capabilities: "read", "write", "read+write"
+                            let capabilities = caps_str.split('+')
+                                .filter_map(|s| match s.trim() {
+                                    "read" => Some(CapabilityLevel::Read),
+                                    "write" => Some(CapabilityLevel::Write),
+                                    "immutable" => Some(CapabilityLevel::Immutable),
+                                    "execute" => Some(CapabilityLevel::Execute),
+                                    "owned" => Some(CapabilityLevel::Owned),
+                                    _ => None,
+                                })
+                                .collect::<Vec<_>>();
+                            return Type::Identity(Box::new(IdentityType {
+                                value: None,
+                                capabilities,
+                                delegatable: false,
+                                constraints: vec![],
+                                type_params: vec![],
+                            }));
+                        }
+                    }
+                }
+
                 // Check for array type: [T; N] or [dynamic]T
                 if s.starts_with('[') && s.ends_with(']') {
                     let inner = &s[1..s.len() - 1]; // Remove brackets

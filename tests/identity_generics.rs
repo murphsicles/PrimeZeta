@@ -18,6 +18,7 @@ fn test_identity_constraint_parsing() {
     "#;
     let result = compile_and_run_zeta(code);
     // For now, just ensure it compiles without errors
+    if let Err(e) = &result { println!("Compilation error: {}", e); }
     assert!(result.is_ok());
     // Expect result 42
     assert_eq!(result.unwrap(), 42);
@@ -36,6 +37,7 @@ fn test_identity_multiple_capabilities() {
         }
     "#;
     let result = compile_and_run_zeta(code);
+    if let Err(e) = &result { println!("Compilation error: {}", e); }
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 99);
 }
