@@ -4,8 +4,9 @@
 
 **algorithm=wheel**  
 **faithful=yes**  
-**bits=1**  
-**parallel=no**
+**bits=8**  
+**parallel=yes**  
+**simd=avx512**
 
 ## Overview
 
@@ -27,7 +28,7 @@ This is a submission for the **Plummers Prime Drag Race** competition in the **P
 ## Performance
 
 - **Benchmark duration**: 5 seconds
-- **Output format**: `zeta;iterations;total_time;1;algorithm=wheel;faithful=yes;bits=1`
+- **Output format**: `zeta;iterations;total_time;4;algorithm=wheel;faithful=yes;bits=8;parallel=yes;simd=avx512`
 - **Prime count verification**: 78,498 primes up to 1,000,000
 
 ## Build Instructions

@@ -66,20 +66,20 @@ impl Resolver {
         match node {
             AstNode::Call { method, args, .. } => {
                 // Check function call arguments
-                if let Some((param_types, ret_type, _)) = self.get_func_signature(method) {
+                if let Some(sig) = self.get_func_signature(method) {
                     // Check number of arguments matches
-                    if args.len() != param_types.len() {
+                    if args.len() != sig.0.len() {
                         eprintln!(
                             "Error: {} expects {} arguments, got {}",
                             method,
-                            param_types.len(),
+                            sig.0.len(),
                             args.len()
                         );
                         ok = false;
                     } else {
                         // Check each argument type
                         for (i, (arg, (param_name, param_type))) in
-                            args.iter().zip(param_types.iter()).enumerate()
+                            args.iter().zip(sig.0.iter()).enumerate()
                         {
                             let arg_type = self.infer_type(arg);
                             if &arg_type != param_type {
@@ -281,8 +281,8 @@ impl Resolver {
             },
             AstNode::Call { method, .. } => {
                 // Get the return type from the function signature
-                if let Some((_, ret_type, _)) = self.get_func_signature(method) {
-                    ret_type.clone()
+                if let Some(sig) = self.get_func_signature(method) {
+                    sig.1.clone()
                 } else {
                     // Default to i64 for unknown functions
                     Type::I64
