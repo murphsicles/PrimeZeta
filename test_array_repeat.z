@@ -1,0 +1,21 @@
+// Test array repeat syntax
+fn main() -> u64 {
+    // Test array repeat syntax
+    let arr = [true; 100]
+    
+    // Test array access
+    arr[0] = false
+    arr[1] = false
+    
+    // Count true values
+    let mut count = 0u64
+    let mut i = 0u64
+    while i < 100 {
+        if arr[i] {
+            count += 1
+        }
+        i += 1
+    }
+    
+    return count  // Should be 98
+}

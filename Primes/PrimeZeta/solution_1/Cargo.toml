@@ -2,16 +2,27 @@
 name = "primezeta-solution"
 version = "1.0.0"
 edition = "2021"
-description = "Murphy's Sieve implementation in Zeta for Plummers Prime Drag Race"
+authors = ["Roy Murphy <roy@z-lang.org>"]
+description = "PrimeZeta competition submission - Murphy's Sieve implementation"
 license = "MIT"
-authors = ["murphsicles"]
+repository = "https://github.com/murphsicles/zeta-competition"
 
 [[bin]]
 name = "prime_benchmark"
 path = "src/prime_benchmark.rs"
 
-[features]
-default = []
+[[bin]]
+name = "rust_fallback"
+path = "rust_fallback.rs"
 
-[dependencies]
-# No external dependencies - pure Zeta implementation
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "sieve_benchmark"
+harness = false

@@ -1,0 +1,15 @@
+// Test simple while loop with array
+fn main() -> u64 {
+    let mut arr = [1, 2, 3, 4, 5]
+    
+    // Simple loop
+    let mut i = 0
+    let mut sum = 0
+    
+    while i < 5 {
+        sum += arr[i]
+        i += 1
+    }
+    
+    sum  // Should be 15
+}

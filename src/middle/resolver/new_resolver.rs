@@ -1347,9 +1347,12 @@ impl InferContext {
             }
 
             AstNode::If { cond, then, else_ } => {
-                // Type check the condition - must be boolean
+                // Type check the condition - must be boolean or integer (C-style)
                 let cond_ty = self.infer(cond)?;
-                self.constrain_eq(cond_ty, Type::Bool);
+                // Allow bool or i64 (0 = false, non-zero = true)
+                if !matches!(cond_ty, Type::Bool | Type::I64 | Type::I32 | Type::U64 | Type::U32) {
+                    return Err("If condition must be boolean or integer".to_string());
+                }
 
                 // Type check the then branch
                 let mut then_ty = Type::Tuple(vec![]); // Default to unit

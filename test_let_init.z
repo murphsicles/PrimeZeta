@@ -1,0 +1,4 @@
+fn main() -> u64 {
+    let x = 0;
+    return 0;
+}

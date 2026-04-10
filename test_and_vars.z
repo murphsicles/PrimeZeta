@@ -1,0 +1,5 @@
+fn main() -> u64 {
+    let a = true
+    let b = false
+    return a && b
+}

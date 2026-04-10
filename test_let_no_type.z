@@ -1,0 +1,5 @@
+// Test let without type suffix
+fn main() -> u64 {
+    let j = 3
+    return j
+}

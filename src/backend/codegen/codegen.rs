@@ -683,6 +683,21 @@ impl<'ctx> LLVMCodegen<'ctx> {
             i64_type.fn_type(&[i64_type.into()], false),
             Some(Linkage::External),
         );
+        module.add_function(
+            "shl_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "shr_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "xor_i64",
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
 
         // Declare call_i64 for function calls (will be handled inline)
         module.add_function(
@@ -1046,6 +1061,11 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 | "&&"
                 | "||"
                 | "!"
+                | "<<"
+                | ">>"
+                | "&"
+                | "|"
+                | "^"
                 | "add"
                 | "sub"
                 | "mul"
@@ -1060,6 +1080,11 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 | "and"
                 | "or"
                 | "not"
+                | "shl"
+                | "shr"
+                | "bitand"
+                | "bitor"
+                | "bitxor"
                 | "add_i64"
                 | "sub_i64"
                 | "mul_i64"
@@ -1074,6 +1099,11 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 | "and_i64"
                 | "or_i64"
                 | "not_i64"
+                | "shl_i64"
+                | "shr_i64"
+                | "and_i64"
+                | "or_i64"
+                | "xor_i64"
         )
     }
 
@@ -1145,6 +1175,37 @@ impl<'ctx> LLVMCodegen<'ctx> {
         // === NEW: handle call_i64 - function call dispatcher ===
         if name == "call_i64"
             && let Some(f) = self.module.get_function("call_i64")
+        {
+            return f;
+        }
+        // === NEW: handle comparison operators ===
+        if (name == "==" || name == "eq" || name == "eq_i64")
+            && let Some(f) = self.module.get_function("==")
+        {
+            return f;
+        }
+        if (name == "!=" || name == "ne" || name == "ne_i64")
+            && let Some(f) = self.module.get_function("!=")
+        {
+            return f;
+        }
+        if (name == "<" || name == "lt" || name == "lt_i64")
+            && let Some(f) = self.module.get_function("<")
+        {
+            return f;
+        }
+        if (name == ">" || name == "gt" || name == "gt_i64")
+            && let Some(f) = self.module.get_function(">")
+        {
+            return f;
+        }
+        if (name == "<=" || name == "le" || name == "le_i64")
+            && let Some(f) = self.module.get_function("<=")
+        {
+            return f;
+        }
+        if (name == ">=" || name == "ge" || name == "ge_i64")
+            && let Some(f) = self.module.get_function(">=")
         {
             return f;
         }
@@ -1585,6 +1646,28 @@ impl<'ctx> LLVMCodegen<'ctx> {
                                     right.into_int_value(),
                                     "mod",
                                 )
+                                .unwrap(),
+
+                            // Bitwise operators
+                            "<<" | "shl" | "shl_i64" => self
+                                .builder
+                                .build_left_shift(left.into_int_value(), right.into_int_value(), "shl")
+                                .unwrap(),
+                            ">>" | "shr" | "shr_i64" => self
+                                .builder
+                                .build_right_shift(left.into_int_value(), right.into_int_value(), false, "shr")
+                                .unwrap(),
+                            "&" | "bitand" | "and_i64" => self
+                                .builder
+                                .build_and(left.into_int_value(), right.into_int_value(), "and")
+                                .unwrap(),
+                            "|" | "bitor" | "or_i64" => self
+                                .builder
+                                .build_or(left.into_int_value(), right.into_int_value(), "or")
+                                .unwrap(),
+                            "^" | "bitxor" | "xor_i64" => self
+                                .builder
+                                .build_xor(left.into_int_value(), right.into_int_value(), "xor")
                                 .unwrap(),
 
                             // Comparison operators (return i64: 1 for true, 0 for false)

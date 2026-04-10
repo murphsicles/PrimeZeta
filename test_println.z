@@ -1,0 +1,8 @@
+// Test println function
+fn main() -> u64 {
+    // Try to print
+    println()
+    
+    // Return success
+    0
+}

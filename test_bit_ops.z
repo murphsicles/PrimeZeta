@@ -1,0 +1,14 @@
+// Test bit operations
+fn main() -> u64 {
+    let mut x: u64 = 0
+    
+    // Test bit set
+    x = x | 1
+    
+    // Test bit check
+    if (x & 1) == 1 {
+        return 42
+    }
+    
+    return 0
+}

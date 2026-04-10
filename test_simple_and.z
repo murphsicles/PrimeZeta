@@ -1,0 +1,4 @@
+fn main() -> u64 {
+    let a = 3 && 5;
+    return 0;
+}

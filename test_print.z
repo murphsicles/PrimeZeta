@@ -1,0 +1,5 @@
+fn main() -> u64 {
+    // Try to print
+    print_i64(42)
+    return 42
+}

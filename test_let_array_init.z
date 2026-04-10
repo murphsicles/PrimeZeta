@@ -1,0 +1,4 @@
+fn main() -> u64 {
+    let x: [u64] = [1, 2, 3];
+    return 0;
+}

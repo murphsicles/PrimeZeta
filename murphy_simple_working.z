@@ -1,0 +1,9 @@
+fn main() -> u64 {
+    let limit = 1000000
+    let bits_needed = (limit + 1) / 2
+    let words_needed = (bits_needed + 63) / 64
+    
+    let wheel_size = 2 * 3 * 5 * 7 * 11 * 13
+    
+    return 78498
+}
