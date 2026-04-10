@@ -22,7 +22,3 @@ codegen-units = 1
 
 [dev-dependencies]
 criterion = "0.5"
-
-[[bench]]
-name = "sieve_benchmark"
-harness = false
