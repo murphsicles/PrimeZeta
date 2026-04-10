@@ -841,19 +841,28 @@ fn parse_comparison(input: &str) -> IResult<&str, AstNode> {
         
         // Try with whitespace
         if found_op.is_none() {
-            let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
-            for &op in &comparison_ops {
-                if i.starts_with(op) {
-                    found_op = Some(op);
-                    remaining_input = &i[op.len()..];
-                    break;
+            match skip_ws_and_comments0(remaining_input) {
+                Ok((i, _)) => {
+                    for &op in &comparison_ops {
+                        if i.starts_with(op) {
+                            found_op = Some(op);
+                            remaining_input = &i[op.len()..];
+                            break;
+                        }
+                    }
+                }
+                Err(_) => {
+                    // No whitespace or comments, continue
                 }
             }
         }
         
         if let Some(op) = found_op {
             // Skip whitespace after operator
-            let (j, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
+            let j = match skip_ws_and_comments0(remaining_input) {
+                Ok((j, _)) => j,
+                Err(_) => remaining_input,
+            };
             let (j, right) = parse_additive(j)?;
             
             term = AstNode::BinaryOp {
