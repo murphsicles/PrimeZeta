@@ -1,21 +1,13 @@
 fn main() -> i64 {
-    // Test 1: Direct return of comparison
-    let result1 = 1 < 2;
-    
-    // Test 2: Single if
-    let result2 = if 1 < 2 { 100 } else { 0 };
-    
-    // Test 3: Nested if
-    let result3 = if 1 < 2 {
-        if 3 < 4 {
-            200
+    // Debug: what does the inner if return?
+    let x = if (1 < 2) {
+        if (3 < 4) {
+            123
         } else {
-            0
+            999
         }
     } else {
-        0
+        888
     };
-    
-    // Return sum to see all results
-    result1 + result2 + result3
+    x
 }
