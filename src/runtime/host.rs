@@ -472,4 +472,38 @@ pub unsafe extern "C" fn array_free(arr_ptr: i64) {
     }
     // Box is dropped here, freeing the DynamicArray struct
 }
+
+/// Append i64 value to array (alias for array_push)
+///
+/// # Safety
+/// Same as array_push
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn append_i64(arr_ptr: i64, value: i64) {
+    array_push(arr_ptr, value)
+}
+
+/// Append u8 value to array
+///
+/// # Safety
+/// Same as array_push
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn append_u8(arr_ptr: i64, value: i64) {
+    // Convert i64 to u8 and push
+    let u8_value = value as u8;
+    array_push(arr_ptr, u8_value as i64)
+}
+
+/// Generic append function for stack arrays
+///
+/// # Safety
+/// For stack arrays, we need special handling
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn append_stack_array(arr_ptr: i64, value: i64) -> i64 {
+    // For now, just call array_push
+    array_push(arr_ptr, value);
+    0 // Return 0 for success
+}
 */

@@ -752,36 +752,26 @@ pub(crate) fn parse_postfix(input: &str) -> IResult<&str, AstNode> {
 fn parse_logical_or(input: &str) -> IResult<&str, AstNode> {
     let (mut input, mut term) = parse_logical_and(input)?;
     loop {
-        // Try to parse "||" operator
-        let mut found_op = false;
-        let mut remaining_input = input;
+        // Skip whitespace before checking for ||
+        let (remaining_input, _) = skip_ws_and_comments0(input)?;
         
-        // Try without whitespace first
+        // Check for || operator
         if remaining_input.starts_with("||") {
-            found_op = true;
-            remaining_input = &remaining_input[2..];
-        }
-        
-        // Try with whitespace
-        if !found_op {
-            let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
-            if i != remaining_input && i.starts_with("||") {
-                found_op = true;
-                remaining_input = &i[2..];
-            }
-        }
-        
-        if found_op {
-            // Skip whitespace after operator
-            let (j, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
-            let (j, right) = parse_logical_and(j)?;
+            // Consume ||
+            let after_op = &remaining_input[2..];
+            
+            // Skip whitespace after ||
+            let (after_ws, _) = skip_ws_and_comments0(after_op)?;
+            
+            // Parse right-hand side
+            let (next_input, right) = parse_logical_and(after_ws)?;
             
             term = AstNode::BinaryOp {
                 op: "||".to_string(),
                 left: Box::new(term),
                 right: Box::new(right),
             };
-            input = j;
+            input = next_input;
         } else {
             break;
         }
@@ -806,7 +796,7 @@ fn parse_logical_and(input: &str) -> IResult<&str, AstNode> {
         // Try with whitespace
         if !found_op {
             let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
-            if i != remaining_input && i.starts_with("&&") {
+            if i.starts_with("&&") {
                 found_op = true;
                 remaining_input = &i[2..];
             }
@@ -852,13 +842,11 @@ fn parse_comparison(input: &str) -> IResult<&str, AstNode> {
         // Try with whitespace
         if found_op.is_none() {
             let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
-            if i != remaining_input {
-                for &op in &comparison_ops {
-                    if i.starts_with(op) {
-                        found_op = Some(op);
-                        remaining_input = &i[op.len()..];
-                        break;
-                    }
+            for &op in &comparison_ops {
+                if i.starts_with(op) {
+                    found_op = Some(op);
+                    remaining_input = &i[op.len()..];
+                    break;
                 }
             }
         }
@@ -903,13 +891,11 @@ fn parse_additive(input: &str) -> IResult<&str, AstNode> {
         // Try with whitespace
         if found_op.is_none() {
             let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
-            if i != remaining_input {
-                for &op in &additive_ops {
-                    if i.starts_with(op) {
-                        found_op = Some(op);
-                        remaining_input = &i[op.len()..];
-                        break;
-                    }
+            for &op in &additive_ops {
+                if i.starts_with(op) {
+                    found_op = Some(op);
+                    remaining_input = &i[op.len()..];
+                    break;
                 }
             }
         }
@@ -1007,7 +993,7 @@ fn parse_range(input: &str) -> IResult<&str, AstNode> {
         // Try with whitespace
         if !found_op {
             let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
-            if i != remaining_input && i.starts_with(op) {
+            if i.starts_with(op) {
                 found_op = true;
                 remaining_input = &i[op.len()..];
             }

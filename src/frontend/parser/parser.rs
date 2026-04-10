@@ -65,7 +65,7 @@ pub fn parse_ident(input: &str) -> IResult<&str, String> {
         )),
         |s: &str| {
             ![
-                "let", "mut", "if", "else", "for", "in", "loop", "unsafe", "return", "break",
+                "let", "mut", "if", "else", "for", "in", "loop", "while", "unsafe", "return", "break",
                 "continue", "fn", "concept", "impl", "enum", "struct", "type", "use", "extern",
                 "dyn", "box", "as", "true", "false", "comptime", "const", "async", "pub",
                 // Built-in types that shouldn't be parsed as identifiers
