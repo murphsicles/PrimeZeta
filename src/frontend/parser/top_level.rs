@@ -7,7 +7,7 @@ use super::expr::parse_full_expr;
 use super::parser::{
     parse_attributes, parse_generic_params, parse_generic_params_as_enum, parse_ident, parse_path, parse_type, parse_trait_bounds, parse_where_clause, skip_ws_and_comments, ws,
 };
-use super::stmt::parse_block_body;
+use super::stmt::{parse_block_body, parse_stmt};
 use crate::frontend::ast::AstNode;
 use nom::IResult;
 use nom::Parser;
@@ -714,6 +714,8 @@ fn parse_top_level_item(input: &str) -> IResult<&str, AstNode> {
         parse_const,
         parse_macro_def,
         parse_mod,
+        // Also allow statements at top level
+        crate::frontend::parser::stmt::parse_stmt,
     ))
     .parse(input)
 }
