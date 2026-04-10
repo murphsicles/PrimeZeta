@@ -20,22 +20,13 @@ pub trait NewTypeCheck {
 impl NewTypeCheck for Resolver {
     fn typecheck_new(&mut self, asts: &[AstNode]) -> Result<Substitution, Vec<UnifyError>> {
         use crate::middle::resolver::new_resolver;
-
-        eprintln!("[TYPECHECK_NEW] Starting typecheck_new with {} AST nodes", asts.len());
         
         let mut context = new_resolver::InferContext::new();
 
-        // Convert existing variable types from old system to new system
-        // Note: This is a simplified conversion - in a full implementation,
-        // we would need to convert the entire resolver state
-        // For now, we start with a clean context
-
         // Add built-in functions from resolver to the inference context
-        eprintln!("[TYPECHECK_NEW] Adding built-in functions to inference context");
+        // Note: In a production system, this should be cached
         let funcs = self.get_all_func_signatures();
-        eprintln!("[TYPECHECK_NEW] Found {} built-in functions", funcs.len());
         for (name, (params, ret_ty, _is_async)) in funcs {
-            eprintln!("[TYPECHECK_NEW] Adding function: {} with {} params", name, params.len());
             // Convert parameter types to a vector of Types
             let param_types: Vec<Type> = params.iter().map(|(_, ty)| ty.clone()).collect();
             
@@ -55,14 +46,10 @@ impl NewTypeCheck for Resolver {
                     // Type inference succeeded for this node
                     any_success = true;
                 }
-                Err(e) => {
+                Err(_e) => {
                     // Type inference failed for this node type
                     // Instead of failing entire system, skip this node
                     // Old system will handle it
-                    eprintln!(
-                        "Type inference not implemented for node type, skipping: {}",
-                        e
-                    );
                     // Continue with other nodes - don't fail entire system
                 }
             }
@@ -73,7 +60,6 @@ impl NewTypeCheck for Resolver {
             match context.solve() {
                 Ok(_) => Ok(context.take_substitution()),
                 Err(e) => {
-                    eprintln!("Constraint solving failed: {:?}", e);
                     // Return error to indicate type check failure
                     Err(e)
                 }
@@ -89,8 +75,8 @@ impl NewTypeCheck for Resolver {
         // Handle reference types: &str, &mut i64, etc.
         let s = s.trim();
 
-        // Debug: print what we're parsing
-        eprintln!("[DEBUG] string_to_type parsing: '{}'", s);
+        // Debug: print what we're parsing (disabled for performance)
+        // eprintln!("[DEBUG] string_to_type parsing: '{}'", s);
         
         // Safety check: prevent infinite recursion
         if s.is_empty() {

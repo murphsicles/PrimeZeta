@@ -146,7 +146,7 @@ pub fn parse_array_type(input: &str) -> IResult<&str, String> {
         .parse(input)?;
         let (input, _) = ws(tag("]")).parse(input)?;
         // Parse element type
-        let (input, elem_type) = ws(parse_type).parse(input)?;
+        let (input, elem_type) = ws(parse_non_array_type).parse(input)?;
         Ok((input, (size, elem_type)))
     }
     
@@ -155,14 +155,14 @@ pub fn parse_array_type(input: &str) -> IResult<&str, String> {
         let (input, _) = ws(tag("[")).parse(input)?;
         let (input, _) = ws(tag("dynamic")).parse(input)?;
         let (input, _) = ws(tag("]")).parse(input)?;
-        let (input, elem_type) = ws(parse_type).parse(input)?;
+        let (input, elem_type) = ws(parse_non_array_type).parse(input)?;
         Ok((input, format!("[dynamic]{}", elem_type))) // Return as dynamic array
     }
     
     // Helper function for Zeta style parsing
     fn parse_zeta_array(input: &str) -> IResult<&str, String> {
         let (input, _) = ws(tag("[")).parse(input)?;
-        let (input, elem_type) = ws(parse_type).parse(input)?;
+        let (input, elem_type) = ws(parse_non_array_type).parse(input)?;
 
         // Check for optional size
         let (input, size_opt) = opt(preceded(
@@ -314,6 +314,82 @@ pub fn parse_simd_type<'a>(input: &'a str) -> IResult<&'a str, String> {
     
     // Try shorthand first, then generic
     alt((shorthand_parser, generic_parser)).parse(input)
+}
+
+/// Parse a type that cannot be an array type (used to break recursion)
+pub fn parse_non_array_type(input: &str) -> IResult<&str, String> {
+    let (mut input, mut s) = (input, String::new());
+
+    // Parse references (can be multiple: &&T)
+    loop {
+        // Try to parse &mut
+        if let Ok((i, _)) = ws(tag("&mut")).parse(input) {
+            s.push_str("&mut ");
+            input = i;
+        }
+        // Try to parse & with optional lifetime
+        else if let Ok((i, _)) = ws(tag("&")).parse(input) {
+            // Check for lifetime after &
+            let (i, lifetime_opt) = opt(parse_lifetime_param).parse(i)?;
+
+            s.push('&');
+            if let Some(lifetime) = lifetime_opt {
+                s.push_str(&lifetime);
+                s.push(' ');
+            }
+
+            // Check for mut after lifetime
+            let (i, is_mut) = opt(ws(tag("mut"))).parse(i)?;
+            if is_mut.is_some() {
+                s.push_str("mut ");
+            }
+
+            input = i;
+        } else {
+            break;
+        }
+    }
+
+    // Special types excluding array_type and tuple_type to avoid recursion
+    // (tuple_type can contain array types)
+    let special_types_no_array = alt((
+        tag("_").map(|_| "_".to_string()),
+        parse_fn_type,
+        parse_pointer_type,
+        preceded(ws(tag("dyn")), ws(parse_type_path)).map(|p| format!("dyn {}", p)),
+        parse_simd_type,
+        parse_lt_type,
+    ));
+    
+    // Then try built-in types
+    let builtin_types = alt((
+        tag("i8").map(|_| "i8".to_string()),
+        tag("i16").map(|_| "i16".to_string()),
+        tag("i32").map(|_| "i32".to_string()),
+        tag("i64").map(|_| "i64".to_string()),
+        tag("u8").map(|_| "u8".to_string()),
+        tag("u16").map(|_| "u16".to_string()),
+        tag("u32").map(|_| "u32".to_string()),
+        tag("u64").map(|_| "u64".to_string()),
+        tag("usize").map(|_| "usize".to_string()),
+        tag("f32").map(|_| "f32".to_string()),
+        tag("f64").map(|_| "f64".to_string()),
+        tag("bool").map(|_| "bool".to_string()),
+        tag("char").map(|_| "char".to_string()),
+        parse_string_with_identity,
+        tag("string").map(|_| "string".to_string()),
+        tag("str").map(|_| "str".to_string()),
+        tag("String").map(|_| "String".to_string()),
+    ));
+    
+    // Try special types first, then built-in types, then type paths
+    let (input, base) = alt((
+        special_types_no_array,
+        builtin_types,
+        parse_type_path,
+    )).parse(input)?;
+    s += &base;
+    Ok((input, s))
 }
 
 pub fn parse_type(input: &str) -> IResult<&str, String> {
@@ -592,20 +668,20 @@ pub fn parse_generic_params(input: &str) -> IResult<&str, (Vec<String>, Vec<Stri
 
 /// Parse generic parameters as GenericParam enum values
 pub fn parse_generic_params_as_enum(input: &str) -> IResult<&str, Vec<GenericParam>> {
-    eprintln!("[DEBUG parse_generic_params_as_enum] input: {:?}", input);
+    // eprintln!("[DEBUG parse_generic_params_as_enum] input: {:?}", input); // Disabled for performance
     let (input, inner) = delimited(
         ws(tag("<")),
         parse_angle_bracketed_content_inner_slice,
         ws(tag(">")),
     )
     .parse(input)?;
-    eprintln!("[DEBUG parse_generic_params_as_enum] inner: {:?}", inner);
+    // eprintln!("[DEBUG parse_generic_params_as_enum] inner: {:?}", inner); // Disabled for performance
     let (_, params) = terminated(
         separated_list0(ws(tag(",")), ws(parse_generic_param_as_enum)),
         opt(ws(tag(","))),
     )
     .parse(inner)?;
-    eprintln!("[DEBUG parse_generic_params_as_enum] params: {:?}", params);
+    // eprintln!("[DEBUG parse_generic_params_as_enum] params: {:?}", params); // Disabled for performance
 
     Ok((input, params))
 }

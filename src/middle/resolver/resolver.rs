@@ -225,11 +225,11 @@ impl Resolver {
                     .map(|(name, ty_str)| (name.clone(), self.string_to_type(ty_str)))
                     .collect();
                 let typed_ret = self.string_to_type(ret);
-                println!(
-                    "[RESOLVER] Registering function: {} with {} params",
-                    name,
-                    params.len()
-                );
+                // println!(
+                //     "[RESOLVER] Registering function: {} with {} params", // Disabled for performance
+                //     name,
+                //     params.len()
+                // );
                 let name_clone = name.clone();
                 self.funcs
                     .insert(name_clone.clone(), (typed_params, typed_ret, *async_));
@@ -827,6 +827,301 @@ impl Resolver {
             ),
         );
 
+        // Comparison operators for i64
+        // eq_i64(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "eq_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // ne_i64(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "ne_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // lt_i64(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "lt_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // gt_i64(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "gt_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // le_i64(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "le_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // ge_i64(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "ge_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // Also register operator symbols for completeness
+        // ==(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "==".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // !=(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "!=".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // <(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "<".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // >(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            ">".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // <=(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            "<=".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+        // >=(a: i64, b: i64) -> bool
+        self.funcs.insert(
+            ">=".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::Bool,
+                false, // not async
+            ),
+        );
+
+        // Arithmetic operators for i64
+        // +(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "+".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // -(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "-".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // *(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "*".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // /(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "/".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // %(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "%".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // <<(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "<<".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // >>(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            ">>".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // &(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "&".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // |(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "|".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // ^(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "^".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+
+        // Arithmetic operator functions for i64
+        // add_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "add_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // sub_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "sub_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // mul_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "mul_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // div_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "div_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // mod_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "mod_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // shl_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "shl_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // shr_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "shr_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // and_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "and_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // or_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "or_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+        // xor_i64(a: i64, b: i64) -> i64
+        self.funcs.insert(
+            "xor_i64".to_string(),
+            (
+                vec![("a".to_string(), Type::I64), ("b".to_string(), Type::I64)],
+                Type::I64,
+                false, // not async
+            ),
+        );
+
         // Array runtime functions
         // array_new(capacity: usize) -> i64 (pointer to array)
         self.funcs.insert(
@@ -898,7 +1193,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        println!("[RESOLVER] Registered runtime_malloc");
+        // println!("[RESOLVER] Registered runtime_malloc"); // Disabled for performance
         
         // map_get(map: i64, key: i64) -> i64
         self.funcs.insert(
@@ -1099,9 +1394,10 @@ impl Resolver {
             ),
         );
         
-        println!(
-            "[RESOLVER] Registered built-in runtime functions: clone_i64, is_null_i64, to_string_str, to_string_i64, to_string_bool, array_new, array_push, array_len, array_get, array_set, array_free, runtime_malloc, map_get, print_i64, println, Vector::new, vector_make_u64x8, vector_add_i32x4, etc."
-        );
+        // Disabled for performance
+        // println!(
+        //     "[RESOLVER] Registered built-in runtime functions: clone_i64, is_null_i64, to_string_str, to_string_i64, to_string_bool, array_new, array_push, array_len, array_get, array_set, array_free, runtime_malloc, map_get, print_i64, println, Vector::new, vector_make_u64x8, vector_add_i32x4, etc."
+        // );
     }
 }
 

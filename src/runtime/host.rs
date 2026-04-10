@@ -334,6 +334,228 @@ pub unsafe extern "C" fn to_string_bool(value: i64) -> i64 {
     ptr
 }
 
+// ===== Arithmetic Runtime Functions =====
+
+/// Add two i64 values
+///
+/// # Safety
+/// No safety concerns as it just performs arithmetic.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn add_i64(a: i64, b: i64) -> i64 {
+    a.wrapping_add(b)
+}
+
+/// Subtract two i64 values
+///
+/// # Safety
+/// No safety concerns as it just performs arithmetic.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn sub_i64(a: i64, b: i64) -> i64 {
+    a.wrapping_sub(b)
+}
+
+/// Multiply two i64 values
+///
+/// # Safety
+/// No safety concerns as it just performs arithmetic.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn mul_i64(a: i64, b: i64) -> i64 {
+    a.wrapping_mul(b)
+}
+
+/// Divide two i64 values
+///
+/// # Safety
+/// Division by zero will panic.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn div_i64(a: i64, b: i64) -> i64 {
+    if b == 0 {
+        panic!("division by zero");
+    }
+    a.wrapping_div(b)
+}
+
+/// Modulo of two i64 values
+///
+/// # Safety
+/// Division by zero will panic.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn mod_i64(a: i64, b: i64) -> i64 {
+    if b == 0 {
+        panic!("division by zero");
+    }
+    a.wrapping_rem(b)
+}
+
+// ===== Bitwise Runtime Functions =====
+
+/// Left shift i64 value
+///
+/// # Safety
+/// No safety concerns as it just performs bitwise operation.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn shl_i64(a: i64, b: i64) -> i64 {
+    a.wrapping_shl(b as u32)
+}
+
+/// Right shift i64 value
+///
+/// # Safety
+/// No safety concerns as it just performs bitwise operation.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn shr_i64(a: i64, b: i64) -> i64 {
+    a.wrapping_shr(b as u32)
+}
+
+/// Bitwise AND of two i64 values
+///
+/// # Safety
+/// No safety concerns as it just performs bitwise operation.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn and_i64(a: i64, b: i64) -> i64 {
+    a & b
+}
+
+/// Bitwise OR of two i64 values
+///
+/// # Safety
+/// No safety concerns as it just performs bitwise operation.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn or_i64(a: i64, b: i64) -> i64 {
+    a | b
+}
+
+/// Bitwise XOR of two i64 values
+///
+/// # Safety
+/// No safety concerns as it just performs bitwise operation.
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn xor_i64(a: i64, b: i64) -> i64 {
+    a ^ b
+}
+
+// ===== Comparison Operators =====
+
+/// Equality comparison for i64 values
+///
+/// # Safety
+/// No safety concerns as it just compares two i64 values.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn eq_i64(a: i64, b: i64) -> i64 {
+    if a == b { 1 } else { 0 }
+}
+
+/// Inequality comparison for i64 values
+///
+/// # Safety
+/// No safety concerns as it just compares two i64 values.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn ne_i64(a: i64, b: i64) -> i64 {
+    if a != b { 1 } else { 0 }
+}
+
+/// Less than comparison for i64 values
+///
+/// # Safety
+/// No safety concerns as it just compares two i64 values.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn lt_i64(a: i64, b: i64) -> i64 {
+    if a < b { 1 } else { 0 }
+}
+
+/// Greater than comparison for i64 values
+///
+/// # Safety
+/// No safety concerns as it just compares two i64 values.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn gt_i64(a: i64, b: i64) -> i64 {
+    if a > b { 1 } else { 0 }
+}
+
+/// Less than or equal comparison for i64 values
+///
+/// # Safety
+/// No safety concerns as it just compares two i64 values.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn le_i64(a: i64, b: i64) -> i64 {
+    if a <= b { 1 } else { 0 }
+}
+
+/// Greater than or equal comparison for i64 values
+///
+/// # Safety
+/// No safety concerns as it just compares two i64 values.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn ge_i64(a: i64, b: i64) -> i64 {
+    if a >= b { 1 } else { 0 }
+}
+
+/// Equality operator (==) - calls eq_i64
+///
+/// # Safety
+/// No safety concerns as it just calls eq_i64.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn eq(a: i64, b: i64) -> i64 {
+    eq_i64(a, b)
+}
+
+/// Inequality operator (!=) - calls ne_i64
+///
+/// # Safety
+/// No safety concerns as it just calls ne_i64.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn ne(a: i64, b: i64) -> i64 {
+    ne_i64(a, b)
+}
+
+/// Less than operator (<) - calls lt_i64
+///
+/// # Safety
+/// No safety concerns as it just calls lt_i64.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn lt(a: i64, b: i64) -> i64 {
+    lt_i64(a, b)
+}
+
+/// Greater than operator (>) - calls gt_i64
+///
+/// # Safety
+/// No safety concerns as it just calls gt_i64.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn gt(a: i64, b: i64) -> i64 {
+    gt_i64(a, b)
+}
+
+/// Less than or equal operator (<=) - calls le_i64
+///
+/// # Safety
+/// No safety concerns as it just calls le_i64.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn le(a: i64, b: i64) -> i64 {
+    le_i64(a, b)
+}
+
+/// Greater than or equal operator (>=) - calls ge_i64
+///
+/// # Safety
+/// No safety concerns as it just calls ge_i64.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn ge(a: i64, b: i64) -> i64 {
+    ge_i64(a, b)
+}
+
 // ===== Dynamic Array Runtime Functions =====
 // COMMENTED OUT: Duplicate functions moved to array.rs for bulletproof implementation
 /*

@@ -869,9 +869,131 @@ fn parse_comparison(input: &str) -> IResult<&str, AstNode> {
     Ok((input, term))
 }
 
+// Parse bitwise AND (&)
+fn parse_bitwise_and(input: &str) -> IResult<&str, AstNode> {
+    let (mut input, mut term) = parse_multiplicative(input)?;
+    loop {
+        // Try to parse bitwise AND operator
+        let mut found_op = None;
+        let mut remaining_input = input;
+        
+        // Check for & but NOT && (logical AND) and NOT &mut (reference)
+        if remaining_input.starts_with("&") && !remaining_input.starts_with("&&") && !remaining_input.starts_with("&mut") {
+            found_op = Some("&");
+            remaining_input = &remaining_input[1..];
+        }
+        
+        // Try with whitespace
+        if found_op.is_none() {
+            let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
+            if i.starts_with("&") && !i.starts_with("&&") && !i.starts_with("&mut") {
+                found_op = Some("&");
+                remaining_input = &i[1..];
+            }
+        }
+        
+        if let Some(op) = found_op {
+            // Skip whitespace after operator
+            let (j, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
+            let (j, right) = parse_multiplicative(j)?;
+            
+            term = AstNode::BinaryOp {
+                op: op.to_string(),
+                left: Box::new(term),
+                right: Box::new(right),
+            };
+            input = j;
+        } else {
+            break;
+        }
+    }
+    Ok((input, term))
+}
+
+// Parse bitwise XOR (^)
+fn parse_bitwise_xor(input: &str) -> IResult<&str, AstNode> {
+    let (mut input, mut term) = parse_bitwise_and(input)?;
+    loop {
+        // Try to parse bitwise XOR operator
+        let mut found_op = None;
+        let mut remaining_input = input;
+        
+        if remaining_input.starts_with("^") {
+            found_op = Some("^");
+            remaining_input = &remaining_input[1..];
+        }
+        
+        // Try with whitespace
+        if found_op.is_none() {
+            let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
+            if i.starts_with("^") {
+                found_op = Some("^");
+                remaining_input = &i[1..];
+            }
+        }
+        
+        if let Some(op) = found_op {
+            // Skip whitespace after operator
+            let (j, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
+            let (j, right) = parse_bitwise_and(j)?;
+            
+            term = AstNode::BinaryOp {
+                op: op.to_string(),
+                left: Box::new(term),
+                right: Box::new(right),
+            };
+            input = j;
+        } else {
+            break;
+        }
+    }
+    Ok((input, term))
+}
+
+// Parse bitwise OR (|)
+fn parse_bitwise_or(input: &str) -> IResult<&str, AstNode> {
+    let (mut input, mut term) = parse_bitwise_xor(input)?;
+    loop {
+        // Try to parse bitwise OR operator
+        let mut found_op = None;
+        let mut remaining_input = input;
+        
+        // Check for | but NOT || (logical OR)
+        if remaining_input.starts_with("|") && !remaining_input.starts_with("||") {
+            found_op = Some("|");
+            remaining_input = &remaining_input[1..];
+        }
+        
+        // Try with whitespace
+        if found_op.is_none() {
+            let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
+            if i.starts_with("|") && !i.starts_with("||") {
+                found_op = Some("|");
+                remaining_input = &i[1..];
+            }
+        }
+        
+        if let Some(op) = found_op {
+            // Skip whitespace after operator
+            let (j, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
+            let (j, right) = parse_bitwise_xor(j)?;
+            
+            term = AstNode::BinaryOp {
+                op: op.to_string(),
+                left: Box::new(term),
+                right: Box::new(right),
+            };
+            input = j;
+        } else {
+            break;
+        }
+    }
+    Ok((input, term))
+}
+
 // Parse additive (+, -)
 fn parse_additive(input: &str) -> IResult<&str, AstNode> {
-    let (mut input, mut term) = parse_multiplicative(input)?;
+    let (mut input, mut term) = parse_bitwise_or(input)?;
     loop {
         // Try to parse additive operator
         let mut found_op = None;
@@ -903,7 +1025,58 @@ fn parse_additive(input: &str) -> IResult<&str, AstNode> {
         if let Some(op) = found_op {
             // Skip whitespace after operator
             let (j, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
-            let (j, right) = parse_multiplicative(j)?;
+            let (j, right) = parse_bitwise_or(j)?;
+            
+            term = AstNode::BinaryOp {
+                op: op.to_string(),
+                left: Box::new(term),
+                right: Box::new(right),
+            };
+            input = j;
+        } else {
+            break;
+        }
+    }
+    Ok((input, term))
+}
+
+// Parse bitwise shift (<<, >>)
+fn parse_shift(input: &str) -> IResult<&str, AstNode> {
+    let (mut input, mut term) = parse_range(input)?;
+    loop {
+        // Try to parse shift operator
+        let mut found_op = None;
+        let mut remaining_input = input;
+        
+        let shift_ops = ["<<", ">>"];
+        
+        // Try without whitespace first
+        for &op in &shift_ops {
+            if remaining_input.starts_with(op) {
+                found_op = Some(op);
+                remaining_input = &remaining_input[op.len()..];
+                break;
+            }
+        }
+        
+        // Try with whitespace
+        if found_op.is_none() {
+            let (i, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
+            if i != remaining_input {
+                for &op in &shift_ops {
+                    if i.starts_with(op) {
+                        found_op = Some(op);
+                        remaining_input = &i[op.len()..];
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if let Some(op) = found_op {
+            // Skip whitespace after operator
+            let (j, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
+            let (j, right) = parse_range(j)?;
             
             term = AstNode::BinaryOp {
                 op: op.to_string(),
@@ -920,7 +1093,7 @@ fn parse_additive(input: &str) -> IResult<&str, AstNode> {
 
 // Parse multiplicative (*, /, %)
 fn parse_multiplicative(input: &str) -> IResult<&str, AstNode> {
-    let (mut input, mut term) = parse_range(input)?;
+    let (mut input, mut term) = parse_shift(input)?;
     loop {
         // Try to parse multiplicative operator
         let mut found_op = None;
@@ -954,7 +1127,7 @@ fn parse_multiplicative(input: &str) -> IResult<&str, AstNode> {
         if let Some(op) = found_op {
             // Skip whitespace after operator
             let (j, _) = skip_ws_and_comments0(remaining_input).unwrap_or((remaining_input, ()));
-            let (j, right) = parse_range(j)?;
+            let (j, right) = parse_shift(j)?;
             
             term = AstNode::BinaryOp {
                 op: op.to_string(),

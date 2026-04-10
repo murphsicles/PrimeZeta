@@ -332,24 +332,24 @@ pub unsafe extern "C" fn test_bulletproof_memory() -> i64 {
     }
     
     // Test 3: Bounds check (should succeed)
-    let checked_ptr = runtime_array_bounds_check(ptr, 50, 1);
+    let checked_ptr = unsafe { runtime_array_bounds_check(ptr, 50, 1) };
     if checked_ptr == 0 {
         runtime_free_bulletproof(ptr);
         return -2;
     }
     
     // Test 4: Bounds check (should fail)
-    let bad_check = runtime_array_bounds_check(ptr, 150, 1);
+    let bad_check = unsafe { runtime_array_bounds_check(ptr, 150, 1) };
     if bad_check != 0 {
-        runtime_free_bulletproof(ptr);
+        unsafe { runtime_free_bulletproof(ptr); }
         return -3;
     }
     
     // Test 5: Free memory
-    runtime_free_bulletproof(ptr);
+    unsafe { runtime_free_bulletproof(ptr); }
     
     // Test 6: Double free detection (should report corruption but not crash)
-    runtime_free_bulletproof(ptr);
+    unsafe { runtime_free_bulletproof(ptr); }
     
     // Test 7: Use after free detection (simulated by checking freed memory pattern)
     // Note: In real implementation, we'd catch this via guard pages or memory protection

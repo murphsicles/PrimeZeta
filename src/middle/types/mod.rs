@@ -1307,6 +1307,28 @@ impl Substitution {
                 self.unify(inner1, inner2)
             }
 
+            // Slice-array unification: allow Slice(T) to unify with Array(T, size=0)
+            // This enables `let arr: [u8] = []` where [] is Array(U8, size=0)
+            (Type::Slice(inner1), Type::Array(inner2, size)) => {
+                // Only allow unification with zero-sized arrays
+                if !matches!(size, ArraySize::Literal(0)) {
+                    return Err(UnifyError::Mismatch(t1, t2));
+                }
+                self.unify(inner1, inner2)
+            }
+            (Type::Array(inner1, size), Type::Slice(inner2)) => {
+                // Symmetric case
+                if !matches!(size, ArraySize::Literal(0)) {
+                    return Err(UnifyError::Mismatch(t1, t2));
+                }
+                self.unify(inner1, inner2)
+            }
+
+            // Slice types
+            (Type::Slice(inner1), Type::Slice(inner2)) => {
+                self.unify(inner1, inner2)
+            }
+
             // Vector types
             (Type::Vector(inner1, size1), Type::Vector(inner2, size2)) => {
                 if size1 != size2 {
