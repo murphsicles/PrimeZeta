@@ -393,10 +393,6 @@ impl MirGen {
                 if let AstNode::Return(inner) = &**expr {
                     let val = self.lower_expr(inner);
                     self.stmts.push(MirStmt::Return { val });
-                } else if let AstNode::If { .. } = &**expr {
-                    // If expressions need to be lowered via lower_ast, not lower_expr
-                    // because lower_expr doesn't handle If
-                    self.lower_ast(expr);
                 } else {
                     let expr_id = self.lower_expr(expr);
                     // For expression statements that are values (not just side effects),
@@ -589,6 +585,87 @@ impl MirGen {
                     self.type_map.insert(dest, Type::I64);
                 }
                 return dest;
+            }
+            
+            AstNode::If { cond, then, else_ } => {
+                // If expression - generate control flow with destination
+                let cond_id = self.lower_expr(cond);
+                let dest_id = self.next_id();
+                
+                // Create destination for expression result
+                self.exprs.insert(dest_id, MirExpr::Var(dest_id));
+                self.type_map.insert(dest_id, Type::I64);
+                
+                // Helper function to process block
+                fn process_block(mir_gen: &mut MirGen, block: &[AstNode], dest: u32) -> Vec<MirStmt> {
+                    if block.is_empty() {
+                        // Empty block - assign 0
+                        let zero_id = mir_gen.next_id_with_lit(0);
+                        return vec![MirStmt::Assign { lhs: dest, rhs: zero_id }];
+                    }
+                    
+                    // Save current statements
+                    let saved_stmts = std::mem::take(&mut mir_gen.stmts);
+                    
+                    // Generate block statements
+                    for s in block {
+                        mir_gen.lower_ast(s);
+                    }
+                    
+                    // Take generated statements
+                    let mut block_stmts = std::mem::take(&mut mir_gen.stmts);
+                    
+                    // Restore original statements
+                    mir_gen.stmts = saved_stmts;
+                    
+                    // Capture last expression value if block produces value
+                    if let Some(last_stmt) = block_stmts.last() {
+                        match last_stmt {
+                            MirStmt::Assign { lhs, .. } => {
+                                // Block ends with assignment - use that value
+                                block_stmts.push(MirStmt::Assign {
+                                    lhs: dest,
+                                    rhs: *lhs,
+                                });
+                            }
+                            MirStmt::Return { val } => {
+                                // Block ends with return - can't assign to dest
+                                // (function returns, dest unused)
+                            }
+                            _ => {
+                                // No value-producing statement - assign 0
+                                let zero_id = mir_gen.next_id_with_lit(0);
+                                block_stmts.push(MirStmt::Assign {
+                                    lhs: dest,
+                                    rhs: zero_id,
+                                });
+                            }
+                        }
+                    } else {
+                        // Empty statement list - assign 0
+                        let zero_id = mir_gen.next_id_with_lit(0);
+                        block_stmts.push(MirStmt::Assign {
+                            lhs: dest,
+                            rhs: zero_id,
+                        });
+                    }
+                    
+                    block_stmts
+                }
+                
+                // Process then and else blocks
+                let then_stmts = process_block(self, then, dest_id);
+                let else_stmts = process_block(self, else_, dest_id);
+                
+                // Create If statement with destination
+                self.stmts.push(MirStmt::If {
+                    cond: cond_id,
+                    then: then_stmts,
+                    else_: else_stmts,
+                    dest: Some(dest_id),
+                });
+                
+                return dest_id;
             }
             
             AstNode::Range { start, end, inclusive: _ } => {
