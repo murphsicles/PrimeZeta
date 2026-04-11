@@ -393,6 +393,10 @@ impl MirGen {
                 if let AstNode::Return(inner) = &**expr {
                     let val = self.lower_expr(inner);
                     self.stmts.push(MirStmt::Return { val });
+                } else if let AstNode::If { .. } = &**expr {
+                    // If expressions need to be lowered via lower_ast, not lower_expr
+                    // because lower_expr doesn't handle If
+                    self.lower_ast(expr);
                 } else {
                     let expr_id = self.lower_expr(expr);
                     // For expression statements that are values (not just side effects),
