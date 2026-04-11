@@ -31,14 +31,14 @@ const UNINITIALIZED_PATTERN: u8 = 0xCD; // Pattern for uninitialized memory
 const FREED_PATTERN: u8 = 0xFD; // Pattern for freed memory
 
 /// Get header from data pointer
-unsafe fn get_header(data_ptr: *mut i64) -> *mut ArrayHeader {
+unsafe fn get_header(data_ptr: *mut i64) -> *mut ArrayHeader { unsafe {
     (data_ptr as *mut u8).sub(ARRAY_HEADER_SIZE) as *mut ArrayHeader
-}
+}}
 
 /// Get data pointer from header
-unsafe fn get_data(header: *mut ArrayHeader) -> *mut i64 {
+unsafe fn get_data(header: *mut ArrayHeader) -> *mut i64 { unsafe {
     (header as *mut u8).add(ARRAY_HEADER_SIZE) as *mut i64
-}
+}}
 
 /// Check if header is valid
 unsafe fn check_header(header: *const ArrayHeader) -> bool {

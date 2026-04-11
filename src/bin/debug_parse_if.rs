@@ -11,7 +11,7 @@ fn main() {
     for code in tests {
         println!("Testing: {:?}", code);
         match parse_full_expr(code) {
-            Ok((remaining, ast)) => {
+            Ok((remaining, _ast)) => {
                 println!("  Success! Remaining: {:?}", remaining);
             }
             Err(e) => {

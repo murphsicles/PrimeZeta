@@ -59,7 +59,7 @@ pub unsafe fn memory_init() {
 
 /// Enhanced malloc with bulletproof features
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn runtime_malloc_bulletproof(size: usize) -> i64 {
+pub unsafe extern "C" fn runtime_malloc_bulletproof(size: usize) -> i64 { unsafe {
     if size == 0 {
         return 0;
     }
@@ -109,11 +109,11 @@ pub unsafe extern "C" fn runtime_malloc_bulletproof(size: usize) -> i64 {
     }
     
     user_ptr as i64
-}
+}}
 
 /// Free memory with bulletproof checks
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn runtime_free_bulletproof(ptr: i64) {
+pub unsafe extern "C" fn runtime_free_bulletproof(ptr: i64) { unsafe {
     if ptr == 0 {
         return;
     }
@@ -156,7 +156,7 @@ pub unsafe extern "C" fn runtime_free_bulletproof(ptr: i64) {
     unsafe {
         dealloc(header_ptr as *mut u8, layout);
     }
-}
+}}
 
 /// Calloc with bulletproof features
 #[unsafe(no_mangle)]
@@ -176,7 +176,7 @@ pub unsafe extern "C" fn runtime_calloc_bulletproof(num: usize, size: usize) -> 
 
 /// Realloc with bulletproof features
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn runtime_realloc_bulletproof(ptr: i64, new_size: usize) -> i64 {
+pub unsafe extern "C" fn runtime_realloc_bulletproof(ptr: i64, new_size: usize) -> i64 { unsafe {
     if new_size == 0 {
         unsafe { runtime_free_bulletproof(ptr); }
         return 0;
@@ -215,11 +215,11 @@ pub unsafe extern "C" fn runtime_realloc_bulletproof(ptr: i64, new_size: usize) 
     unsafe { runtime_free_bulletproof(ptr); }
     
     new_ptr
-}
+}}
 
 /// Bounds-checked array access
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn runtime_array_bounds_check(ptr: i64, index: i64, element_size: usize) -> i64 {
+pub unsafe extern "C" fn runtime_array_bounds_check(ptr: i64, index: i64, element_size: usize) -> i64 { unsafe {
     if ptr == 0 || index < 0 {
         report_bounds_violation("Null pointer or negative index", ptr, index);
         return 0;
@@ -243,7 +243,7 @@ pub unsafe extern "C" fn runtime_array_bounds_check(ptr: i64, index: i64, elemen
     
     // Return pointer to element
     (user_ptr as i64) + offset as i64
-}
+}}
 
 /// Validate memory canary (for stack protection)
 #[unsafe(no_mangle)]
@@ -253,14 +253,14 @@ pub unsafe extern "C" fn runtime_validate_canary() -> i64 {
 }
 
 // Helper functions
-unsafe fn validate_header(header_ptr: *mut AllocationHeader) -> bool {
+unsafe fn validate_header(header_ptr: *mut AllocationHeader) -> bool { unsafe {
     if header_ptr.is_null() {
         return false;
     }
     
     let header = &*header_ptr;
     header.magic == MAGIC_VALUE && header.canary == CANARY_VALUE
-}
+}}
 
 fn is_double_free(allocation_id: u64) -> bool {
     if let Ok(map) = get_allocation_map().lock() {
@@ -318,7 +318,7 @@ pub struct MemoryStats {
 
 /// Test function to verify bulletproof features
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn test_bulletproof_memory() -> i64 {
+pub unsafe extern "C" fn test_bulletproof_memory() -> i64 { unsafe {
     // Test 1: Basic allocation
     let ptr = runtime_malloc_bulletproof(100);
     if ptr == 0 {
@@ -355,4 +355,4 @@ pub unsafe extern "C" fn test_bulletproof_memory() -> i64 {
     // Note: In real implementation, we'd catch this via guard pages or memory protection
     
     0 // Success
-}
+}}

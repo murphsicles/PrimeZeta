@@ -8,7 +8,7 @@ use nom::IResult;
 use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, alphanumeric1, multispace0, digit1};
+use nom::character::complete::{alpha1, alphanumeric1, digit1};
 use nom::combinator::{opt, map, recognize};
 use nom::multi::{separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, tuple};
