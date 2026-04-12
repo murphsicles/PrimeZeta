@@ -77,18 +77,20 @@ pub unsafe extern "C" fn runtime_malloc_bulletproof(size: usize) -> i64 {
         Err(_) => return 0,
     };
     
-    let ptr = alloc(layout);
+    let ptr = unsafe { alloc(layout) };
     if ptr.is_null() {
         return 0;
     }
     
     // Set up header
     let header_ptr = ptr as *mut AllocationHeader;
-    (*header_ptr).magic = MAGIC_VALUE;
-    (*header_ptr).size = user_size;
-    (*header_ptr).actual_size = total_size;
-    (*header_ptr).allocation_id = allocation_id;
-    (*header_ptr).canary = CANARY_VALUE;
+    unsafe {
+        (*header_ptr).magic = MAGIC_VALUE;
+        (*header_ptr).size = user_size;
+        (*header_ptr).actual_size = total_size;
+        (*header_ptr).allocation_id = allocation_id;
+        (*header_ptr).canary = CANARY_VALUE;
+    }
     
     // Track allocation
     if let Ok(mut map) = get_allocation_map().lock() {
@@ -99,10 +101,12 @@ pub unsafe extern "C" fn runtime_malloc_bulletproof(size: usize) -> i64 {
     }
     
     // Return pointer to user data (after header)
-    let user_ptr = header_ptr.add(1) as *mut u8;
+    let user_ptr = unsafe { header_ptr.add(1) as *mut u8 };
     
     // Initialize user memory with pattern
-    std::ptr::write_bytes(user_ptr, UNINIT_PATTERN, user_size);
+    unsafe {
+        std::ptr::write_bytes(user_ptr, UNINIT_PATTERN, user_size);
+    }
     
     user_ptr as i64
 }
@@ -115,15 +119,15 @@ pub unsafe extern "C" fn runtime_free_bulletproof(ptr: i64) {
     }
     
     let user_ptr = ptr as *mut u8;
-    let header_ptr = user_ptr.sub(ALLOC_HEADER_SIZE) as *mut AllocationHeader;
+    let header_ptr = unsafe { user_ptr.sub(ALLOC_HEADER_SIZE) as *mut AllocationHeader };
     
     // Validate header
-    if !validate_header(header_ptr) {
+    if !unsafe { validate_header(header_ptr) } {
         report_corruption("Invalid header in free", header_ptr);
         return;
     }
     
-    let header = &*header_ptr;
+    let header = unsafe { &*header_ptr };
     let allocation_id = header.allocation_id;
     let user_size = header.size;
     
@@ -134,7 +138,9 @@ pub unsafe extern "C" fn runtime_free_bulletproof(ptr: i64) {
     }
     
     // Poison freed memory
-    std::ptr::write_bytes(user_ptr, FREED_PATTERN, user_size);
+    unsafe {
+        std::ptr::write_bytes(user_ptr, FREED_PATTERN, user_size);
+    }
     
     // Untrack allocation
     if let Ok(mut map) = get_allocation_map().lock() {
@@ -147,18 +153,22 @@ pub unsafe extern "C" fn runtime_free_bulletproof(ptr: i64) {
         Err(_) => return,
     };
     
-    dealloc(header_ptr as *mut u8, layout);
+    unsafe {
+        dealloc(header_ptr as *mut u8, layout);
+    }
 }
 
 /// Calloc with bulletproof features
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn runtime_calloc_bulletproof(num: usize, size: usize) -> i64 {
     let total_size = num * size;
-    let ptr = runtime_malloc_bulletproof(total_size);
+    let ptr = unsafe { runtime_malloc_bulletproof(total_size) };
     
     if ptr != 0 {
         // Zero the memory (overwriting the UNINIT_PATTERN)
-        std::ptr::write_bytes(ptr as *mut u8, 0, total_size);
+        unsafe {
+            std::ptr::write_bytes(ptr as *mut u8, 0, total_size);
+        }
     }
     
     ptr
@@ -168,27 +178,27 @@ pub unsafe extern "C" fn runtime_calloc_bulletproof(num: usize, size: usize) -> 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn runtime_realloc_bulletproof(ptr: i64, new_size: usize) -> i64 {
     if new_size == 0 {
-        runtime_free_bulletproof(ptr);
+        unsafe { runtime_free_bulletproof(ptr); }
         return 0;
     }
     
     if ptr == 0 {
-        return runtime_malloc_bulletproof(new_size);
+        return unsafe { runtime_malloc_bulletproof(new_size) };
     }
     
     // Get old size from header
     let user_ptr = ptr as *mut u8;
-    let header_ptr = user_ptr.sub(ALLOC_HEADER_SIZE) as *mut AllocationHeader;
+    let header_ptr = unsafe { user_ptr.sub(ALLOC_HEADER_SIZE) as *mut AllocationHeader };
     
-    if !validate_header(header_ptr) {
+    if !unsafe { validate_header(header_ptr) } {
         report_corruption("Invalid header in realloc", header_ptr);
         return 0;
     }
     
-    let old_size = (*header_ptr).size;
+    let old_size = unsafe { (*header_ptr).size };
     
     // Allocate new block
-    let new_ptr = runtime_malloc_bulletproof(new_size);
+    let new_ptr = unsafe { runtime_malloc_bulletproof(new_size) };
     if new_ptr == 0 {
         return 0;
     }
@@ -196,11 +206,13 @@ pub unsafe extern "C" fn runtime_realloc_bulletproof(ptr: i64, new_size: usize) 
     // Copy old data (up to minimum of old and new size)
     let copy_size = std::cmp::min(old_size, new_size);
     if copy_size > 0 {
-        std::ptr::copy_nonoverlapping(user_ptr, new_ptr as *mut u8, copy_size);
+        unsafe {
+            std::ptr::copy_nonoverlapping(user_ptr, new_ptr as *mut u8, copy_size);
+        }
     }
     
     // Free old block
-    runtime_free_bulletproof(ptr);
+    unsafe { runtime_free_bulletproof(ptr) };
     
     new_ptr
 }
@@ -214,14 +226,14 @@ pub unsafe extern "C" fn runtime_array_bounds_check(ptr: i64, index: i64, elemen
     }
     
     let user_ptr = ptr as *mut u8;
-    let header_ptr = user_ptr.sub(ALLOC_HEADER_SIZE) as *mut AllocationHeader;
+    let header_ptr = unsafe { user_ptr.sub(ALLOC_HEADER_SIZE) as *mut AllocationHeader };
     
-    if !validate_header(header_ptr) {
+    if !unsafe { validate_header(header_ptr) } {
         report_corruption("Invalid header in bounds check", header_ptr);
         return 0;
     }
     
-    let size = (*header_ptr).size;
+    let size = unsafe { (*header_ptr).size };
     let offset = (index as usize) * element_size;
     
     if offset + element_size > size {
@@ -246,7 +258,7 @@ unsafe fn validate_header(header_ptr: *mut AllocationHeader) -> bool {
         return false;
     }
     
-    let header = &*header_ptr;
+    let header = unsafe { &*header_ptr };
     header.magic == MAGIC_VALUE && header.canary == CANARY_VALUE
 }
 
@@ -308,36 +320,36 @@ pub struct MemoryStats {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn test_bulletproof_memory() -> i64 {
     // Test 1: Basic allocation
-    let ptr = runtime_malloc_bulletproof(100);
+    let ptr = unsafe { runtime_malloc_bulletproof(100) };
     if ptr == 0 {
         return -1;
     }
     
     // Test 2: Write to memory
-    let slice = std::slice::from_raw_parts_mut(ptr as *mut u8, 100);
+    let slice = unsafe { std::slice::from_raw_parts_mut(ptr as *mut u8, 100) };
     for i in 0..100 {
         slice[i] = i as u8;
     }
     
     // Test 3: Bounds check (should succeed)
-    let checked_ptr = runtime_array_bounds_check(ptr, 50, 1);
+    let checked_ptr = unsafe { runtime_array_bounds_check(ptr, 50, 1) };
     if checked_ptr == 0 {
-        runtime_free_bulletproof(ptr);
+        unsafe { runtime_free_bulletproof(ptr); }
         return -2;
     }
     
     // Test 4: Bounds check (should fail)
-    let bad_check = runtime_array_bounds_check(ptr, 150, 1);
+    let bad_check = unsafe { runtime_array_bounds_check(ptr, 150, 1) };
     if bad_check != 0 {
-        runtime_free_bulletproof(ptr);
+        unsafe { runtime_free_bulletproof(ptr); }
         return -3;
     }
     
     // Test 5: Free memory
-    runtime_free_bulletproof(ptr);
+    unsafe { runtime_free_bulletproof(ptr); }
     
     // Test 6: Double free detection (should report corruption but not crash)
-    runtime_free_bulletproof(ptr);
+    unsafe { runtime_free_bulletproof(ptr); }
     
     // Test 7: Use after free detection (simulated by checking freed memory pattern)
     // Note: In real implementation, we'd catch this via guard pages or memory protection
