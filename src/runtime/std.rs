@@ -415,7 +415,7 @@ pub unsafe extern "C" fn intrinsic_pause() {
 
 /// Test function for intrinsics
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn test_intrinsics() -> i64 {
+pub unsafe extern "C" fn test_intrinsics() -> i64 { unsafe {
     // Test tzcnt
     let tzcnt_result = intrinsic_tzcnt_u64(0b1000u64);
     if tzcnt_result != 3 {
@@ -459,4 +459,4 @@ pub unsafe extern "C" fn test_intrinsics() -> i64 {
     }
     
     0 // Success
-}
+}}
