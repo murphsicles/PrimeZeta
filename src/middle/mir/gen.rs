@@ -1,5 +1,5 @@
 // src/middle/mir/gen.rs
-//! # MIR Generation from AST
+//! # MIR Generation from AST - DEBUG VERSION
 //!
 //! Lowers Zeta AST to our clean Minimal Intermediate Representation (MIR).
 //! All Zeta features (methods, generics, control flow, dicts, etc.) are lowered here.
@@ -258,6 +258,7 @@ impl MirGen {
                 }
             }
             AstNode::If { cond, then, else_ } => {
+                println!("[MIR-GEN DEBUG lower_ast] Processing If statement/expression");
                 let cond_id = self.lower_expr(cond);
 
                 // Check if this is expression if (branches produce values) or statement if
@@ -588,17 +589,27 @@ impl MirGen {
             }
             
             AstNode::If { cond, then, else_ } => {
+                // DEBUG
+                println!("[MIR-GEN DEBUG lower_expr] Processing If expression");
+                
                 // If expression - generate control flow with destination
                 let cond_id = self.lower_expr(cond);
                 let dest_id = self.next_id();
+                
+                println!("[MIR-GEN DEBUG lower_expr] Created dest_id={} for If expression", dest_id);
                 
                 // Create destination for expression result
                 self.exprs.insert(dest_id, MirExpr::Var(dest_id));
                 self.type_map.insert(dest_id, Type::I64);
                 
                 // Helper function to process block
-                fn process_block(mir_gen: &mut MirGen, block: &[AstNode], dest: u32) -> Vec<MirStmt> {
+                fn process_block(mir_gen: &mut MirGen, block: &[AstNode], dest: u32, block_name: &str) -> Vec<MirStmt> {
+                    eprintln!("[MIR-GEN DEBUG lower_expr] Processing {} block, dest={}, block len={}", 
+                        block_name, dest, block.len());
+                    
                     if block.is_empty() {
+                        eprintln!("[MIR-GEN DEBUG lower_expr] {} block is empty, assigning 0 to dest={}", 
+                            block_name, dest);
                         // Empty block - assign 0
                         let zero_id = mir_gen.next_id_with_lit(0);
                         return vec![MirStmt::Assign { lhs: dest, rhs: zero_id }];
@@ -618,10 +629,19 @@ impl MirGen {
                     // Restore original statements
                     mir_gen.stmts = saved_stmts;
                     
+                    eprintln!("[MIR-GEN DEBUG lower_expr] {} block generated {} statements", 
+                        block_name, block_stmts.len());
+                    for (i, stmt) in block_stmts.iter().enumerate() {
+                        eprintln!("[MIR-GEN DEBUG lower_expr]   {} block stmt {}: {:?}", block_name, i, stmt);
+                    }
+                    
                     // Capture last expression value if block produces value
                     if let Some(last_stmt) = block_stmts.last() {
+                        eprintln!("[MIR-GEN DEBUG lower_expr] {} block last statement: {:?}", 
+                            block_name, last_stmt);
                         match last_stmt {
                             MirStmt::Assign { lhs, .. } => {
+                                eprintln!("[MIR-GEN DEBUG lower_expr]   Assigning lhs={} to dest={}", lhs, dest);
                                 // Block ends with assignment - use that value
                                 block_stmts.push(MirStmt::Assign {
                                     lhs: dest,
@@ -629,6 +649,8 @@ impl MirGen {
                                 });
                             }
                             MirStmt::If { dest: Some(if_dest), .. } => {
+                                eprintln!("[MIR-GEN DEBUG lower_expr]   Found If with dest={}, assigning to dest={}", 
+                                    if_dest, dest);
                                 // Block ends with if expression - use its destination
                                 block_stmts.push(MirStmt::Assign {
                                     lhs: dest,
@@ -636,10 +658,13 @@ impl MirGen {
                                 });
                             }
                             MirStmt::Return { val } => {
+                                eprintln!("[MIR-GEN DEBUG lower_expr]   Block ends with return, dest unused");
                                 // Block ends with return - can't assign to dest
                                 // (function returns, dest unused)
                             }
                             _ => {
+                                eprintln!("[MIR-GEN DEBUG lower_expr]   No value-producing statement, assigning 0 to dest={}", 
+                                    dest);
                                 // No value-producing statement - assign 0
                                 let zero_id = mir_gen.next_id_with_lit(0);
                                 block_stmts.push(MirStmt::Assign {
@@ -649,6 +674,8 @@ impl MirGen {
                             }
                         }
                     } else {
+                        eprintln!("[MIR-GEN DEBUG lower_expr] {} block has no statements, assigning 0 to dest={}", 
+                            block_name, dest);
                         // Empty statement list - assign 0
                         let zero_id = mir_gen.next_id_with_lit(0);
                         block_stmts.push(MirStmt::Assign {
@@ -657,12 +684,18 @@ impl MirGen {
                         });
                     }
                     
+                    eprintln!("[MIR-GEN DEBUG lower_expr] {} block final statements: {}", 
+                        block_name, block_stmts.len());
+                    
                     block_stmts
                 }
                 
                 // Process then and else blocks
-                let then_stmts = process_block(self, then, dest_id);
-                let else_stmts = process_block(self, else_, dest_id);
+                let then_stmts = process_block(self, then, dest_id, "then");
+                let else_stmts = process_block(self, else_, dest_id, "else");
+                
+                eprintln!("[MIR-GEN DEBUG lower_expr] Created If with dest={}, then_stmts={}, else_stmts={}", 
+                    dest_id, then_stmts.len(), else_stmts.len());
                 
                 // Create If statement with destination
                 self.stmts.push(MirStmt::If {
