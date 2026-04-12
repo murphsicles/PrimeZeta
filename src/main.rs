@@ -147,18 +147,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let obj_path = format!("{}.o", out);
                     finalize_and_aot(&codegen, Path::new(&obj_path))?;
 
-                    // WINDOWS-FRIENDLY LINKING (works with LLVM 18.1.8 on Windows)
+                    // Platform-specific linking
                     let mut cmd = std::process::Command::new("clang");
                     cmd.arg(&obj_path)
                         .arg("-o")
-                        .arg(&out)
-                        .arg("-lmsvcrt") // Microsoft C runtime
-                        .arg("-lkernel32"); // Core Windows API
+                        .arg(&out);
                     
-                    // Add Zeta runtime object file if it exists
-                    let runtime_obj = std::path::Path::new("zeta_runtime.o");
-                    if runtime_obj.exists() {
-                        cmd.arg(runtime_obj);
+                    // Add platform-specific libraries
+                    if cfg!(target_os = "windows") {
+                        cmd.arg("-lmsvcrt") // Microsoft C runtime
+                           .arg("-lkernel32"); // Core Windows API
+                    } else {
+                        // Unix/Linux/MacOS
+                        cmd.arg("-lc"); // C standard library
+                    }
+                    
+                    // Add Zeta runtime library
+                    // First try C runtime object file (simpler, no Rust stdlib dependencies)
+                    let runtime_c_obj = std::path::Path::new("zeta_runtime_c.o");
+                    let runtime_rust_obj = std::path::Path::new("zeta_runtime.o");
+                    
+                    if runtime_c_obj.exists() {
+                        // Use C runtime (preferred - no Rust stdlib dependencies)
+                        cmd.arg(runtime_c_obj);
+                    } else if runtime_rust_obj.exists() {
+                        // Fallback to old Rust runtime object
+                        cmd.arg(runtime_rust_obj);
+                    } else {
+                        // Check for compiled libraries
+                        let runtime_lib_windows = std::path::Path::new("runtime_lib/target/release/zeta_runtime.lib");
+                        let runtime_lib_unix = std::path::Path::new("libzeta.a");
+                        
+                        if runtime_lib_windows.exists() {
+                            // Windows: link against .lib file
+                            cmd.arg(runtime_lib_windows);
+                        } else if runtime_lib_unix.exists() {
+                            // Unix: link against .a file
+                            cmd.arg(runtime_lib_unix);
+                        }
                     }
                     
                     let status = cmd.status()?;
