@@ -108,3 +108,19 @@ runtime_lib/
 
 # doc-workspace directory (separate git repository)
 doc-workspace/
+
+# Competition benchmark files and build artifacts
+*.ps1
+*.z
+*.c
+*.rs
+*.a
+*.lib
+competition_*
+murphy_*
+zeta_*
+test_*
+build_*
+run_*
+simple_*
+final_*
