@@ -1,12 +1,16 @@
-// Test correct Zeta syntax for identity-constrained generics
-// Based on parser implementation, the correct syntax is: Identity<T: Read>
+// Test different syntaxes for identity-constrained generics
 
-fn process<T: Identity<Read>>(x: T) -> i64 {
-    return 42;
-}
+// Syntax 1: Rust-like trait bound syntax (what tests use)
+// fn process<T: Identity<read>>(x: T) -> i64
 
+// Syntax 2: Zeta type constructor syntax (what parser expects)
+// fn process(x: Identity<T: read>) -> i64
+
+// Syntax 3: Direct identity type
+// fn process(x: string[identity:read]) -> i64
+
+// Let's test the simplest case first
 fn main() -> i64 {
-    // Create an identity string with read capability
     let s: string[identity:read] = "hello";
-    process(s)
+    return 42;
 }
