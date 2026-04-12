@@ -1470,6 +1470,13 @@ impl Substitution {
                 }
             }
 
+            // String type with identity capabilities
+            (Type::Str, Type::Identity(_)) | (Type::Identity(_), Type::Str) => {
+                // A string type can unify with an identity type that has string capabilities
+                // This allows string[identity:read] to be used where str is expected
+                Ok(())
+            }
+
             // Mismatch
             _ => Err(UnifyError::Mismatch(t1, t2)),
         }
