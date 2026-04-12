@@ -1923,8 +1923,12 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 }
             }
             MirStmt::VoidCall { func, args } => {
+                // DEBUG
+                eprintln!("[CODEGEN DEBUG] VoidCall func={}, args={}", func, args.len());
+                
                 // === NEW: println(i64) support via printf (bypasses get_function) ===
                 if func == "println" && !args.is_empty() {
+                    eprintln!("[CODEGEN DEBUG] Handling println with {} args", args.len());
                     let val = self.gen_expr_safe(&args[0], exprs);
                     let format_str = self.create_global_string("%lld\n");
                     let format_ptr = self

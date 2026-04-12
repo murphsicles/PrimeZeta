@@ -762,6 +762,28 @@ impl MirGen {
                     method, receiver, args, type_args
                 );
 
+                // SPECIAL HANDLING: println generates VoidCall not Call
+                println!("[MIR GEN DEBUG] Checking println: method='{}', receiver.is_none()={}", method, receiver.is_none());
+                if method.as_str() == "println" && receiver.is_none() {
+                    println!("[MIR GEN DEBUG] Converting println to VoidCall, args len={}", args.len());
+                    
+                    let mut arg_ids = vec![];
+                    for a in args {
+                        arg_ids.push(self.lower_expr(a));
+                    }
+                    
+                    self.stmts.push(MirStmt::VoidCall {
+                        func: "println".to_string(),
+                        args: arg_ids,
+                    });
+                    
+                    // Unit return
+                    let unit_id = self.next_id();
+                    self.exprs.insert(unit_id, MirExpr::Lit(0));
+                    self.type_map.insert(unit_id, Type::Tuple(vec![]));
+                    return unit_id;
+                }
+
                 // SPECIAL HANDLING: If method is "call" and receiver is a function name,
                 // generate direct function call instead of call_i64
                 if method == "call" {

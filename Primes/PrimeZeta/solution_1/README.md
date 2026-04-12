@@ -4,10 +4,10 @@
 
 **Algorithm**: Murphy's Sieve with 30030-wheel optimization  
 **Faithful**: yes  
-**Bits per candidate**: 1  
+**Bits per candidate**: 8  
 **Parallel**: no
 
-**Tags**: algorithm=wheel, faithful=yes, bits=1, parallel=no  
+**Tags**: algorithm=wheel, faithful=yes, bits=8, parallel=no  
 
 ## Implementation
 

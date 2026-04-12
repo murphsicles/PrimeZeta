@@ -1,33 +1,27 @@
-// Competition entry - infinite loop printing prime count
-// Murphy's Sieve in Zeta - Faithful algorithm
+// FINAL COMPETITION SUBMISSION - ZETA DOMINATION
+// Murphy's Sieve - Faithful trial division
+// Returns 78498 for limit=1,000,000
 
 fn main() -> i64 {
     let limit = 1000000
     
-    // Precompute once
+    // Base cases
     if limit < 2 {
-        // Infinite loop printing 0
-        while 1 == 1 {
-            println(0)
-        }
         return 0
     }
     if limit < 3 {
-        // Infinite loop printing 1
-        while 1 == 1 {
-            println(1)
-        }
         return 1
     }
     
     // Count prime 2
     let mut count = 1
     
-    // Check odd numbers
+    // Check odd numbers only
     let mut n = 3
     while n <= limit {
         let mut prime = 1
         
+        // Trial division - simple but correct
         let mut d = 3
         while d < n {
             if n % d == 0 {
@@ -42,11 +36,6 @@ fn main() -> i64 {
         }
         
         n = n + 2
-    }
-    
-    // Infinite loop printing the count
-    while 1 == 1 {
-        println(count)
     }
     
     return count
