@@ -155,6 +155,10 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
         let println_fn = crate::runtime::std::std_println as *const () as usize;
         ee.add_global_mapping(&f, println_fn);
     }
+    if let Some(f) = codegen.module.get_function("println_i64") {
+        let println_i64_fn = crate::runtime::io::println_i64 as *const () as usize;
+        ee.add_global_mapping(&f, println_i64_fn);
+    }
     if let Some(f) = codegen.module.get_function("args") {
         let args_fn = crate::runtime::std::std_args as *const () as usize;
         ee.add_global_mapping(&f, args_fn);

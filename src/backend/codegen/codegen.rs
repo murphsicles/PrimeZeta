@@ -1930,17 +1930,16 @@ impl<'ctx> LLVMCodegen<'ctx> {
                 if func == "println" && !args.is_empty() {
                     eprintln!("[CODEGEN DEBUG] Handling println with {} args", args.len());
                     let val = self.gen_expr_safe(&args[0], exprs);
-                    // Call printf directly (C standard library)
-                    let format_str = self.create_global_string("%lld\n");
-                    // printf expects pointer to format string, not integer
-                    let _ = self
-                        .builder
-                        .build_call(
-                            self.module.get_function("printf").unwrap(),
-                            &[format_str.into(), val.into()],
-                            "println_call",
-                        )
-                        .unwrap();
+                    // Call Zeta runtime function println_i64 (no C dependencies)
+                    if let Some(println_i64_fn) = self.module.get_function("println_i64") {
+                        let _ = self
+                            .builder
+                            .build_call(println_i64_fn, &[val.into()], "println_call")
+                            .unwrap();
+                    } else {
+                        // Fallback (should not happen)
+                        eprintln!("[CODEGEN ERROR] println_i64 not found!");
+                    }
                     return;
                 }
 
