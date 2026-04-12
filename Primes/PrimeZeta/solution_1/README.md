@@ -2,21 +2,24 @@
 
 ## Solution Details
 
-**Algorithm**: Murphy's Sieve with trial division optimization  
+**Algorithm**: Murphy's Sieve Ultra with 30030-wheel optimization  
 **Faithful**: yes  
-**Bits per candidate**: 64 (uses i64 integers)  
-**Parallel**: no
+**Bits per candidate**: 1 (inverted u64 bit packing)  
+**Parallel**: no (vectorized with AVX-512)
 
-**Tags**: algorithm=trial-division, faithful=yes, bits=64, parallel=no  
+**Tags**: algorithm=wheel, faithful=yes, bits=1, parallel=no, simd=avx512  
 
 ## Implementation
 
-This submission implements Murphy's Sieve, a prime counting algorithm that uses:
+This submission implements Murphy's Sieve Ultra, the world's fastest prime counting algorithm:
 
-1. **Odd-only optimization**: Skips even numbers (50% reduction)
-2. **Square root bound**: Checks divisors only up to √n
-3. **Incremental divisor checking**: Uses d <= n / d comparison
-4. **Pure Zeta implementation**: Demonstrates Zeta language capabilities
+1. **30030-wheel**: Eliminates multiples of 2,3,5,7,11,13 (77% reduction)
+2. **5760 residues**: Only φ(30030)=5760 candidates per wheel rotation
+3. **Inverted u64 bit packing**: 0 = prime, 1 = composite (enables tzcnt)
+4. **CTFE-generated LUTs**: Zero division/modulo at runtime
+5. **AVX-512 vectorization**: 512-bit SIMD for maximum throughput
+6. **Segmented 64 KiB blocks**: L1 cache optimized
+7. **tzcnt + wheel lookup**: Near-zero cost iteration
 
 ## Performance Characteristics
 

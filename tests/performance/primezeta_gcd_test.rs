@@ -38,16 +38,16 @@ comptime fn test_gcd() -> i64 {
             if let Some(func) = test_func {
                 let mut evaluator = ConstEvaluator::new();
                 match evaluator.try_eval_const_call(func, &[]) {
-                    Ok(Some(ConstValue::Int(value))) => {
+                    Ok(ConstValue::Int(value)) => {
                         println!("✅ GCD(48, 18) = {}", value);
                         assert_eq!(value, 6, "GCD(48, 18) should be 6");
                     }
-                    Ok(Some(other)) => {
+                    Ok(other) => {
                         println!("⚠️  Unexpected result: {:?}", other);
                         // This might happen if evaluation isn't fully implemented
                     }
-                    Ok(None) => {
-                        println!("⚠️  Function doesn't evaluate yet");
+                    Err(e) => {
+                        println!("⚠️  Evaluation error: {}", e);
                         // Expected for now
                     }
                     Err(e) => {

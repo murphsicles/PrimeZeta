@@ -507,4 +507,21 @@ impl QuantumChannel {
                     for k in 0..size {
                         for l in 0..size {
                             temp[i][j] = temp[i][j] + 
-                                kraus.matrix[i][k] * density_matrix.m
+                                kraus.matrix[i][k] * density_matrix.matrix[k][l] * kraus.matrix[j][l].conj();
+                        }
+                    }
+                }
+            }
+            
+            // Add weighted temp to new_matrix
+            for i in 0..size {
+                for j in 0..size {
+                    new_matrix[i][j] = new_matrix[i][j] + weight * temp[i][j];
+                }
+            }
+        }
+        
+        // Update density matrix
+        density_matrix.matrix = new_matrix;
+    }
+}
