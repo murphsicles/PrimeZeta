@@ -45,14 +45,11 @@ comptime fn answer() -> i64 {
             let mut evaluator = ConstEvaluator::new();
             if let Some(func) = ast.first() {
                 match evaluator.try_eval_const_call(func, &[]) {
-                    Ok(Some(ConstValue::Int(value))) => {
+                    Ok(ConstValue::Int(value)) => {
                         assert_eq!(value, 42, "Should evaluate to 42");
                     }
-                    Ok(Some(other)) => {
+                    Ok(other) => {
                         panic!("Expected integer, got {:?}", other);
-                    }
-                    Ok(None) => {
-                        panic!("Should evaluate to Some value");
                     }
                     Err(e) => {
                         panic!("Evaluation error: {}", e);
@@ -84,19 +81,15 @@ comptime fn array_test() -> [i64; 3] {
             let mut evaluator = ConstEvaluator::new();
             if let Some(func) = ast.first() {
                 match evaluator.try_eval_const_call(func, &[]) {
-                    Ok(Some(ConstValue::Array(arr))) => {
+                    Ok(ConstValue::Array(arr)) => {
                         assert_eq!(arr.len(), 3, "Array should have 3 elements");
                         assert_eq!(arr[0], ConstValue::Int(1), "First element should be 1");
                         assert_eq!(arr[1], ConstValue::Int(2), "Second element should be 2");
                         assert_eq!(arr[2], ConstValue::Int(3), "Third element should be 3");
                     }
-                    Ok(Some(other)) => {
+                    Ok(other) => {
                         // For now, arrays might not evaluate - that's OK
                         println!("Note: Array evaluation returned {:?}", other);
-                    }
-                    Ok(None) => {
-                        // This is expected until array evaluation is fully implemented
-                        println!("Note: Array evaluation returned None");
                     }
                     Err(e) => {
                         panic!("Evaluation error: {}", e);

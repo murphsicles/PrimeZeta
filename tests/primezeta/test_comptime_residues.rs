@@ -42,7 +42,7 @@ comptime fn generate_residues() -> [NUM_RESIDUES]u64 {
             // Try to evaluate it
             let mut evaluator = ConstEvaluator::new();
             match evaluator.try_eval_const_call(comptime_func.unwrap(), &[]) {
-                Ok(Some(ConstValue::Array(arr))) => {
+                Ok(ConstValue::Array(arr)) => {
                     println!("✅ Comptime function evaluates to array with {} elements", arr.len());
                     // Check array contents
                     let expected = vec![
@@ -57,13 +57,9 @@ comptime fn generate_residues() -> [NUM_RESIDUES]u64 {
                     // evaluate assignment statements in comptime functions
                     println!("  Array contents: {:?}", arr);
                 }
-                Ok(Some(other)) => {
+                Ok(other) => {
                     println!("⚠️  Comptime function evaluates to: {:?}", other);
                     // This is OK for now - we're still building the infrastructure
-                }
-                Ok(None) => {
-                    println!("⚠️  Comptime function doesn't evaluate yet");
-                    // This is expected until we implement full comptime evaluation
                 }
                 Err(e) => {
                     println!("❌ Evaluation error: {}", e);

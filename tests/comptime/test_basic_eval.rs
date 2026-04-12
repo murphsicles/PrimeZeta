@@ -23,12 +23,14 @@ comptime fn answer() -> i64 {
                 let mut evaluator = ConstEvaluator::new();
                 if let Some(func) = ast.first() {
                     match evaluator.try_eval_const_call(func, &[]) {
-                        Ok(Some(value)) => {
+                        Ok(value) => {
                             println!("✅ Evaluates to: {}", value);
-                            assert_eq!(value, 42, "Expected 42, got {}", value);
-                        }
-                        Ok(None) => {
-                            println!("❌ Does not evaluate (returns None)");
+                            // Note: value is ConstValue, not i64
+                            if let zetac::middle::const_eval::ConstValue::Int(int_value) = value {
+                                assert_eq!(int_value, 42, "Expected 42, got {}", int_value);
+                            } else {
+                                println!("❌ Expected integer, got {:?}", value);
+                            }
                         }
                         Err(e) => {
                             println!("❌ Evaluation error: {}", e);
@@ -63,12 +65,13 @@ comptime fn add() -> i64 {
                 let mut evaluator = ConstEvaluator::new();
                 if let Some(func) = ast.first() {
                     match evaluator.try_eval_const_call(func, &[]) {
-                        Ok(Some(value)) => {
+                        Ok(value) => {
                             println!("✅ Evaluates to: {}", value);
-                            assert_eq!(value, 42, "Expected 42, got {}", value);
-                        }
-                        Ok(None) => {
-                            println!("❌ Does not evaluate (returns None)");
+                            if let zetac::middle::const_eval::ConstValue::Int(int_value) = value {
+                                assert_eq!(int_value, 42, "Expected 42, got {}", int_value);
+                            } else {
+                                println!("❌ Expected integer, got {:?}", value);
+                            }
                         }
                         Err(e) => {
                             println!("❌ Evaluation error: {}", e);
@@ -103,12 +106,13 @@ comptime fn with_return() -> i64 {
                 let mut evaluator = ConstEvaluator::new();
                 if let Some(func) = ast.first() {
                     match evaluator.try_eval_const_call(func, &[]) {
-                        Ok(Some(value)) => {
+                        Ok(value) => {
                             println!("✅ Evaluates to: {}", value);
-                            assert_eq!(value, 42, "Expected 42, got {}", value);
-                        }
-                        Ok(None) => {
-                            println!("❌ Does not evaluate (returns None)");
+                            if let zetac::middle::const_eval::ConstValue::Int(int_value) = value {
+                                assert_eq!(int_value, 42, "Expected 42, got {}", int_value);
+                            } else {
+                                println!("❌ Expected integer, got {:?}", value);
+                            }
                         }
                         Err(e) => {
                             println!("❌ Evaluation error: {}", e);
