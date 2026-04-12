@@ -725,6 +725,27 @@ impl Resolver {
             ),
         );
 
+        // Basic I/O functions
+        // print(value: i64) -> ()
+        self.funcs.insert(
+            "print".to_string(),
+            (
+                vec![("value".to_string(), Type::I64)],
+                Type::Tuple(vec![]), // void
+                false, // not async
+            ),
+        );
+
+        // println(value: i64) -> ()
+        self.funcs.insert(
+            "println".to_string(),
+            (
+                vec![("value".to_string(), Type::I64)],
+                Type::Tuple(vec![]), // void
+                false, // not async
+            ),
+        );
+
         // read_write_string(value: str) -> identity(value)[read, write]
         self.funcs.insert(
             "read_write_string".to_string(),
