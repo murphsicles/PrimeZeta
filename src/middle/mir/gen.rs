@@ -628,6 +628,13 @@ impl MirGen {
                                     rhs: *lhs,
                                 });
                             }
+                            MirStmt::If { dest: Some(if_dest), .. } => {
+                                // Block ends with if expression - use its destination
+                                block_stmts.push(MirStmt::Assign {
+                                    lhs: dest,
+                                    rhs: *if_dest,
+                                });
+                            }
                             MirStmt::Return { val } => {
                                 // Block ends with return - can't assign to dest
                                 // (function returns, dest unused)
