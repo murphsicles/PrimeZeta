@@ -118,7 +118,7 @@ path = "tests/error_handling.rs"
 
 [[test]]
 name = "integration_error_handling"
-path = "tests/integration_error_handling.rs"
+path = "tests/integration/integration_error_handling.rs"
 
 [[test]]
 name = "comptime_eval"
