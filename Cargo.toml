@@ -114,7 +114,7 @@ tempfile = "3.10.0"
 # Test configurations
 [[test]]
 name = "error_handling"
-path = "tests/error_handling.rs"
+path = "tests/unit/error_handling.rs"
 
 [[test]]
 name = "integration_error_handling"
@@ -130,7 +130,7 @@ path = "tests/primezeta/test_comptime_residues.rs"
 
 [[test]]
 name = "primezeta_gcd"
-path = "tests/primezeta_gcd_test.rs"
+path = "tests/performance/primezeta_gcd_test.rs"
 
 [[test]]
 name = "concurrency_parse"
@@ -196,7 +196,7 @@ path = "tests/quantum-computing/test_runner.rs"
 # Quantum Module Basic Tests
 [[test]]
 name = "quantum_module_basic"
-path = "tests/quantum_module_test.rs"
+path = "tests/unit/quantum_module_test.rs"
 
 # Distributed Systems Tests for v0.3.47
 [[test]]
@@ -206,7 +206,7 @@ path = "tests/distributed-systems/test_runner.rs"
 # Teranode Integration Tests for v0.3.50
 [[test]]
 name = "teranode_integration"
-path = "tests/teranode_integration.rs"
+path = "tests/integration/teranode_integration.rs"
 
 # Benchmark configurations.
 [[bench]]
