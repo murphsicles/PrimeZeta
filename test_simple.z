@@ -1,3 +1,3 @@
-main() -> i64 {
-    return 42;
+main() -> u64 {
+    42
 }
