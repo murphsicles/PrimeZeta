@@ -55,24 +55,33 @@ Massive progress day: **v0.3.78 → v0.3.89** in one day (11 versions!)
 
 ## v0.3.90 Progress - Wheel Factorization (2-3-5) + Proper Wheel Increments
 **STATUS**: 🚀 **IN PROGRESS**
-**TIMESTAMP**: Tuesday, April 14th, 2026 - 00:00 (Europe/London)
+**TIMESTAMP**: Tuesday, April 14th, 2026 - 00:45 (Europe/London)
 
 ### Current Work:
 - **Test files created**: `murphy_sieve_v090_wheel.z`, `murphy_sieve_v090_wheel23.z`, `murphy_sieve_v090_segmented.z`, `murphy_sieve_v090_30wheel.z`, `murphy_sieve_v090_30wheel_simple.z`, `murphy_sieve_v090_30wheel_test.z`
+- **Additional test files**: `murphy_sieve_v090_30wheel_minimal_test.z`, `murphy_sieve_v090_30wheel_basic_test.z`, `murphy_sieve_v090_30wheel_simple_test.z`
 - **Implementation needed**: Proper 30-wheel (2-3-5) with 8 residues
 - **Performance target**: 5,000-7,000 passes/5s (1.4-2x improvement over v0.3.89)
 - **Current performance**: ~3,552 passes/5s (v0.3.89 baseline)
-- **Issues identified**: `popcount_hw` and `datetime_now` not recognized as built-in functions in type checker
+
+### Progress Made:
+1. ✅ **Fixed built-in function registration for `popcount_hw` and `datetime_now`** - Added to `register_builtin_functions()` in `src/middle/resolver/resolver.rs`
+2. ✅ **Created simplified test files** to avoid string operations and complex array indexing
+3. **Identified type checking issues** with array indexing syntax `residues[idx]` - may need to use `array_get(residues, idx)` instead
+
+### Issues Identified:
+- **Array indexing syntax**: `residues[idx]` causes type mismatch (expected i64, found ()) - Zeta may require `array_get(residues, idx)`
+- **String operations**: Test files using string concatenation and `println` with strings fail - Zeta's `println` expects `i64`, not `str`
+- **Missing `println_str`**: `println_str` exists in runtime but not registered in resolver
 
 ### Next Steps:
-1. Fix built-in function registration for `popcount_hw` and `datetime_now`
-2. Implement proper 30-wheel residue mapping (numbers coprime to 30)
-3. Create wheel increment tables for each prime residue class
-4. Test and benchmark the 30-wheel implementation
-5. Compare with segmented sieve approach
+1. Fix array indexing in test files (use `array_get` instead of `[]` syntax)
+2. Register `println_str` in resolver if needed for debugging
+3. Implement proper 30-wheel sieve with wheel increment tables
+4. Test and benchmark the implementation
 
 ### Blockers:
-- Need to register `popcount_hw` and `datetime_now` as built-in functions in the resolver/type checker
+- Type checking issues with array syntax - need to understand Zeta's array indexing model
 
 ### Priority 1: Wheel Factorization (2-3-5) - 30-wheel
 - **Why**: Skip multiples of 2, 3, 5 — only check numbers coprime to 30 (8 residues)
