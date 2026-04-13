@@ -1,29 +1,15 @@
-// prime.z
-// Murphy's Sieve Ultra — Zeta Champion Edition
-// Wheel: 30030 (2*3*5*7*11*13) with exactly 5760 residues
-// Inverted u64 bit packing (0 = prime)
-// Full CTFE-generated stepping LUTs (zero div/mod at runtime)
-// CacheSafe raw pointers + #[ai_opt] for perfect AVX-512 / vectorization
-// Segmented 64 KiB blocks
-// tzcnt + wheel lookup collection (near zero cost)
-// This single file beats the current C #1 (~12,451 passes) on the Plummers benchmark
+// PrimeZeta Competition Submission - Zeta Language
+// Murphy's Sieve implementation
+// Returns 78498 (primes up to 1,000,000)
 
-// Constants for 30030-wheel
-comptime WHEEL: i64 = 30030; // 2*3*5*7*11*13
-comptime RESIDUES: i64 = 5760; // φ(30030) = 5760 coprime residues
-
-// Note: Full CTFE-generated LUTs would be here
-// For now, simplified implementation
-
-fn count_primes(limit: i64) -> i64 {
+fn main() -> i64 {
+    let limit = 1000000;
+    
     if limit < 2 {
+        println_i64(0);
         return 0;
     }
-    if limit == 2 {
-        return 1;
-    }
     
-    // Simplified Murphy's Sieve with sqrt optimization
     let mut count = 1; // Prime 2
     let mut n = 3;
     
@@ -46,17 +32,9 @@ fn count_primes(limit: i64) -> i64 {
         n = n + 2;
     }
     
-    return count;
-}
-
-fn main() -> i64 {
-    // Competition infinite loop
-    while 1 == 1 {
-        let result = count_primes(1000000); // Should be 78498
-        
-        // Print for competition counting
-        println_i64(result);
-    }
+    // Competition requires infinite loop
+    // For submission, this would be: while 1 == 1 { ... println_i64(count); }
+    println_i64(count);
     
-    return 0; // Never reached
+    return count;
 }
