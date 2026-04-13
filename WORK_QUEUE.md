@@ -1,14 +1,14 @@
 # WORK QUEUE - Zeta Bootstrap Project
 
-## Current Status: v0.3.89 - WHEEL FACTORIZATION (2-3) + ARRAY_FILL OPTIMIZATION (April 13, 2026 - 23:30 UTC)
-**STATUS**: ✅ **COMPLETED AND PUSHED TO GITHUB**
+## Current Status: v0.3.90 - WHEEL FACTORIZATION (2-3-5) + PROPER WHEEL INCREMENTS (April 14, 2026 - 00:00 UTC)
+**STATUS**: 🚀 **IN PROGRESS**
 
 **COMPILER STATUS**: ✅ **ZERO WARNINGS** - All 241 warnings eliminated (100% reduction)
 **LIBRARY TESTS**: ✅ **106/106 PASSING**
 **FULL TEST SUITE**: ✅ **185+ tests, 0 failures** - All test suites green
 **HEAP ALLOCATION**: ✅ **WORKING** - Sieve of Eratosthenes verified up to 1,000,000
 **COMPETITION SIEVE**: ✅ **~3,552 passes/5s** (1.53x improvement over v0.3.88's 2,324)
-**VERSION**: v0.3.89
+**VERSION**: v0.3.89 (COMPLETED)
 
 ## v0.3.89 Changes (April 13, 2026 - 23:30 UTC)
 
@@ -53,9 +53,26 @@ Massive progress day: **v0.3.78 → v0.3.89** in one day (11 versions!)
 - **v0.3.88**: Hardware popcount intrinsic + array reuse: 2,324 passes/5s (5.35x vs baseline)
 - **v0.3.89**: Wheel factorization (2-3) + array_fill optimization: ~3,552 passes/5s (8.18x vs baseline)
 
-## Next Version: v0.3.90 - Wheel Factorization (2-3-5) + Proper Wheel Increments
-**STATUS**: 🚀 **READY TO START**
-**TIMESTAMP**: Monday, April 13th, 2026 - 23:30 (Europe/London)
+## v0.3.90 Progress - Wheel Factorization (2-3-5) + Proper Wheel Increments
+**STATUS**: 🚀 **IN PROGRESS**
+**TIMESTAMP**: Tuesday, April 14th, 2026 - 00:00 (Europe/London)
+
+### Current Work:
+- **Test files created**: `murphy_sieve_v090_wheel.z`, `murphy_sieve_v090_wheel23.z`, `murphy_sieve_v090_segmented.z`, `murphy_sieve_v090_30wheel.z`, `murphy_sieve_v090_30wheel_simple.z`, `murphy_sieve_v090_30wheel_test.z`
+- **Implementation needed**: Proper 30-wheel (2-3-5) with 8 residues
+- **Performance target**: 5,000-7,000 passes/5s (1.4-2x improvement over v0.3.89)
+- **Current performance**: ~3,552 passes/5s (v0.3.89 baseline)
+- **Issues identified**: `popcount_hw` and `datetime_now` not recognized as built-in functions in type checker
+
+### Next Steps:
+1. Fix built-in function registration for `popcount_hw` and `datetime_now`
+2. Implement proper 30-wheel residue mapping (numbers coprime to 30)
+3. Create wheel increment tables for each prime residue class
+4. Test and benchmark the 30-wheel implementation
+5. Compare with segmented sieve approach
+
+### Blockers:
+- Need to register `popcount_hw` and `datetime_now` as built-in functions in the resolver/type checker
 
 ### Priority 1: Wheel Factorization (2-3-5) - 30-wheel
 - **Why**: Skip multiples of 2, 3, 5 — only check numbers coprime to 30 (8 residues)
