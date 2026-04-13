@@ -715,61 +715,78 @@ impl<'ctx> LLVMCodegen<'ctx> {
         // by the code generator (see is_operator and MirStmt::Call handling)
 
         // === SIMD INTRINSIC DECLARATIONS ===
-        // Vector splat operations
+        // Vector splat operations (return i64 pointers to heap-allocated vectors)
         module.add_function(
             "simd_splat_i32x4",
-            vec4_i64_type.fn_type(&[i64_type.into()], false),
+            i64_type.fn_type(&[i64_type.into()], false),
             Some(Linkage::External),
         );
         module.add_function(
             "simd_splat_i64x2",
-            i64_type.vec_type(2).fn_type(&[i64_type.into()], false),
+            i64_type.fn_type(&[i64_type.into()], false),
             Some(Linkage::External),
         );
         module.add_function(
             "simd_splat_f32x4",
-            f64_type.vec_type(4).fn_type(&[f64_type.into()], false),
+            i64_type.fn_type(&[i64_type.into()], false),
             Some(Linkage::External),
         );
 
-        // Vector arithmetic operations
+        // Vector arithmetic operations (take i64 pointers, return i64 pointer)
         module.add_function(
             "simd_add_i32x4",
-            vec4_i64_type.fn_type(&[vec4_i64_type.into(), vec4_i64_type.into()], false),
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
         );
         module.add_function(
             "simd_mul_i32x4",
-            vec4_i64_type.fn_type(&[vec4_i64_type.into(), vec4_i64_type.into()], false),
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
         );
         module.add_function(
             "simd_sub_i32x4",
-            vec4_i64_type.fn_type(&[vec4_i64_type.into(), vec4_i64_type.into()], false),
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
         );
 
         // Vector load/store operations
         module.add_function(
             "simd_load_i32x4",
-            vec4_i64_type.fn_type(&[ptr_type.into()], false),
+            i64_type.fn_type(&[i64_type.into()], false),
             Some(Linkage::External),
         );
         module.add_function(
             "simd_store_i32x4",
-            void_type.fn_type(&[ptr_type.into(), vec4_i64_type.into()], false),
+            void_type.fn_type(&[i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
         );
 
         // Vector extract/insert operations
         module.add_function(
             "simd_extract_i32x4",
-            i64_type.fn_type(&[vec4_i64_type.into(), i64_type.into()], false),
+            i64_type.fn_type(&[i64_type.into(), i64_type.into()], false),
             Some(Linkage::External),
         );
         module.add_function(
             "simd_insert_i32x4",
-            vec4_i64_type.fn_type(&[vec4_i64_type.into(), i64_type.into(), i64_type.into()], false),
+            i64_type.fn_type(&[i64_type.into(), i64_type.into(), i64_type.into()], false),
+            Some(Linkage::External),
+        );
+
+        // SIMD free functions
+        module.add_function(
+            "simd_free_i32x4",
+            void_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "simd_free_i64x2",
+            void_type.fn_type(&[i64_type.into()], false),
+            Some(Linkage::External),
+        );
+        module.add_function(
+            "simd_free_f32x4",
+            void_type.fn_type(&[i64_type.into()], false),
             Some(Linkage::External),
         );
 
@@ -2671,6 +2688,9 @@ impl<'ctx> LLVMCodegen<'ctx> {
             Type::Char => self.context.i32_type().into(), // Unicode scalar value
             Type::Str => self.context.ptr_type(AddressSpace::default()).into(),
             Type::Range => self.context.struct_type(&[self.context.i64_type().into(), self.context.i64_type().into()], false).into(),
+            Type::I32x4 => self.context.i32_type().array_type(4).into(),
+            Type::I64x2 => self.context.i64_type().array_type(2).into(),
+            Type::F32x4 => self.context.f32_type().array_type(4).into(),
             Type::Array(element_type, size) => {
                 let element_llvm_type = self.type_to_llvm_type(element_type);
                 let array_size = match size {

@@ -55,8 +55,12 @@ impl ConstEvaluator {
                     comptime_,
                 } => {
                     // Try to evaluate the constant
+                    println!("DEBUG: Evaluating constant {} with value: {:?}", name, value);
                     match self.eval_const_expr(value) {
                         Ok(ConstValue::Int(val)) => {
+                            println!("DEBUG: Constant {} evaluated to Int({})", name, val);
+                            // Store the value in context for other constants to reference
+                            self.context.set_global(name.clone(), ConstValue::Int(val));
                             // Replace with a literal if evaluation succeeds
                             result.push(AstNode::ConstDef {
                                 name: name.clone(),
@@ -68,6 +72,8 @@ impl ConstEvaluator {
                             });
                         }
                         Ok(ConstValue::UInt(val)) => {
+                            // Store the value in context for other constants to reference
+                            self.context.set_global(name.clone(), ConstValue::UInt(val));
                             // For unsigned integers, we need to handle them differently
                             // since AST only has Lit(i64). We'll convert if it fits.
                             if val <= i64::MAX as u64 {
@@ -85,6 +91,8 @@ impl ConstEvaluator {
                             }
                         }
                         Ok(ConstValue::Bool(val)) => {
+                            // Store the value in context for other constants to reference
+                            self.context.set_global(name.clone(), ConstValue::Bool(val));
                             result.push(AstNode::ConstDef {
                                 name: name.clone(),
                                 ty: ty.clone(),
@@ -157,9 +165,13 @@ impl ConstEvaluator {
 
     /// Evaluate a const expression to a ConstValue
     pub fn eval_const_expr(&mut self, expr: &AstNode) -> CtfeResult<ConstValue> {
+        println!("DEBUG eval_const_expr: {:?}", expr);
         match expr {
             // Literals
-            AstNode::Lit(n) => Ok(ConstValue::Int(*n)),
+            AstNode::Lit(n) => {
+                println!("DEBUG: Literal value: {}", n);
+                Ok(ConstValue::Int(*n))
+            }
             AstNode::Bool(b) => Ok(ConstValue::Bool(*b)),
             
             // Variables

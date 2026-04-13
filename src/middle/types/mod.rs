@@ -102,6 +102,11 @@ pub enum Type {
     F32,
     F64,
 
+    // SIMD vector types (specific variants for common sizes)
+    I32x4,  // SIMD vector of 4 i32 elements
+    I64x2,  // SIMD vector of 2 i64 elements
+    F32x4,  // SIMD vector of 4 f32 elements
+
     // Other primitives
     Bool,
     Char,
@@ -265,6 +270,10 @@ impl Type {
             "bool" => Type::Bool,
             "char" => Type::Char,
             "str" => Type::Str,
+            // SIMD vector types
+            "i32x4" => Type::I32x4,
+            "i64x2" => Type::I64x2,
+            "f32x4" => Type::F32x4,
             // Check for identity type: identity("value")[read, write]
             s if s.starts_with("identity(") => {
                 // For now, just create a basic identity type
@@ -602,6 +611,10 @@ impl Type {
             Type::Char => "char".to_string(),
             Type::Str => "str".to_string(),
             Type::Range => "Range".to_string(),
+            // SIMD vector types
+            Type::I32x4 => "i32x4".to_string(),
+            Type::I64x2 => "i64x2".to_string(),
+            Type::F32x4 => "f32x4".to_string(),
             Type::Array(inner, size) => format!("[{}; {}]", inner.display_name(), size),
             Type::Slice(inner) => format!("[{}]", inner.display_name()),
             Type::DynamicArray(inner) => format!("[dynamic]{}", inner.display_name()),
@@ -696,6 +709,9 @@ impl Type {
             Type::Char => "char".to_string(),
             Type::Str => "str".to_string(),
             Type::Range => "Range".to_string(),
+            Type::I32x4 => "I32x4".to_string(),
+            Type::I64x2 => "I64x2".to_string(),
+            Type::F32x4 => "F32x4".to_string(),
             Type::Array(inner, size) => format!("Array_{}_{}", inner.mangled_name(), size),
             Type::Slice(inner) => format!("Slice_{}", inner.mangled_name()),
             Type::DynamicArray(inner) => format!("DynamicArray_{}", inner.mangled_name()),
