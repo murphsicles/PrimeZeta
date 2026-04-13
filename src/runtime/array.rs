@@ -65,11 +65,8 @@ unsafe fn check_canary(header: *const ArrayHeader) -> bool {
 /// Returns a pointer to data (after ArrayHeader), not to header
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn array_new(capacity: usize) -> i64 {
-    println!("[ARRAY_NEW] Called with capacity = {}", capacity);
-    if capacity == 0 {
-        println!("[ARRAY_NEW] Returning 0 because capacity == 0");
-        return 0;
-    }
+    // Just return a constant, no function calls
+    return 0x0BADF00D;
     
     // Calculate total size: header + data
     let elem_size = std::mem::size_of::<i64>();
@@ -228,6 +225,11 @@ pub unsafe extern "C" fn array_get(ptr: i64, index: i64) -> i64 {
 pub unsafe extern "C" fn array_set(ptr: i64, index: i64, value: i64) {
     println!("[ARRAY_SET] Called with ptr = {}, index = {}, value = {}", ptr, index, value);
     if ptr == 0 {
+        println!("[ARRAY_SET] ptr is 0, returning");
+        return;
+    }
+    println!("[ARRAY_SET] Called with ptr = {}, index = {}, value = {}", ptr, index, value);
+    if ptr == 0 {
         println!("[ARRAY_SET] ptr is 0, returning early");
         return;
     }
@@ -343,20 +345,31 @@ pub unsafe extern "C" fn array_push(ptr: i64, value: i64) {
 /// ptr must be a valid data pointer returned by array_new
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn array_set_len(ptr: i64, len: i64) {
+    println!("[ARRAY_SET_LEN] Called with ptr = {}, len = {}", ptr, len);
     if ptr == 0 {
+        println!("[ARRAY_SET_LEN] ptr is 0, returning");
         return;
     }
     
     let data_ptr = ptr as *mut i64;
+    println!("[ARRAY_SET_LEN] data_ptr = {:?}", data_ptr);
     let header = unsafe { get_header(data_ptr) };
+    println!("[ARRAY_SET_LEN] header = {:?}", header);
     
     // Check header integrity
     if unsafe { check_header(header) } {
+        println!("[ARRAY_SET_LEN] Valid heap array header detected");
         // This is a heap array with a valid header
         let capacity = unsafe { (*header).capacity };
+        println!("[ARRAY_SET_LEN] capacity = {}", capacity);
         if len >= 0 && (len as usize) <= capacity {
+            println!("[ARRAY_SET_LEN] Setting len = {}", len);
             unsafe { (*header).len = len as usize; }
+        } else {
+            println!("[ARRAY_SET_LEN] Invalid len {} for capacity {}", len, capacity);
         }
+    } else {
+        println!("[ARRAY_SET_LEN] Stack array or invalid header");
     }
     // For stack arrays, we don't have a length field
 }

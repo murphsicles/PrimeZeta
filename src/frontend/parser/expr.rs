@@ -227,7 +227,9 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
     };
 
     if is_macro.is_some() {
+        eprintln!("[DEBUG macro] path: {:?}, input: {:?}", method, input);
         let (input, delim_start) = ws(alt((tag("("), tag("["), tag("{")))).parse(input)?;
+        eprintln!("[DEBUG macro] delim_start: {:?}", delim_start);
         let close = match delim_start {
             "(" => ")",
             "[" => "]",
@@ -244,6 +246,7 @@ fn parse_path_expr(input: &str) -> IResult<&str, AstNode> {
             opt(ws(tag(","))),
         )
         .parse(input)?;
+        eprintln!("[DEBUG macro] args: {:?}", args);
         let (input, _) = ws(tag(close)).parse(input)?;
         Ok((input, AstNode::MacroCall { name: method, args }))
     } else {
@@ -599,8 +602,8 @@ pub fn parse_primary(input: &str) -> IResult<&str, AstNode> {
         parse_lit,
         parse_string_lit,
         parse_match_expr,   // Try match expression before identifier
-        parse_simple_ident, // Try SIMPLE ident FIRST (no generic args)
-        parse_path_expr,    // Then full path parser (handles struct literals)
+        parse_path_expr,    // Full path parser (handles paths with ::, generic args, struct literals)
+        parse_simple_ident, // Simple ident (no ::, no generic args) - AFTER path_expr
         parse_array_lit,
         parse_bool,
         parse_closure,

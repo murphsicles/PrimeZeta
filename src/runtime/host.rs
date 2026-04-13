@@ -572,7 +572,7 @@ struct DynamicArray {
 /// Returns a pointer to a heap-allocated DynamicArray
 #[unsafe(no_mangle)]
 #[allow(unsafe_op_in_unsafe_fn)]
-pub unsafe extern "C" fn array_new() -> i64 {
+pub unsafe extern "C" fn array_new_OLD_DUPLICATE() -> i64 {
     let arr = Box::new(DynamicArray {
         capacity: 0,
         length: 0,

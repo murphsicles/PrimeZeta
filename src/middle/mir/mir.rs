@@ -2,7 +2,7 @@
 use crate::middle::types::Type;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Mir {
     pub name: Option<String>,
     pub param_indices: Vec<(String, u32)>,
@@ -10,6 +10,21 @@ pub struct Mir {
     pub exprs: HashMap<u32, MirExpr>,
     pub ctfe_consts: HashMap<u32, i64>,
     pub type_map: HashMap<u32, Type>,
+    pub global_consts: HashMap<String, crate::middle::ctfe::value::ConstValue>,
+}
+
+impl Default for Mir {
+    fn default() -> Self {
+        Self {
+            name: None,
+            param_indices: Vec::new(),
+            stmts: Vec::new(),
+            exprs: HashMap::new(),
+            ctfe_consts: HashMap::new(),
+            type_map: HashMap::new(),
+            global_consts: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

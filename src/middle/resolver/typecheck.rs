@@ -318,10 +318,13 @@ impl Resolver {
     }
 
     pub fn ctfe_eval(&self, node: &AstNode) -> Option<i64> {
-        if let Some(&v) = self.ctfe_consts.get(node) {
-            return Some(v);
+        // Try to get constant value by name if it's a variable reference
+        if let AstNode::Var(name) = node {
+            if let Some(const_val) = self.ctfe_consts.get(name) {
+                return const_val.as_int();
+            }
         }
-
+        
         match node {
             AstNode::Lit(n) => Some(*n),
             AstNode::BinaryOp { op, left, right } => {

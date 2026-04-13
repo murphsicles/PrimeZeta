@@ -290,6 +290,7 @@ impl NetworkTransport {
     }
     
     /// Handle incoming connection
+    #[allow(dead_code)]
     async fn handle_connection(&self, mut stream: TcpStream, addr: SocketAddr) {
         println!("New connection from {}", addr);
         

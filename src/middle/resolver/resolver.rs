@@ -1,5 +1,5 @@
 // src/middle/resolver/resolver.rs
-//! # Resolver — Semantic Analysis & Monomorphization Engine
+//! # Resolver - Semantic Analysis & Monomorphization Engine
 //!
 //! Single source of truth for type resolution, specialization caching,
 //! borrow checking coordination, and MIR lowering.
@@ -36,7 +36,7 @@ pub struct Resolver {
     pub mono_mirs: HashMap<MonoKey, Mir>,
     pub borrow_checker: RefCell<BorrowChecker>,
     pub associated_types: HashMap<(String, String), String>,
-    pub ctfe_consts: HashMap<AstNode, i64>,
+    pub ctfe_consts: HashMap<String, crate::middle::ctfe::value::ConstValue>,
     funcs: HashMap<String, FuncSignature>,
     /// Registered function ASTs (including module functions)
     registered_funcs: HashMap<String, AstNode>,
@@ -296,14 +296,14 @@ impl Resolver {
                 ref name,
                 ref ty,
                 ref value,
-                attrs: _,
+                attrs: _, 
                 pub_: _,
                 comptime_: _,
             } => {
                 // Register constant for compile-time evaluation
-                // For now, we'll store it in ctfe_consts if it's a simple literal
-                if let AstNode::Lit(val) = **value {
-                    self.ctfe_consts.insert(ast.clone(), val);
+                // Try to convert AST value to ConstValue
+                if let Some(const_val) = self.ast_to_const_value(value) {
+                    self.ctfe_consts.insert(name.clone(), const_val);
                 }
                 // Also register as a function-like entity for name resolution
                 let typed_ret = self.string_to_type(ty);
@@ -446,8 +446,44 @@ impl Resolver {
     }
 
     pub fn lower_to_mir(&self, ast: &AstNode) -> Mir {
-        let mut mir_gen = crate::middle::mir::r#gen::MirGen::new();
+        let mut mir_gen = crate::middle::mir::r#gen::MirGen::new()
+            .with_global_consts(self.ctfe_consts.clone());
         mir_gen.lower_to_mir(ast)
+    }
+    
+    /// Convert AST node to ConstValue if it's a simple constant expression
+    fn ast_to_const_value(&self, ast: &AstNode) -> Option<crate::middle::ctfe::value::ConstValue> {
+        match ast {
+            AstNode::Lit(n) => Some(crate::middle::ctfe::value::ConstValue::Int(*n)),
+            AstNode::Bool(b) => Some(crate::middle::ctfe::value::ConstValue::Bool(*b)),
+            AstNode::ArrayLit(elements) => {
+                let mut const_elements = Vec::new();
+                for elem in elements {
+                    if let Some(const_elem) = self.ast_to_const_value(elem) {
+                        const_elements.push(const_elem);
+                    } else {
+                        return None;
+                    }
+                }
+                Some(crate::middle::ctfe::value::ConstValue::Array(const_elements))
+            }
+            AstNode::ArrayRepeat { value, size } => {
+                // Handle [value; size]
+                if let AstNode::Lit(size_lit) = &**size {
+                    let size_val = *size_lit as usize;
+                    if let Some(const_val) = self.ast_to_const_value(value) {
+                        // Repeat the value size_val times
+                        let mut const_elements = Vec::new();
+                        for _ in 0..size_val {
+                            const_elements.push(const_val.clone());
+                        }
+                        return Some(crate::middle::ctfe::value::ConstValue::Array(const_elements));
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
     }
 
     pub fn collect_used_specializations(
@@ -1153,7 +1189,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // array_push(arr: i64, value: i64) -> void
         self.funcs.insert(
             "array_push".to_string(),
@@ -1163,7 +1199,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // array_len(arr: i64) -> i64
         self.funcs.insert(
             "array_len".to_string(),
@@ -1173,7 +1209,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // array_get(arr: i64, index: i64) -> i64
         self.funcs.insert(
             "array_get".to_string(),
@@ -1183,7 +1219,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // array_set(arr: i64, index: i64, value: i64) -> void
         self.funcs.insert(
             "array_set".to_string(),
@@ -1193,7 +1229,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // array_free(arr: i64) -> void
         self.funcs.insert(
             "array_free".to_string(),
@@ -1203,7 +1239,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // Memory allocation functions
         // runtime_malloc(size: usize) -> i64 (pointer to allocated memory)
         self.funcs.insert(
@@ -1215,7 +1251,7 @@ impl Resolver {
             ),
         );
         // println!("[RESOLVER] Registered runtime_malloc"); // Disabled for performance
-        
+
         // map_get(map: i64, key: i64) -> i64
         self.funcs.insert(
             "map_get".to_string(),
@@ -1225,7 +1261,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // print_i64(value: i64) -> void
         self.funcs.insert(
             "print_i64".to_string(),
@@ -1235,7 +1271,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // println() -> void
         self.funcs.insert(
             "println".to_string(),
@@ -1251,7 +1287,7 @@ impl Resolver {
         self.funcs.insert(
             "Vector::new".to_string(),
             (
-                vec![("a0".to_string(), Type::U64), 
+                vec![("a0".to_string(), Type::U64),
                      ("a1".to_string(), Type::U64),
                      ("a2".to_string(), Type::U64),
                      ("a3".to_string(), Type::U64),
@@ -1272,7 +1308,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // SIMD runtime functions for Vector<u64, 8>
         self.funcs.insert(
             "vector_make_u64x8".to_string(),
@@ -1345,7 +1381,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // SIMD runtime functions for Vector<i32, 4>
         self.funcs.insert(
             "vector_make_i32x4".to_string(),
@@ -1414,7 +1450,7 @@ impl Resolver {
                 false, // not async
             ),
         );
-        
+
         // Disabled for performance
         // println!(
         //     "[RESOLVER] Registered built-in runtime functions: clone_i64, is_null_i64, to_string_str, to_string_i64, to_string_bool, array_new, array_push, array_len, array_get, array_set, array_free, runtime_malloc, map_get, print_i64, println, Vector::new, vector_make_u64x8, vector_add_i32x4, etc."

@@ -455,11 +455,12 @@ impl<'ctx> LLVMCodegen<'ctx> {
         }
         
         // Array runtime functions
-        module.add_function(
-            "array_new",
-            i64_type.fn_type(&[i64_type.into()], false),
-            Some(Linkage::External),
-        );
+        // Note: array_new already declared above (line 312)
+        // module.add_function(
+        //     "array_new",
+        //     i64_type.fn_type(&[i64_type.into()], false),
+        //     Some(Linkage::External),
+        // );
         module.add_function(
             "array_push",
             void_type.fn_type(&[i64_type.into(), i64_type.into()], false),
@@ -1135,6 +1136,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
     fn get_function(&self, name: &str) -> FunctionValue<'ctx> {
         eprintln!("[DEBUG get_function START] name = {}", name);
         if let Some(&f) = self.fns.get(name) {
+            eprintln!("[DEBUG get_function] Found {} in fns cache", name);
             return f;
         }
 
@@ -1315,9 +1317,9 @@ impl<'ctx> LLVMCodegen<'ctx> {
         }
 
         // Check if it's an external function declared in the module
-        eprintln!("[DEBUG get_function] Checking module for function: {}", name);
+        eprintln!("[DEBUG get_function] Checking module for function: {} (original name)", name);
         if let Some(f) = self.module.get_function(name) {
-            eprintln!("[DEBUG get_function] Found {} in module", name);
+            eprintln!("[DEBUG get_function] Found {} in module, function type: {:?}", name, f.get_type());
             return f;
         }
         
@@ -1611,17 +1613,16 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     // Handle unary operators
                     if args.len() == 1 && func == "!" {
                         let operand = self.gen_expr_safe(&args[0], exprs);
-                        // Logical NOT: convert to boolean (0 or 1) then invert
-                        let is_true = self
+                        // Logical NOT: (operand == 0)
+                        let is_false = self
                             .builder
                             .build_int_compare(
-                                inkwell::IntPredicate::NE,
+                                inkwell::IntPredicate::EQ,
                                 operand.into_int_value(),
                                 self.i64_type.const_zero(),
-                                "is_true",
+                                "is_false",
                             )
                             .unwrap();
-                        let is_false = self.builder.build_not(is_true, "not").unwrap();
                         let result = self
                             .builder
                             .build_int_z_extend(is_false, self.i64_type, "not_ext")
@@ -1885,6 +1886,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     }
                 } else {
                     // Regular function call
+                    eprintln!("[CODEGEN DEBUG] Regular Call func={}, args={}", func, args.len());
                     let callee = self.get_function_with_types(func, type_args);
 
                     // Check if this is a runtime function that takes pointer arguments
@@ -1963,34 +1965,9 @@ impl<'ctx> LLVMCodegen<'ctx> {
                     return;
                 }
 
-                // Handle array_set and stack_array_set specially for direct memory access
-                if (func == "array_set" || func == "stack_array_set") && args.len() == 3 {
-                    // Get array pointer, index, and value
-                    let array_ptr_val = self.gen_expr_safe(&args[0], exprs).into_int_value();
-                    let index_val = self.gen_expr_safe(&args[1], exprs).into_int_value();
-                    let value_val = self.gen_expr_safe(&args[2], exprs).into_int_value();
-                    
-                    // Convert array pointer (i64) to LLVM pointer
-                    let array_ptr = self.builder.build_int_to_ptr(
-                        array_ptr_val,
-                        self.context.ptr_type(AddressSpace::default()),
-                        "array_ptr"
-                    ).unwrap();
-                    
-                    // Generate GEP to get element pointer
-                    let elem_ptr = unsafe {
-                        self.builder.build_gep(
-                            self.i64_type,
-                            array_ptr,
-                            &[index_val],
-                            "elem_ptr"
-                        ).unwrap()
-                    };
-                    
-                    // Store the value
-                    self.builder.build_store(elem_ptr, value_val).unwrap();
-                    return;
-                }
+                // Note: Special handling for array_set/stack_array_set removed
+                // Always call runtime function to handle both stack and heap arrays
+                // (Heap arrays have headers that need to be checked)
 
                 // original code for other VoidCalls
                 let callee = self.get_function(func);

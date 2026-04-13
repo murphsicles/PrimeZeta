@@ -15,9 +15,10 @@ pub struct MirGen {
     next_id: u32,
     stmts: Vec<MirStmt>,
     exprs: HashMap<u32, MirExpr>,
-    ctfe_consts: HashMap<u32, i64>,
+    ctfe_consts: HashMap<u32, i64>, // TODO: Change to ConstValue
     type_map: HashMap<u32, Type>,
     name_to_id: HashMap<String, u32>,
+    global_consts: HashMap<String, crate::middle::ctfe::value::ConstValue>,
 }
 
 impl MirGen {
@@ -29,7 +30,13 @@ impl MirGen {
             ctfe_consts: HashMap::new(),
             type_map: HashMap::new(),
             name_to_id: HashMap::new(),
+            global_consts: HashMap::new(),
         }
+    }
+    
+    pub fn with_global_consts(mut self, consts: HashMap<String, crate::middle::ctfe::value::ConstValue>) -> Self {
+        self.global_consts = consts;
+        self
     }
 
     pub fn lower_to_mir(&mut self, ast: &AstNode) -> Mir {
@@ -94,6 +101,7 @@ impl MirGen {
             exprs: std::mem::take(&mut self.exprs),
             ctfe_consts: std::mem::take(&mut self.ctfe_consts),
             type_map: std::mem::take(&mut self.type_map),
+            global_consts: std::mem::take(&mut self.global_consts),
         }
     }
 
@@ -172,7 +180,7 @@ impl MirGen {
                     } else if let Type::Array(_, size) = base_ty {
                         // Check if this is a stack array (fixed size) or heap array
                         match size {
-                            ArraySize::Literal(n) if n <= 1024 => {
+                            ArraySize::Literal(n) if n <= 20000 => {
                                 // Small fixed-size array - treat as stack array
                                 // Use array_set for direct memory access (stack arrays handled in runtime)
                                 self.stmts.push(MirStmt::VoidCall {
@@ -544,8 +552,62 @@ impl MirGen {
                 if let Some(&existing) = self.name_to_id.get(name) {
                     return existing;
                 }
-                self.exprs.insert(id, MirExpr::Var(id));
-                self.type_map.insert(id, Type::I64);
+                
+                // Check if this is a global constant
+                if let Some(const_val) = self.global_consts.get(name) {
+                    match const_val {
+                        crate::middle::ctfe::value::ConstValue::Int(n) => {
+                            self.exprs.insert(id, MirExpr::Lit(*n));
+                            self.type_map.insert(id, Type::I64);
+                            return id;
+                        }
+                        crate::middle::ctfe::value::ConstValue::Array(elements) => {
+                            // For array constants, create a StackArray expression
+                            let array_size = elements.len();
+                            let mut element_ids = Vec::new();
+                            
+                            // Extract integer values first to avoid borrow issues
+                            let mut int_values = Vec::new();
+                            for elem in elements {
+                                match elem {
+                                    crate::middle::ctfe::value::ConstValue::Int(n) => {
+                                        int_values.push(*n);
+                                    }
+                                    _ => {
+                                        // Fallback to regular variable if not simple int
+                                        self.exprs.insert(id, MirExpr::Var(id));
+                                        self.type_map.insert(id, Type::I64);
+                                        return id;
+                                    }
+                                }
+                            }
+                            
+                            // Now create MIR expressions (can mutate self)
+                            for n in int_values {
+                                let elem_id = self.next_id();
+                                self.exprs.insert(elem_id, MirExpr::Lit(n));
+                                self.type_map.insert(elem_id, Type::I64);
+                                element_ids.push(elem_id);
+                            }
+                            
+                            self.exprs.insert(id, MirExpr::StackArray {
+                                elements: element_ids,
+                                size: array_size,
+                            });
+                            self.type_map.insert(id, Type::Array(Box::new(Type::I64), crate::middle::types::ArraySize::Literal(array_size)));
+                            return id;
+                        }
+                        _ => {
+                            // Fallback to regular variable
+                            self.exprs.insert(id, MirExpr::Var(id));
+                            self.type_map.insert(id, Type::I64);
+                        }
+                    }
+                } else {
+                    // Regular variable
+                    self.exprs.insert(id, MirExpr::Var(id));
+                    self.type_map.insert(id, Type::I64);
+                }
             }
             AstNode::Lit(n) => {
                 self.exprs.insert(id, MirExpr::Lit(*n));
@@ -1247,7 +1309,7 @@ impl MirGen {
                 
                 // HYBRID MEMORY SYSTEM: Check if this should be a stack array
                 // For small, fixed-size arrays, use stack allocation
-                if size <= 1024 { // Reasonable stack size limit
+                if size <= 20000 { // Reasonable stack size limit
                     println!("[MIR GEN DEBUG] Using StackArray for array literal with {} elements", size);
                     
                     // Lower each element expression
@@ -1333,7 +1395,7 @@ impl MirGen {
                         println!("[MIR GEN DEBUG] ArrayRepeat with constant size: {}, elem_type: {:?}", size_val, elem_type);
                         
                         // HYBRID MEMORY SYSTEM: Use StackArray for small fixed-size arrays
-                        if size_val <= 1024 { // Reasonable stack size limit
+                        if size_val <= 20000 { // Reasonable stack size limit
                             println!("[MIR GEN DEBUG] Using StackArray for array repeat with {} elements", size_val);
                             
                             // Create StackArray expression with repeated value
@@ -1349,6 +1411,7 @@ impl MirGen {
                             println!("[MIR GEN DEBUG] Using heap array for large array repeat with {} elements", size_val);
                             
                             // Allocate array using array_new with capacity = size
+                            println!("[MIR GEN DEBUG] Calling array_new with capacity = {}", size_val);
                             let array_ptr = self.next_id();
                             let capacity_id = self.next_id();
                             self.exprs.insert(capacity_id, MirExpr::Lit(size_val as i64));
@@ -1359,11 +1422,23 @@ impl MirGen {
                                 type_args: vec![],
                             });
                             
-                            // Push the value size_val times
-                            for _ in 0..size_val {
+                            // Set array length first
+                            let len_id = self.next_id();
+                            self.exprs.insert(len_id, MirExpr::Lit(size_val as i64));
+                            self.stmts.push(MirStmt::VoidCall {
+                                func: "array_set_len".to_string(),
+                                args: vec![array_ptr, len_id],
+                            });
+                            
+                            // Fill array with value using array_set for each position
+                            // Note: This is inefficient for large arrays but works for now
+                            // TODO: Optimize with memset for zero initialization
+                            for idx in 0..size_val {
+                                let idx_id = self.next_id();
+                                self.exprs.insert(idx_id, MirExpr::Lit(idx as i64));
                                 self.stmts.push(MirStmt::VoidCall {
-                                    func: "array_push".to_string(),
-                                    args: vec![array_ptr, value_id],
+                                    func: "array_set".to_string(),
+                                    args: vec![array_ptr, idx_id, value_id],
                                 });
                             }
                             
@@ -1464,6 +1539,33 @@ impl MirGen {
                 self.exprs.insert(id, MirExpr::Var(array_ptr));
                 self.type_map.insert(id, array_type);
                 return array_ptr; // Return the array pointer ID, not a new ID
+            }
+            AstNode::UnaryOp { op, expr } => {
+                // Handle unary operators like ! (not)
+                let expr_id = self.lower_expr(expr);
+                let dest = self.next_id();
+                
+                if op == "!" {
+                    // Logical NOT operator
+                    self.stmts.push(MirStmt::Call {
+                        func: "!".to_string(),
+                        args: vec![expr_id],
+                        dest,
+                        type_args: vec![],
+                    });
+                } else {
+                    // Other unary operators (unary minus, etc.)
+                    self.stmts.push(MirStmt::Call {
+                        func: op.clone(),
+                        args: vec![expr_id],
+                        dest,
+                        type_args: vec![],
+                    });
+                }
+                
+                self.exprs.insert(dest, MirExpr::Var(dest));
+                self.type_map.insert(dest, Type::I64);
+                return dest;
             }
             _ => {
                 self.exprs.insert(id, MirExpr::Lit(0));

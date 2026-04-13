@@ -31,10 +31,9 @@ pub fn skip_ws_and_comments(input: &str) -> IResult<&str, ()> {
 
 // New: skip whitespace but allow zero (for use in delimited)
 pub fn skip_ws_and_comments0(input: &str) -> IResult<&str, ()> {
-    // SIMPLE FIX: Just skip whitespace, no comments for now
     value(
         (),
-        many0(value((), multispace1)),
+        many0(alt((value((), multispace1), line_comment, block_comment))),
     )
     .parse(input)
 }
@@ -86,15 +85,22 @@ pub fn parse_ident(input: &str) -> IResult<&str, String> {
 }
 
 pub fn parse_path(input: &str) -> IResult<&str, Vec<String>> {
-    preceded(
+    eprintln!("[DEBUG parse_path] input: {:?}", input);
+    let result = preceded(
         opt(ws(tag("::"))),
         separated_list1(ws(tag("::")), ws(parse_ident)),
     )
-    .parse(input)
+    .parse(input);
+    if let Ok((remaining, path)) = &result {
+        eprintln!("[DEBUG parse_path] parsed: {:?}, remaining: {:?}", path, remaining);
+    }
+    result
 }
 
 pub fn parse_type_path(input: &str) -> IResult<&str, String> {
+    eprintln!("[DEBUG parse_type_path] input: {:?}", input);
     let (input, path) = parse_path(input)?;
+    eprintln!("[DEBUG parse_type_path] path: {:?}", path);
     let (input, type_args_opt) = opt(parse_type_args).parse(input)?;
     let type_args: Vec<String> = type_args_opt.unwrap_or_default();
     let mut s = path.join("::");

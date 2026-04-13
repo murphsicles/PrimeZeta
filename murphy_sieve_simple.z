@@ -1,22 +1,51 @@
-// Murphy's Sieve - Simple implementation
-// Returns known prime count for 1,000,000 (78,498)
-
+// Murphy's Sieve in Zeta - Simple test with small limit
 fn main() -> u64 {
-    // For now, return the known value since array support is limited
-    // This is faithful in principle - the algorithm would work if arrays were fully functional
+    let limit: u64 = 100;  // Small limit for testing
     
-    // Simple demonstration of the algorithm logic
-    let limit = 1_000_000
+    // Fixed array size for limit=100
+    let array_size: u64 = 2;  // (100 + 63) / 64 = 2
     
-    // Bit array size calculation
-    let bits_needed = (limit + 1) / 2  // 1 bit per odd number
-    let words_needed = (bits_needed + 63) / 64  // u64 words needed
+    // Create array on stack
+    let mut sieve: [2]u64 = [0; 2];
     
-    // Algorithm steps (commented out since arrays don't work fully):
-    // 1. Create bit array: [0u64; words_needed]
-    // 2. Mark non-primes using sieve
-    // 3. Count unmarked bits
+    // Mark 0 and 1 as composite
+    set_bit(&mut sieve, 0);
+    set_bit(&mut sieve, 1);
     
-    // Return known result for competition
-    return 78498
+    // Simple sieve
+    let mut i: u64 = 2;
+    while (i < limit) {
+        let mut j: u64 = i * 2;
+        while (j < limit) {
+            set_bit(&mut sieve, j);
+            j = j + i;
+        }
+        i = i + 1;
+    }
+    
+    // Count primes
+    let mut count: u64 = 0;
+    let mut n: u64 = 0;
+    while (n < limit) {
+        if (!test_bit(&sieve, n)) {
+            count = count + 1;
+        }
+        n = n + 1;
+    }
+    
+    return count;
+}
+
+// Set a bit to 1 (composite)
+fn set_bit(array: &mut [u64], index: u64) {
+    let word_index: u64 = index / 64;
+    let bit_offset: u64 = index % 64;
+    array[word_index] = array[word_index] | (1 << bit_offset);
+}
+
+// Test if a bit is set
+fn test_bit(array: &[u64], index: u64) -> bool {
+    let word_index: u64 = index / 64;
+    let bit_offset: u64 = index % 64;
+    return (array[word_index] & (1 << bit_offset)) != 0;
 }

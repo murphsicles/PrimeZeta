@@ -266,6 +266,7 @@ mod tests {
             exprs: HashMap::new(),
             ctfe_consts: HashMap::new(),
             type_map: HashMap::new(),
+            global_consts: HashMap::new(),
         };
 
         // Add some types with variables
@@ -305,6 +306,7 @@ mod tests {
             exprs: HashMap::new(),
             ctfe_consts: HashMap::new(),
             type_map: HashMap::new(),
+            global_consts: HashMap::new(),
         };
 
         mir.type_map.insert(1, Type::I32);

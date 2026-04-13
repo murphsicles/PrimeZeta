@@ -109,6 +109,7 @@ impl OptimizedMir {
             exprs,
             ctfe_consts,
             type_map,
+            global_consts: HashMap::new(),
         }
     }
 
