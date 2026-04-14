@@ -181,14 +181,14 @@ Massive progress day: **v0.3.78 → v0.3.89** in one day (11 versions!)
 #### v0.3.93 Progress - SIMD/AVX Optimization
 **STATUS**: ✅ **COMPLETED - SUCCESS!**
 **TIMESTAMP**: Tuesday, April 14th, 2026 - 04:15 (Europe/London)
-**PERFORMANCE**: 16,630 passes/5s (32.4% improvement over previous best)
+**PERFORMANCE**: 14,673 passes/5s (16.8% improvement over previous best)
 
 #### Implementation Achievements:
 1. ✅ **Created AVX2-optimized implementation** (`murphy_sieve_v093_avx2.c`)
 2. ✅ **Verified correctness**: 78,498 primes ✓
 3. ✅ **Fixed timing measurement**: Used high-resolution timer (`QueryPerformanceCounter` on Windows)
-4. ✅ **Achieved significant performance improvement**: 16,630 vs 12,562 passes/5s (+32.4%)
-5. ✅ **Exceeded competition target**: 133.6% of 12,451 target
+4. ✅ **Achieved significant performance improvement**: 14,673 vs 12,562 passes/5s (+16.8%)
+5. ✅ **Exceeded competition target**: 117.8% of 12,451 target
 
 #### Key Optimizations:
 1. **8x unrolled loop** for marking multiples
@@ -214,14 +214,41 @@ Massive progress day: **v0.3.78 → v0.3.89** in one day (11 versions!)
 | v0.3.89 | + Wheel factorization (2-3) + array_fill | 3,552 | 1.53x | 8.18x |
 | v0.3.90 | + 30-wheel (2-3-5) factorization | 12,688 | 3.57x | 29.24x |
 | competition_max.c | Optimized 2-wheel with micro-opt | 12,562 | 0.99x | 28.94x |
-| **v0.3.93** | **AVX2 + 8x unrolling + prefetch** | **16,630** | **1.32x** | **38.32x** |
+| **v0.3.93** | **AVX2 + 8x unrolling + prefetch** | **14,673** | **1.17x** | **33.81x** |
 
-#### Next Version (v0.3.94):
-1. **Create competition-ready version** based on v0.3.93 optimizations
-2. **Further micro-optimizations**: Explore inline assembly for critical paths
-3. **Cache optimization**: Experiment with different prefetch distances
-4. **Memory layout**: Try different bit array organizations
-5. **Final submission**: Prepare competition entry package
+### v0.3.94 Progress - Minimal Optimizations
+**STATUS**: ✅ **COMPLETED**
+**TIMESTAMP**: Tuesday, April 14th, 2026 - 04:45 (Europe/London)
+**PERFORMANCE**: 14,583 passes/5s (maintains target-beating performance)
+
+#### Implementation Achievements:
+1. ✅ **Created minimal optimization version** (`murphy_sieve_v094_minimal.c`)
+2. ✅ **Verified correctness**: 78,498 primes ✓
+3. ✅ **Maintained performance**: 14,583 passes/5s (99.4% of v0.3.93 performance)
+4. ✅ **Exceeded competition target**: 117.1% of 12,451 target
+
+#### Key Optimizations (over v0.3.93):
+1. **Improved prefetch distance**: 24 steps ahead instead of 16
+2. **4x unrolled popcount**: Better for modern CPU pipelines
+3. **Restrict keyword**: Better compiler optimization hints
+4. **Cleaner code structure**: More maintainable implementation
+
+#### Files Created:
+1. `murphy_sieve_v094_minimal.c` - Minimal optimization version
+2. `benchmark_v094_minimal.c` - Benchmark for v0.3.94
+
+#### Performance Comparison:
+| Version | Technique | Passes/5s | Improvement vs Previous | Total Improvement vs Baseline |
+|---------|-----------|-----------|------------------------|------------------------------|
+| v0.3.93 | AVX2 + 8x unrolling + prefetch | 14,673 | baseline | 33.81x |
+| **v0.3.94** | **Improved prefetch + 4x popcount** | **14,583** | **0.99x** | **33.60x** |
+
+#### Next Version (v0.3.95):
+1. **Create competition submission package**
+2. **Document optimization techniques**
+3. **Prepare final report**
+4. **Test on different hardware** (if available)
+5. **Finalize competition entry**
 
 ### Priority 1: Wheel Factorization (2-3-5) - 30-wheel
 - **Why**: Skip multiples of 2, 3, 5 — only check numbers coprime to 30 (8 residues)
@@ -250,9 +277,9 @@ Massive progress day: **v0.3.78 → v0.3.89** in one day (11 versions!)
 
 ### Priority 5: Competition Target
 - **Target**: 12,451+ passes/5s to beat C #1
-- **Current**: **16,630 passes/5s** (133.6% of target) ✅ **TARGET EXCEEDED!**
-- **Improvement**: 32.4% improvement over previous best (12,562 passes/5s)
-- **Next goal**: v0.3.94 - Further micro-optimizations and competition submission
+- **Current**: **14,583 passes/5s** (117.1% of target) ✅ **TARGET EXCEEDED!**
+- **Improvement**: 16.1% improvement over competition_max.c (12,562 passes/5s)
+- **Next goal**: v0.3.95 - Competition submission package
 
 ## Release Tags
 - **v0.3.81**: Warning cleanup milestone (240/241 fixed)
@@ -266,7 +293,8 @@ Massive progress day: **v0.3.78 → v0.3.89** in one day (11 versions!)
 - **v0.3.90**: 30-wheel (2-3-5) factorization (12,688 passes/5s)
 - **v0.3.91**: Proper wheel increment logic investigation (decision: stick with 2-wheel)
 - **v0.3.92**: Segment-based sieve investigation (decision: whole-array faster for LIMIT=1M)
-- **v0.3.93**: AVX2 optimization with 8x unrolling + prefetch (16,630 passes/5s)
+- **v0.3.93**: AVX2 optimization with 8x unrolling + prefetch (14,673 passes/5s)
+- **v0.3.94**: Minimal optimizations with improved prefetch (14,583 passes/5s)
 
 ## Architecture Notes
 - **CTFE**: Uses `comptime` keyword (not `const`)
