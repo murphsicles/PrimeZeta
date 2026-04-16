@@ -1,0 +1,6 @@
+// Simple test program
+fn main() -> i32 {
+    let x = 42;
+    let y = 58;
+    return x + y;
+}

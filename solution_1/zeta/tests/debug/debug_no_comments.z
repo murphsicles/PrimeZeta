@@ -1,0 +1,29 @@
+fn main() -> u64 {
+    return 42
+}
+
+fn count_primes_sieve(limit: u64) -> u64 {
+    if limit < 2 { return 0 }
+    if limit == 2 { return 1 }
+    let mut count: u64 = 1
+    let mut n: u64 = 3
+    while n <= limit {
+        if is_prime_simple(n) {
+            count += 1
+        }
+        n += 2
+    }
+    return count
+}
+
+fn is_prime_simple(n: u64) -> bool {
+    if n < 2 { return false }
+    if n == 2 { return true }
+    if n % 2 == 0 { return false }
+    let mut i: u64 = 3
+    while i * i <= n {
+        if n % i == 0 { return false }
+        i += 2
+    }
+    return true
+}

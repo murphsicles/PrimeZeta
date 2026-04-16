@@ -1,0 +1,11 @@
+fn main() -> u64 {
+    return 42
+}
+
+fn one_param(x: u64) -> u64 {
+    return x
+}
+
+fn two_params(a: u64, b: u64) -> u64 {
+    return a
+}

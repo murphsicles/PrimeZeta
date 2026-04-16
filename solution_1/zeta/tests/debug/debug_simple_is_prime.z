@@ -1,0 +1,22 @@
+fn gcd(a: u64, b: u64) -> u64 {
+    let mut x = a
+    let mut y = b
+    while y != 0 {
+        let temp = y
+        y = x % y
+        x = temp
+    }
+    return x
+}
+
+fn is_prime_wheel(n: u64) -> bool {
+    if n < 2 { return false }
+    if n == 2 { return true }
+    if n == 3 { return true }
+    if n % 2 == 0 { return false }
+    return true
+}
+
+fn main() -> u64 {
+    return 42
+}

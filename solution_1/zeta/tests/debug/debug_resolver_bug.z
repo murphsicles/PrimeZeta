@@ -1,0 +1,22 @@
+// Minimal test to reproduce resolver bug
+// Function 1 - should be found
+fn func1() -> u64 {
+    return 1
+}
+
+// Function 2 - identical to is_prime_wheel but minimal
+fn func2(n: u64) -> bool {
+    if n < 2 { return false }
+    if n == 2 || n == 3 { return true }
+    if n % 2 == 0 { return false }
+    return true
+}
+
+// Function 3 - should be found
+fn func3() -> u64 {
+    return 3
+}
+
+fn main() -> u64 {
+    return func1() + func3()
+}

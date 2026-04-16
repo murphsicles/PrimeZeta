@@ -1,0 +1,12 @@
+fn func1() -> u64 {
+    return 1
+}
+
+fn func2(n: u64) -> bool {
+    if n < 2 { return false }
+    return true
+}
+
+fn func3() -> u64 {
+    return 3
+}

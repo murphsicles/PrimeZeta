@@ -1,0 +1,5 @@
+// Debug NOT to see MIR
+fn main() -> u64 {
+    let x = !false;
+    x as u64
+}

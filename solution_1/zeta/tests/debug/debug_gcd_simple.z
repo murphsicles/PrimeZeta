@@ -1,0 +1,12 @@
+fn gcd(a: u64, b: u64) -> u64 {
+    return a
+}
+
+fn is_prime_wheel(n: u64) -> bool {
+    if n < 2 { return false }
+    return true
+}
+
+fn main() -> u64 {
+    return 42
+}
