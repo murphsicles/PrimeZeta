@@ -2,9 +2,8 @@ FROM rust:1.85-bookworm AS builder
 
 WORKDIR /build
 
-# Install git (already present in rust image)
-# Clone Zeta compiler repository at v0.6.0 tag
-RUN git clone --depth 1 --branch v0.6.0 https://github.com/murphsicles/zeta.git
+# Copy Zeta compiler source (local copy)
+COPY zeta /build/zeta
 
 WORKDIR /build/zeta
 
