@@ -2,8 +2,11 @@ FROM rust:1.85-bookworm AS builder
 
 WORKDIR /build
 
-# Copy Zeta compiler source
-COPY zeta/ .
+# Install git (already present in rust image)
+# Clone Zeta compiler repository at v0.6.0 tag
+RUN git clone --depth 1 --branch v0.6.0 https://github.com/murphsicles/zeta.git
+
+WORKDIR /build/zeta
 
 # Build Zeta compiler in release mode
 RUN cargo build --release --bin zetac
@@ -17,7 +20,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy compiled binary from builder
-COPY --from=builder /build/target/release/zetac /usr/local/bin/zetac
+COPY --from=builder /build/zeta/target/release/zetac /usr/local/bin/zetac
 
 # Set working directory
 WORKDIR /solution
