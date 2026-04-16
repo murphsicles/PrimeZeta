@@ -3,7 +3,7 @@
 // Bit array optimization (1 bit per element) for memory efficiency
 // Faithful implementation of Murphy's Sieve
 
-// Import runtime malloc function
+// Import runtime functions for heap allocation
 extern fn runtime_malloc(size: i64) -> *mut i8;
 
 // Bit array utilities
@@ -34,6 +34,17 @@ fn get_bit(array: *mut u8, index: i64) -> bool {
     }
 }
 
+// Check if number is divisible by any small prime in wheel base (2,3,5,7,11,13)
+fn is_divisible_by_small_prime(n: i64) -> bool {
+    if n % 2 == 0 { return true; }
+    if n % 3 == 0 { return true; }
+    if n % 5 == 0 { return true; }
+    if n % 7 == 0 { return true; }
+    if n % 11 == 0 { return true; }
+    if n % 13 == 0 { return true; }
+    return false;
+}
+
 // Murphy's Sieve with 30030 wheel and bit array
 fn murphy_sieve_30030_wheel(limit: i64) -> i64 {
     // Calculate byte array size (ceil(limit/8))
@@ -62,20 +73,24 @@ fn murphy_sieve_30030_wheel(limit: i64) -> i64 {
     // Pre-mark multiples of small primes (2,3,5,7,11,13) as composite
     // This implements the 30030 wheel optimization
     let small_primes = [2, 3, 5, 7, 11, 13];
-    for p in small_primes {
+    let mut idx = 0;
+    while idx < 6 {
+        let p = small_primes[idx];
         let mut multiple = p * 2; // start from 2*p (p itself is prime)
         while multiple < limit {
             clear_bit(sieve_ptr, multiple);
             multiple += p;
         }
+        idx += 1;
     }
     
-    // Sieve with workaround for while loop condition bug
+    // Sieve with 30030-wheel optimization: skip numbers divisible by small primes
     i = 2;
-    loop {
-        // Workaround: manually check condition and break
-        if i * i >= limit {
-            break;
+    while i * i < limit {
+        // Skip numbers divisible by small primes (wheel optimization)
+        if is_divisible_by_small_prime(i) {
+            i += 1;
+            continue;
         }
         
         if get_bit(sieve_ptr, i) {
