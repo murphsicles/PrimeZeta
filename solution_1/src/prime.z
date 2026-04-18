@@ -14,6 +14,7 @@ fn set_bit(array: *mut u8, index: i64) {
         let byte = *array.offset(byte_index as isize);
         *array.offset(byte_index as isize) = byte | (1 << bit_offset);
     }
+    return;
 }
 
 fn clear_bit(array: *mut u8, index: i64) {
@@ -23,26 +24,31 @@ fn clear_bit(array: *mut u8, index: i64) {
         let byte = *array.offset(byte_index as isize);
         *array.offset(byte_index as isize) = byte & !(1 << bit_offset);
     }
+    return;
 }
 
-fn get_bit(array: *mut u8, index: i64) -> bool {
+fn get_bit(array: *mut u8, index: i64) -> i64 {
     let byte_index = index / 8;
     let bit_offset = index % 8;
     unsafe {
         let byte = *array.offset(byte_index as isize);
-        (byte & (1 << bit_offset)) != 0
+        if (byte & (1 << bit_offset)) != 0 {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 }
 
 // Check if number is divisible by any small prime in wheel base (2,3,5,7,11,13)
-fn is_divisible_by_small_prime(n: i64) -> bool {
-    if n % 2 == 0 { return true; }
-    if n % 3 == 0 { return true; }
-    if n % 5 == 0 { return true; }
-    if n % 7 == 0 { return true; }
-    if n % 11 == 0 { return true; }
-    if n % 13 == 0 { return true; }
-    return false;
+fn is_divisible_by_small_prime(n: i64) -> i64 {
+    if n % 2 == 0 { return 1; }
+    if n % 3 == 0 { return 1; }
+    if n % 5 == 0 { return 1; }
+    if n % 7 == 0 { return 1; }
+    if n % 11 == 0 { return 1; }
+    if n % 13 == 0 { return 1; }
+    return 0;
 }
 
 // Murphy's Sieve with 30030 wheel and bit array
@@ -88,12 +94,12 @@ fn murphy_sieve_30030_wheel(limit: i64) -> i64 {
     i = 2;
     while i * i < limit {
         // Skip numbers divisible by small primes (wheel optimization)
-        if is_divisible_by_small_prime(i) {
+        if is_divisible_by_small_prime(i) == 1 {
             i += 1;
             continue;
         }
         
-        if get_bit(sieve_ptr, i) {
+        if get_bit(sieve_ptr, i) == 1 {
             let mut j = i * i;
             while j < limit {
                 clear_bit(sieve_ptr, j);
@@ -108,7 +114,7 @@ fn murphy_sieve_30030_wheel(limit: i64) -> i64 {
     let mut count: i64 = 0;
     let mut k: i64 = 0;
     while k < limit {
-        if get_bit(sieve_ptr, k) {
+        if get_bit(sieve_ptr, k) == 1 {
             count += 1;
         }
         k += 1;
