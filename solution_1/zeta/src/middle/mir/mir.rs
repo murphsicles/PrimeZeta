@@ -100,6 +100,13 @@ pub enum MirStmt {
         cond: u32,       // Condition expression
         body: Vec<MirStmt>,
     },
+    // Store through pointer: *addr = value
+    // pointee_width: 1 for *mut u8, 8 for *mut u64/i64, etc.
+    Store {
+        addr_id: u32,
+        val_id: u32,
+        pointee_width: u8,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -129,6 +136,12 @@ pub enum MirExpr {
         start: u32,
         end: u32,
     },
+    // Pointer dereference: load through a pointer with explicit element width
+    // pointee_width: 1 for *mut u8, 8 for *mut u64/i64, etc.
+    Deref {
+        addr_id: u32,
+        pointee_width: u8,
+    },
     // Binary operation
     BinaryOp {
         op: String,
@@ -139,6 +152,13 @@ pub enum MirExpr {
     StackArray {
         elements: Vec<u32>,
         size: usize,
+    },
+    // Semiring fold (arithmetic) — evaluated inline so while-loop
+    // conditions can compute them directly instead of loading from
+    // a slot written by a side-effect statement inside the body.
+    SemiringFold {
+        op: SemiringOp,
+        values: Vec<u32>,
     },
 }
 

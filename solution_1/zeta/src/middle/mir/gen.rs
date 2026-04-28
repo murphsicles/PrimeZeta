@@ -1,5 +1,5 @@
 // src/middle/mir/gen.rs
-//! # MIR Generation from AST - DEBUG VERSION
+//! # MIR Generation from AST
 //!
 //! Lowers Zeta AST to our clean Minimal Intermediate Representation (MIR).
 //! All Zeta features (methods, generics, control flow, dicts, etc.) are lowered here.
@@ -19,6 +19,11 @@ pub struct MirGen {
     type_map: HashMap<u32, Type>,
     name_to_id: HashMap<String, u32>,
     global_consts: HashMap<String, crate::middle::ctfe::value::ConstValue>,
+    // Preserve original source-level type strings for parameters (e.g., "*mut u64")
+    source_types: HashMap<u32, String>,
+    /// Tracks pointee element width (in bytes) for pointer-typed expression IDs.
+    /// Populated by the offset/add handler, used when generating Store/Deref.
+    pointee_widths: HashMap<u32, u8>,
 }
 
 impl MirGen {
@@ -31,6 +36,8 @@ impl MirGen {
             type_map: HashMap::new(),
             name_to_id: HashMap::new(),
             global_consts: HashMap::new(),
+            source_types: HashMap::new(),
+            pointee_widths: HashMap::new(),
         }
     }
     
@@ -43,24 +50,38 @@ impl MirGen {
         self.name_to_id.clear();
         self.stmts.clear();
         self.exprs.clear();
+        self.source_types.clear();
+        self.pointee_widths.clear();
         self.next_id = 1;
 
-        if let AstNode::FuncDef { params, .. } = ast {
-            for (i, (name, _)) in params.iter().enumerate() {
-                let id = self.next_id();
-                self.name_to_id.insert(name.clone(), id);
-                self.exprs.insert(id, MirExpr::Var(id));
-                self.type_map.insert(id, Type::I64);
-                self.stmts.push(MirStmt::ParamInit {
-                    param_id: id,
-                    arg_index: i as u32,
-                });
+        // Check if this is an extern/FFI function (empty body, no ret expr).
+        // Extern functions should produce a minimal MIR with no body stmts,
+        // so the codegen can emit an external declaration instead of a stub.
+        let is_extern = matches!(ast, AstNode::FuncDef { body, ret_expr, .. } if body.is_empty() && ret_expr.is_none());
+
+        if !is_extern {
+            if let AstNode::FuncDef { params, .. } = ast {
+                for (i, (name, param_type)) in params.iter().enumerate() {
+                    let id = self.next_id();
+                    self.name_to_id.insert(name.clone(), id);
+                    self.exprs.insert(id, MirExpr::Var(id));
+                    self.type_map.insert(id, Type::I64);
+                    self.source_types.insert(id, param_type.clone());
+                    self.stmts.push(MirStmt::ParamInit {
+                        param_id: id,
+                        arg_index: i as u32,
+                    });
+                }
             }
+
+            self.lower_ast(ast);
         }
 
-        self.lower_ast(ast);
-
-        if self.stmts.is_empty() || !matches!(self.stmts.last(), Some(MirStmt::Return { .. })) {
+        // Extern functions get no body stmts at all (not even a default Return)
+        if is_extern {
+            // Ensure clean state
+            self.stmts.clear();
+        } else if self.stmts.is_empty() || !matches!(self.stmts.last(), Some(MirStmt::Return { .. })) {
             let ret_val = if let Some(last) = self.stmts.last() {
                 match last {
                     MirStmt::Call { dest, .. } => *dest,
@@ -204,6 +225,24 @@ impl MirGen {
                             val_id: rhs_id,
                         });
                     }
+                } else if let AstNode::UnaryOp { op, expr } = &**lhs {
+                    if op == "*" {
+                        // Store through pointer: *ptr = val
+                        let addr_id = self.lower_expr(expr);
+                        let pointee_width = self.pointee_widths.get(&addr_id).copied().unwrap_or(8);
+                        self.stmts.push(MirStmt::Store {
+                            addr_id,
+                            val_id: rhs_id,
+                            pointee_width,
+                        });
+                    } else {
+                        // Other unary assignment (unlikely)
+                        let lhs_id = self.lower_expr(lhs);
+                        self.stmts.push(MirStmt::Assign {
+                            lhs: lhs_id,
+                            rhs: rhs_id,
+                        });
+                    }
                 } else {
                     let lhs_id = self.lower_expr(lhs);
                     self.stmts.push(MirStmt::Assign {
@@ -211,6 +250,16 @@ impl MirGen {
                         rhs: rhs_id,
                     });
                 }
+            }
+            AstNode::AssignOp { op, target, value } => {
+                // Desugar: target op= value → target = target op value
+                let new_rhs = Box::new(AstNode::BinaryOp {
+                    op: op.clone(),
+                    left: target.clone(),
+                    right: value.clone(),
+                });
+                let assign = AstNode::Assign(target.clone(), new_rhs);
+                self.lower_ast(&assign);
             }
             AstNode::Return(inner) => {
                 let val = self.lower_expr(inner);
@@ -266,10 +315,7 @@ impl MirGen {
                 }
             }
             AstNode::If { cond, then, else_ } => {
-                println!("[MIR-GEN DEBUG lower_ast] Processing If statement/expression");
-                println!("[MIR-GEN DEBUG lower_ast] then len={}, else len={}", then.len(), else_.len());
                 let cond_id = self.lower_expr(cond);
-                println!("[MIR-GEN DEBUG lower_ast] cond_id={}", cond_id);
 
                 // Check if this is expression if (branches produce values) or statement if
                 // Simple heuristic: if any branch contains return, treat as statement
@@ -293,17 +339,12 @@ impl MirGen {
                     }
                 }
 
-                println!("[MIR-GEN DEBUG lower_ast] is_statement_if={}, then_has_return={}, else_has_return={}", 
-                    is_statement_if, then_has_return, else_has_return);
-
                 let dest_id = if is_statement_if {
                     // Statement if: no destination needed
-                    println!("[MIR-GEN DEBUG lower_ast] Statement if, no dest");
                     None
                 } else {
                     // Expression if: create destination
                     let id = self.next_id();
-                    println!("[MIR-GEN DEBUG lower_ast] Expression if, dest_id={}", id);
 
                     self.exprs.insert(id, MirExpr::Var(id));
                     self.type_map.insert(id, Type::I64);
@@ -331,35 +372,47 @@ impl MirGen {
                     // For expression if, capture the last value
                     if let Some(dest) = dest_id
                         && !then_has_return
-                        && let Some(last_stmt) = then_stmts.last()
                     {
-                        println!("[MIR-GEN DEBUG lower_ast] then block last_stmt: {:?}", last_stmt);
-                        match last_stmt {
-                            MirStmt::Assign { lhs, .. } => {
-                                println!("[MIR-GEN DEBUG lower_ast]   Assigning lhs={} to dest={}", lhs, dest);
-                                // Add assignment to dest
-                                then_stmts.push(MirStmt::Assign {
-                                    lhs: dest,
-                                    rhs: *lhs,
-                                });
+                        if let Some(last_stmt) = then_stmts.last() {
+                            match last_stmt {
+                                MirStmt::Assign { lhs, .. } => {
+                                    // Add assignment to dest
+                                    then_stmts.push(MirStmt::Assign {
+                                        lhs: dest,
+                                        rhs: *lhs,
+                                    });
+                                }
+                                MirStmt::If { dest: Some(if_dest), .. } => {
+                                    // Block ends with if expression - use its destination
+                                    then_stmts.push(MirStmt::Assign {
+                                        lhs: dest,
+                                        rhs: *if_dest,
+                                    });
+                                }
+                                MirStmt::Call { dest: call_dest, .. } => {
+                                    // Block ends with function call - use its result
+                                    then_stmts.push(MirStmt::Assign {
+                                        lhs: dest,
+                                        rhs: *call_dest,
+                                    });
+                                }
+                                _ => {
+                                    // No value-producing statement found
+                                    let zero_id = self.next_id_with_lit(0);
+                                    then_stmts.push(MirStmt::Assign {
+                                        lhs: dest,
+                                        rhs: zero_id,
+                                    });
+                                }
                             }
-                            MirStmt::If { dest: Some(if_dest), .. } => {
-                                println!("[MIR-GEN DEBUG lower_ast]   Found If with dest={}, assigning to dest={}", if_dest, dest);
-                                // Block ends with if expression - use its destination
-                                then_stmts.push(MirStmt::Assign {
-                                    lhs: dest,
-                                    rhs: *if_dest,
-                                });
-                            }
-                            _ => {
-                                println!("[MIR-GEN DEBUG lower_ast]   No value-producing statement, assigning 0 to dest={}", dest);
-                                // No value-producing statement found
-                                let zero_id = self.next_id_with_lit(0);
-                                then_stmts.push(MirStmt::Assign {
-                                    lhs: dest,
-                                    rhs: zero_id,
-                                });
-                            }
+                        } else if let Some(last_ast) = then.last() {
+                            // then_stmts is empty but then block has AST nodes
+                            // Lower the last AST as an expression for its value
+                            let val_id = self.lower_expr(last_ast);
+                            then_stmts.push(MirStmt::Assign {
+                                lhs: dest,
+                                rhs: val_id,
+                            });
                         }
                     }
                 }
@@ -384,35 +437,47 @@ impl MirGen {
                     // For expression if, capture the last value
                     if let Some(dest) = dest_id
                         && !else_has_return
-                        && let Some(last_stmt) = else_stmts.last()
                     {
-                        println!("[MIR-GEN DEBUG lower_ast] else block last_stmt: {:?}", last_stmt);
-                        match last_stmt {
-                            MirStmt::Assign { lhs, .. } => {
-                                println!("[MIR-GEN DEBUG lower_ast]   Assigning lhs={} to dest={}", lhs, dest);
-                                // Add assignment to dest
-                                else_stmts.push(MirStmt::Assign {
-                                    lhs: dest,
-                                    rhs: *lhs,
-                                });
+                        if let Some(last_stmt) = else_stmts.last() {
+                            match last_stmt {
+                                MirStmt::Assign { lhs, .. } => {
+                                    // Add assignment to dest
+                                    else_stmts.push(MirStmt::Assign {
+                                        lhs: dest,
+                                        rhs: *lhs,
+                                    });
+                                }
+                                MirStmt::If { dest: Some(if_dest), .. } => {
+                                    // Block ends with if expression - use its destination
+                                    else_stmts.push(MirStmt::Assign {
+                                        lhs: dest,
+                                        rhs: *if_dest,
+                                    });
+                                }
+                                MirStmt::Call { dest: call_dest, .. } => {
+                                    // Block ends with function call - use its result
+                                    else_stmts.push(MirStmt::Assign {
+                                        lhs: dest,
+                                        rhs: *call_dest,
+                                    });
+                                }
+                                _ => {
+                                    // No value-producing statement found
+                                    let zero_id = self.next_id_with_lit(0);
+                                    else_stmts.push(MirStmt::Assign {
+                                        lhs: dest,
+                                        rhs: zero_id,
+                                    });
+                                }
                             }
-                            MirStmt::If { dest: Some(if_dest), .. } => {
-                                println!("[MIR-GEN DEBUG lower_ast]   Found If with dest={}, assigning to dest={}", if_dest, dest);
-                                // Block ends with if expression - use its destination
-                                else_stmts.push(MirStmt::Assign {
-                                    lhs: dest,
-                                    rhs: *if_dest,
-                                });
-                            }
-                            _ => {
-                                println!("[MIR-GEN DEBUG lower_ast]   No value-producing statement, assigning 0 to dest={}", dest);
-                                // No value-producing statement found
-                                let zero_id = self.next_id_with_lit(0);
-                                else_stmts.push(MirStmt::Assign {
-                                    lhs: dest,
-                                    rhs: zero_id,
-                                });
-                            }
+                        } else if let Some(last_ast) = else_.last() {
+                            // else_stmts is empty but else block has AST nodes
+                            // Lower the last AST as an expression for its value
+                            let val_id = self.lower_expr(last_ast);
+                            else_stmts.push(MirStmt::Assign {
+                                lhs: dest,
+                                rhs: val_id,
+                            });
                         }
                     }
                 }
@@ -521,25 +586,86 @@ impl MirGen {
                     });
                 }
             }
-            AstNode::While { cond, body } => {
-                let cond_id = self.lower_expr(cond);
+            AstNode::Loop { body } => {
+                // lower_ast for loop body
+                let stmts_before = self.stmts.len();
+                for stmt in body {
+                    self.lower_ast(stmt);
+                }
+                let loop_stmts = self.stmts.split_off(stmts_before);
                 
-                // Save current statements to restore after loop body
-                let stmts_before_body = self.stmts.len();
+                // Create While statement with true condition (infinite loop)
+                let cond_id = self.next_id();
+                self.exprs.insert(cond_id, MirExpr::Lit(1));
+                self.type_map.insert(cond_id, Type::I64);
+                
+                self.stmts.push(MirStmt::While {
+                    cond: cond_id,
+                    body: loop_stmts,
+                });
+            }
+            AstNode::While { cond, body } => {
+                // Must capture stmts BEFORE lowering the condition,
+                // because lower_expr(cond) can emit SemiringFold side-effects
+                // (e.g. multiplication in `p * p < n`). Those need to be
+                // re-evaluated each iteration, so they must go in the body.
+                let stmts_before_cond = self.stmts.len();
+                let cond_id = self.lower_expr(cond);
                 
                 // Generate loop body
                 for stmt in body {
                     self.lower_ast(stmt);
                 }
                 
-                // Get body statements
-                let body_stmts = self.stmts.split_off(stmts_before_body);
+                // Grab all statements emitted for this while (cond + body)
+                let while_stmts = self.stmts.split_off(stmts_before_cond);
                 
-                // Create While statement in MIR
+                // Create While statement in MIR — all cond side-effects
+                // are inside the body so they re-execute each iteration
                 self.stmts.push(MirStmt::While {
                     cond: cond_id,
-                    body: body_stmts,
+                    body: while_stmts,
                 });
+            }
+            AstNode::Unsafe { body } => {
+                for stmt in body {
+                    self.lower_ast(stmt);
+                }
+            }
+            AstNode::ComptimeBlock { body } => {
+                for stmt in body {
+                    self.lower_ast(stmt);
+                }
+            }
+            AstNode::Break(_val) => {
+                // Break in lower_ast: emit nothing, loop control is handled at the while level
+                // (for now, break is a no-op in MIR gen since we don't have loop exit support)
+            }
+            AstNode::Continue(_) => {
+                // Continue in lower_ast: no-op for now
+            }
+            // Expression-as-statement nodes: lower the expression, discard the result value
+            // (side effects through self.stmts are what matter)
+            AstNode::ConstDef { name, value, .. } => {
+                // Register local constant values so Var(name) references can resolve them
+                // CTFE should have already evaluated `value` to a Lit/Bool by this point
+                match &**value {
+                    AstNode::Lit(n) => {
+                        self.global_consts.insert(name.clone(), crate::middle::ctfe::value::ConstValue::Int(*n));
+                    }
+                    AstNode::Bool(b) => {
+                        self.global_consts.insert(name.clone(), crate::middle::ctfe::value::ConstValue::Bool(*b));
+                    }
+                    _ => {
+                        // Try CTFE evaluation at MIR gen time
+                        if let Ok(val) = crate::middle::ctfe::eval_const_expr(value) {
+                            self.global_consts.insert(name.clone(), val);
+                        }
+                    }
+                }
+            }
+            AstNode::Call { .. } | AstNode::PathCall { .. } => {
+                self.lower_expr(ast);
             }
             _ => {}
         }
@@ -603,6 +729,11 @@ impl MirGen {
                             self.type_map.insert(id, Type::I64);
                         }
                     }
+                } else if name.ends_with("::MAX") || name == "true" || name == "false" {
+                    // Built-in constants (u64::MAX, usize::MAX, etc. in expression context)
+                    let val = if name.ends_with("::MAX") { -1 } else if name == "true" { 1 } else { 0 };
+                    self.exprs.insert(id, MirExpr::Lit(val));
+                    self.type_map.insert(id, Type::I64);
                 } else {
                     // Regular variable
                     self.exprs.insert(id, MirExpr::Var(id));
@@ -646,7 +777,10 @@ impl MirGen {
                         values: vec![left_id, right_id],
                         result: dest,
                     });
-                    self.exprs.insert(dest, MirExpr::Var(dest));
+                    self.exprs.insert(dest, MirExpr::SemiringFold {
+                        op: SemiringOp::Add,
+                        values: vec![left_id, right_id],
+                    });
                     self.type_map.insert(dest, Type::I64);
                 } else if op == "*" {
                     self.stmts.push(MirStmt::SemiringFold {
@@ -654,7 +788,10 @@ impl MirGen {
                         values: vec![left_id, right_id],
                         result: dest,
                     });
-                    self.exprs.insert(dest, MirExpr::Var(dest));
+                    self.exprs.insert(dest, MirExpr::SemiringFold {
+                        op: SemiringOp::Mul,
+                        values: vec![left_id, right_id],
+                    });
                     self.type_map.insert(dest, Type::I64);
                 } else {
                     // For comparison operators used in loop conditions, create BinaryOp expression
@@ -680,27 +817,17 @@ impl MirGen {
             }
             
             AstNode::If { cond, then, else_ } => {
-                // DEBUG
-                println!("[MIR-GEN DEBUG lower_expr] Processing If expression");
-                
                 // If expression - generate control flow with destination
                 let cond_id = self.lower_expr(cond);
                 let dest_id = self.next_id();
-                
-                println!("[MIR-GEN DEBUG lower_expr] Created dest_id={} for If expression", dest_id);
                 
                 // Create destination for expression result
                 self.exprs.insert(dest_id, MirExpr::Var(dest_id));
                 self.type_map.insert(dest_id, Type::I64);
                 
                 // Helper function to process block
-                fn process_block(mir_gen: &mut MirGen, block: &[AstNode], dest: u32, block_name: &str) -> Vec<MirStmt> {
-                    eprintln!("[MIR-GEN DEBUG lower_expr] Processing {} block, dest={}, block len={}", 
-                        block_name, dest, block.len());
-                    
+                fn process_block(mir_gen: &mut MirGen, block: &[AstNode], dest: u32) -> Vec<MirStmt> {
                     if block.is_empty() {
-                        eprintln!("[MIR-GEN DEBUG lower_expr] {} block is empty, assigning 0 to dest={}", 
-                            block_name, dest);
                         // Empty block - assign 0
                         let zero_id = mir_gen.next_id_with_lit(0);
                         return vec![MirStmt::Assign { lhs: dest, rhs: zero_id }];
@@ -720,19 +847,10 @@ impl MirGen {
                     // Restore original statements
                     mir_gen.stmts = saved_stmts;
                     
-                    eprintln!("[MIR-GEN DEBUG lower_expr] {} block generated {} statements", 
-                        block_name, block_stmts.len());
-                    for (i, stmt) in block_stmts.iter().enumerate() {
-                        eprintln!("[MIR-GEN DEBUG lower_expr]   {} block stmt {}: {:?}", block_name, i, stmt);
-                    }
-                    
                     // Capture last expression value if block produces value
                     if let Some(last_stmt) = block_stmts.last() {
-                        eprintln!("[MIR-GEN DEBUG lower_expr] {} block last statement: {:?}", 
-                            block_name, last_stmt);
                         match last_stmt {
                             MirStmt::Assign { lhs, .. } => {
-                                eprintln!("[MIR-GEN DEBUG lower_expr]   Assigning lhs={} to dest={}", lhs, dest);
                                 // Block ends with assignment - use that value
                                 block_stmts.push(MirStmt::Assign {
                                     lhs: dest,
@@ -740,8 +858,6 @@ impl MirGen {
                                 });
                             }
                             MirStmt::If { dest: Some(if_dest), .. } => {
-                                eprintln!("[MIR-GEN DEBUG lower_expr]   Found If with dest={}, assigning to dest={}", 
-                                    if_dest, dest);
                                 // Block ends with if expression - use its destination
                                 block_stmts.push(MirStmt::Assign {
                                     lhs: dest,
@@ -749,13 +865,17 @@ impl MirGen {
                                 });
                             }
                             MirStmt::Return { val } => {
-                                eprintln!("[MIR-GEN DEBUG lower_expr]   Block ends with return, dest unused");
                                 // Block ends with return - can't assign to dest
                                 // (function returns, dest unused)
                             }
+                            MirStmt::Call { dest: call_dest, .. } => {
+                                // Block ends with function call - use its result
+                                block_stmts.push(MirStmt::Assign {
+                                    lhs: dest,
+                                    rhs: *call_dest,
+                                });
+                            }
                             _ => {
-                                eprintln!("[MIR-GEN DEBUG lower_expr]   No value-producing statement, assigning 0 to dest={}", 
-                                    dest);
                                 // No value-producing statement - assign 0
                                 let zero_id = mir_gen.next_id_with_lit(0);
                                 block_stmts.push(MirStmt::Assign {
@@ -765,28 +885,31 @@ impl MirGen {
                             }
                         }
                     } else {
-                        eprintln!("[MIR-GEN DEBUG lower_expr] {} block has no statements, assigning 0 to dest={}", 
-                            block_name, dest);
-                        // Empty statement list - assign 0
-                        let zero_id = mir_gen.next_id_with_lit(0);
-                        block_stmts.push(MirStmt::Assign {
-                            lhs: dest,
-                            rhs: zero_id,
-                        });
+                        // Block has AST nodes but no MIR statements were generated
+                        // (e.g. bare Var/Lit/BinaryOp expressions in statement position)
+                        // Lower the last AST node as an expression to capture its value
+                        if let Some(last_ast) = block.last() {
+                            let val_id = mir_gen.lower_expr(last_ast);
+                            block_stmts.push(MirStmt::Assign {
+                                lhs: dest,
+                                rhs: val_id,
+                            });
+                        } else {
+                            // Shouldn't reach here (empty block handled above), but fallback
+                            let zero_id = mir_gen.next_id_with_lit(0);
+                            block_stmts.push(MirStmt::Assign {
+                                lhs: dest,
+                                rhs: zero_id,
+                            });
+                        }
                     }
-                    
-                    eprintln!("[MIR-GEN DEBUG lower_expr] {} block final statements: {}", 
-                        block_name, block_stmts.len());
                     
                     block_stmts
                 }
                 
                 // Process then and else blocks
-                let then_stmts = process_block(self, then, dest_id, "then");
-                let else_stmts = process_block(self, else_, dest_id, "else");
-                
-                eprintln!("[MIR-GEN DEBUG lower_expr] Created If with dest={}, then_stmts={}, else_stmts={}", 
-                    dest_id, then_stmts.len(), else_stmts.len());
+                let then_stmts = process_block(self, then, dest_id);
+                let else_stmts = process_block(self, else_, dest_id);
                 
                 // Create If statement with destination
                 self.stmts.push(MirStmt::If {
@@ -819,16 +942,8 @@ impl MirGen {
                 type_args,
                 ..
             } => {
-                println!(
-                    "[MIR GEN DEBUG] Processing call: method={:?}, receiver={:?}, args={:?}, type_args={:?}",
-                    method, receiver, args, type_args
-                );
-
                 // SPECIAL HANDLING: println generates VoidCall not Call
-                println!("[MIR GEN DEBUG] Checking println: method='{}', receiver.is_none()={}", method, receiver.is_none());
                 if method.as_str() == "println" && receiver.is_none() {
-                    println!("[MIR GEN DEBUG] Converting println to VoidCall, args len={}", args.len());
-                    
                     let mut arg_ids = vec![];
                     for a in args {
                         arg_ids.push(self.lower_expr(a));
@@ -854,8 +969,6 @@ impl MirGen {
                         // receiver_ast is &Box<AstNode>, dereference to &AstNode
                         let ast_ref: &AstNode = receiver_ast;
                         if let AstNode::Var(func_name) = ast_ref {
-                            println!("[MIR GEN DEBUG] Direct function call: {}(...)", func_name);
-
                             // Generate direct call to function
                             let mut arg_ids = vec![];
                             for a in args {
@@ -921,6 +1034,58 @@ impl MirGen {
                 } else {
                     (method.clone(), false, false)
                 };
+
+                // Special case: ptr.add(offset) / ptr.offset(offset) for raw pointer types
+                // Detect by checking if the mangled function name starts with "add_*"
+                // OR if the receiver's source type contains "*mut" or "*const"
+                // offset is ONLY defined on raw pointers in Rust, so method="offset" is always ptr arith
+                let is_ptr_add = func.starts_with("add_*")
+                    || method == "offset"
+                    || (method == "add" && receiver.is_some() 
+                        && arg_ids.first().map(|&id| self.source_types.get(&id).map_or(false, |st| st.contains("*mut") || st.contains("*const"))).unwrap_or(false));
+                if is_ptr_add {
+                    let ptr_id = arg_ids[0];
+                    let offset_id = arg_ids[1];
+
+                    // Determine element size from the function name (e.g., "add_*mut u64" -> 8)
+                    // Note: for offset(), the mangled name is usually "offset_i64" (MIR loses pointer type),
+                    // so we hard-code elem_size=1 for offset (it's always byte-addressable in practice)
+                    let elem_size = if method == "offset" {
+                        1  // offset is always byte-level on u8 pointers
+                    } else if func.contains("u64") || func.contains("i64") || func.contains("f64") || func.contains("usize") {
+                        8
+                    } else if func.contains("u32") || func.contains("i32") || func.contains("f32") {
+                        4
+                    } else if func.contains("u16") || func.contains("i16") {
+                        2
+                    } else if func.contains("u8") || func.contains("i8") || func.contains("bool") {
+                        1
+                    } else {
+                        8
+                    };
+
+                    let size_id = self.next_id();
+                    self.exprs.insert(size_id, MirExpr::Lit(elem_size));
+
+                    let mul_id = self.next_id();
+                    self.exprs.insert(mul_id, MirExpr::BinaryOp {
+                        op: "*".to_string(),
+                        left: offset_id,
+                        right: size_id,
+                    });
+
+                    // Store the pointer arithmetic directly as an inline expression.
+                    // Must NOT use a Var indirection — Var(X) calls load_local(X) in codegen,
+                    // but intermediate IDs' allocas are never written to, loading garbage.
+                    self.exprs.insert(id, MirExpr::BinaryOp {
+                        op: "+".to_string(),
+                        left: ptr_id,
+                        right: mul_id,
+                    });
+                    self.type_map.insert(id, Type::I64);
+                    self.pointee_widths.insert(id, elem_size as u8);
+                    return id;
+                }
 
                 // Convert type arguments from strings to Type objects
                 let mir_type_args: Vec<Type> =
@@ -1253,22 +1418,12 @@ impl MirGen {
                 args,
                 type_args,
             } => {
-                println!(
-                    "[MIR GEN DEBUG] Processing path call: path={:?}, method={:?}, args={:?}, type_args={:?}",
-                    path, method, args, type_args
-                );
-
                 // Construct qualified name: path::method
                 let func_name = if path.is_empty() {
                     method.clone()
                 } else {
                     format!("{}::{}", path.join("::"), method)
                 };
-
-                println!(
-                    "[MIR GEN DEBUG] Path call resolved to function: {}",
-                    func_name
-                );
 
                 // Generate argument IDs
                 let mut arg_ids = vec![];
@@ -1303,14 +1458,12 @@ impl MirGen {
             }
             AstNode::ArrayLit(elements) => {
                 // Create an array using ArrayHeader API
-                println!("[MIR GEN DEBUG] ArrayLit with {} elements", elements.len());
                 
                 let size = elements.len();
                 
                 // HYBRID MEMORY SYSTEM: Check if this should be a stack array
                 // For small, fixed-size arrays, use stack allocation
                 if size <= 20000 { // Reasonable stack size limit
-                    println!("[MIR GEN DEBUG] Using StackArray for array literal with {} elements", size);
                     
                     // Lower each element expression
                     let mut element_ids = Vec::new();
@@ -1335,7 +1488,6 @@ impl MirGen {
                     self.type_map.insert(id, Type::Array(Box::new(elem_type), ArraySize::Literal(size)));
                 } else {
                     // Large array, use heap allocation
-                    println!("[MIR GEN DEBUG] Using heap array for large array with {} elements", size);
                     
                     // Call array_new with capacity = size
                     let array_data_ptr = self.next_id();
@@ -1381,7 +1533,6 @@ impl MirGen {
                 }
             }
             AstNode::ArrayRepeat { value, size } => {
-                println!("[MIR GEN DEBUG] ArrayRepeat: [value; size]");
                 let value_id = self.lower_expr(value);
                 
                 // Get the type of the value expression
@@ -1392,11 +1543,9 @@ impl MirGen {
                 match size.as_ref() {
                     AstNode::Lit(size_lit) => {
                         let size_val = *size_lit as usize;
-                        println!("[MIR GEN DEBUG] ArrayRepeat with constant size: {}, elem_type: {:?}", size_val, elem_type);
                         
                         // HYBRID MEMORY SYSTEM: Use StackArray for small fixed-size arrays
                         if size_val <= 20000 { // Reasonable stack size limit
-                            println!("[MIR GEN DEBUG] Using StackArray for array repeat with {} elements", size_val);
                             
                             // Create StackArray expression with repeated value
                             self.exprs.insert(id, MirExpr::StackArray {
@@ -1408,10 +1557,8 @@ impl MirGen {
                             self.type_map.insert(id, Type::Array(Box::new(elem_type), ArraySize::Literal(size_val)));
                         } else {
                             // Large array, use heap allocation
-                            println!("[MIR GEN DEBUG] Using heap array for large array repeat with {} elements", size_val);
                             
                             // Allocate array using array_new with capacity = size
-                            println!("[MIR GEN DEBUG] Calling array_new with capacity = {}", size_val);
                             let array_ptr = self.next_id();
                             let capacity_id = self.next_id();
                             self.exprs.insert(capacity_id, MirExpr::Lit(size_val as i64));
@@ -1450,7 +1597,6 @@ impl MirGen {
                     }
                     _ => {
                         // Size is not a literal constant
-                        println!("[MIR GEN DEBUG] ArrayRepeat with non-constant size, using placeholder");
                         // For now, create a placeholder
                         self.exprs.insert(id, MirExpr::Lit(0));
                         self.type_map.insert(id, Type::I64);
@@ -1473,12 +1619,10 @@ impl MirGen {
                     });
                 } else if let Type::Array(_, size) = base_ty {
                     // Check if this is a stack array (fixed size) or heap array
-                    println!("[MIR GEN DEBUG] Array subscript with size: {:?}", size);
                     match size {
                         ArraySize::Literal(n) if n <= 1024 => {
                             // Small fixed-size array - treat as stack array
                             // Use array_get for direct memory access (stack arrays handled in runtime)
-                            println!("[MIR GEN DEBUG] Using array_get for stack array subscript (size={})", n);
                             self.stmts.push(MirStmt::Call {
                                 func: "array_get".to_string(),
                                 args: vec![bid, iid],
@@ -1488,7 +1632,6 @@ impl MirGen {
                         }
                         _ => {
                             // Dynamic or large array - use heap array access
-                            println!("[MIR GEN DEBUG] Using array_get for heap/dynamic array subscript");
                             self.stmts.push(MirStmt::Call {
                                 func: "array_get".to_string(),
                                 args: vec![bid, iid],
@@ -1547,25 +1690,58 @@ impl MirGen {
                 
                 if op == "!" {
                     // Logical NOT operator
-                    self.stmts.push(MirStmt::Call {
+                    let stmt = MirStmt::Call {
                         func: "!".to_string(),
                         args: vec![expr_id],
                         dest,
                         type_args: vec![],
-                    });
+                    };
+                    self.stmts.push(stmt);
+                } else if op == "*" {
+                    // Pointer dereference - use Deref MirExpr with pointee width
+                    let pointee_width = self.pointee_widths.get(&expr_id).copied().unwrap_or(8);
+                    self.exprs.insert(dest, MirExpr::Deref { addr_id: expr_id, pointee_width });
+                    self.type_map.insert(dest, Type::I64);
+                    // SKIP the common Var(dest) insert below — the Deref expr is used inline
+                    // by gen_expr_safe, so we don't need an alloca to load from.
+                    return dest;
+                } else if op == "-" {
+                    // Unary minus - use special function name to avoid conflict with binary minus
+                    let stmt = MirStmt::Call {
+                        func: "unary_minus".to_string(),
+                        args: vec![expr_id],
+                        dest,
+                        type_args: vec![],
+                    };
+                    self.stmts.push(stmt);
                 } else {
-                    // Other unary operators (unary minus, etc.)
-                    self.stmts.push(MirStmt::Call {
+                    // Other unary operators (unary plus?, etc.)
+                    let stmt = MirStmt::Call {
                         func: op.clone(),
                         args: vec![expr_id],
                         dest,
                         type_args: vec![],
-                    });
+                    };
+                    self.stmts.push(stmt);
                 }
                 
                 self.exprs.insert(dest, MirExpr::Var(dest));
                 self.type_map.insert(dest, Type::I64);
                 return dest;
+            }
+            AstNode::Unsafe { body } => {
+                // Evaluate the last expression in an unsafe block as the result
+                if let Some(last) = body.last() {
+                    if let AstNode::ExprStmt { expr } = last {
+                        return self.lower_expr(expr);
+                    }
+                }
+                // Fallback: evaluate the whole body as statements
+                for stmt in body {
+                    self.lower_ast(stmt);
+                }
+                self.exprs.insert(id, MirExpr::Lit(0));
+                self.type_map.insert(id, Type::I64);
             }
             _ => {
                 self.exprs.insert(id, MirExpr::Lit(0));

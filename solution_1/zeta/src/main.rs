@@ -52,23 +52,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         i += 1;
     }
-
     if let Some(file) = input {
         let code = fs::read_to_string(&file)?;
         // Strip UTF-8 BOM if present
         let code = code.trim_start_matches('\u{FEFF}');
         let result = parse_zeta(code);
         match result {
-            Ok((remaining, asts)) => {
-                if !remaining.is_empty() {
-                    println!("Incomplete parse. Remaining: {}", remaining);
-                }
+            Ok((_remaining, asts)) => {
+                // Run CTFE evaluation on parsed ASTs
+                let asts = match zetac::middle::const_eval::evaluate_constants(&asts) {
+                    Ok(ctfe_asts) => {
+                        // After CTFE, filter out comptime-only function definitions
+                        // (they've been evaluated and are no longer needed for codegen)
+                        // const fns are kept — they may still be needed at runtime if
+                        // CTFE couldn't fully inline all call sites.
+                        let runtime_asts: Vec<_> = ctfe_asts.into_iter().filter(|ast| {
+                            !matches!(ast, AstNode::FuncDef { comptime_: true, .. })
+                        }).collect();
+                        runtime_asts
+                    }
+                    Err(e) => {
+                        eprintln!("CTFE warning (non-fatal): {}", e);
+                        asts
+                    }
+                };
+
                 let mut resolver = Resolver::new();
-                for ast in &asts {
+
+                // Expand macros before registration
+                let expanded_asts = match resolver.expand_macros(&asts) {
+                    Ok(ea) => {
+                        ea
+                    }
+                    Err(e) => {
+                        eprintln!("Macro expansion warning (non-fatal): {}", e);
+                        asts.clone()
+                    }
+                };
+
+                for ast in &expanded_asts {
                     resolver.register(ast.clone());
                 }
 
-                let type_ok = resolver.typecheck(&asts);
+                // Use expanded ASTs for typechecking
+                let typecheck_asts = &expanded_asts;
+
+                let type_ok = resolver.typecheck(&expanded_asts);
                 if !type_ok {
                     return Err("Typecheck failed".into());
                 }
@@ -148,7 +177,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     finalize_and_aot(&codegen, Path::new(&obj_path))?;
 
                     // Platform-specific linking
-                    let mut cmd = std::process::Command::new("clang");
+                    let mut cmd = std::process::Command::new("gcc");
                     cmd.arg(&obj_path)
                         .arg("-o")
                         .arg(&out);
@@ -219,7 +248,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| format!("Parse error: {:?}", e))?
             .1; // take only owned ASTs, discard remaining slice
 
-        println!("Parsed {} nodes from selfhost.z", asts.len());
 
         let mut resolver = Resolver::new();
         for ast in &asts {

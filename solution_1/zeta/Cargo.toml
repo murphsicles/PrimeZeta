@@ -4,7 +4,7 @@
 # Package name.
 name = "zetac"
 # Current version.
-version = "0.6.0"  # CTFE compilation fixes & competition-ready release
+version = "0.8.0"  # CTFE sprint — sieve, recursion, for-loops, compound ops
 # Rust edition.
 edition = "2024"
 # Minimum Rust version.
@@ -30,6 +30,7 @@ chrono = { version = "0.4.43", features = ["serde"] }
 either = "1.15.0"
 # LLVM bindings.
 inkwell = { version = "0.8.0", features = ["llvm21-1"] }
+llvm-sys = { version = "211.0.0", features = ["prefer-dynamic"] }
 # Lazy static initialization.
 lazy_static = "1.5.0"
 # C library interfaces.
@@ -47,9 +48,11 @@ reqwest = { version = "0.13.1", features = ["blocking", "json", "rustls"], defau
 # TLS library for reqwest
 rustls = "0.23.36"
 # Serialization framework.
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.227", features = ["derive"] }
+# Core serialization library
+serde_core = "1.0.227"
 # Formal verification system
-# zeta-verification = { path = "verification" }
+zeta-verification = { path = "verification" }
 # JSON handling.
 serde_json = "1.0.149"
 # TOML parsing and serialization.
@@ -119,6 +122,10 @@ path = "tests/unit/error_handling.rs"
 [[test]]
 name = "integration_error_handling"
 path = "tests/integration/integration_error_handling.rs"
+
+[[test]]
+name = "ctfe_integration"
+path = "tests/integration/ctfe_integration.rs"
 
 [[test]]
 name = "comptime_eval"

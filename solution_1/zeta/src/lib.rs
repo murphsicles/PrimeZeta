@@ -1,5 +1,5 @@
 // src/lib.rs
-//! # Zeta Compiler Library (v0.3.4 Foundation Release)
+//! # Zeta Compiler Library (v0.3.83 CTFE Foundation Release)
 //!
 //! The core library for the Zeta systems programming language.
 //! This crate provides a complete pipeline:
@@ -49,6 +49,7 @@ pub use runtime::actor::scheduler::{init_runtime, spawn};
 pub use runtime::option;
 
 use inkwell::context::Context;
+use crate::middle::ctfe::error::CtfeError;
 
 /// Compiles a Zeta source string to executable code and runs `main()`.
 ///
@@ -78,7 +79,7 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
 
     // Evaluate constants at compile time
     let const_evaluated_asts = crate::middle::const_eval::evaluate_constants(&expanded_asts)
-        .map_err(|e| format!("Const evaluation error: {}", e))?;
+        .map_err(|e: CtfeError| format!("Const evaluation error: {}", e))?;
 
     for ast in &const_evaluated_asts {
         resolver.register(ast.clone());
@@ -95,18 +96,11 @@ pub fn compile_and_run_zeta(code: &str) -> Result<i64, String> {
 
     // Get all registered function ASTs (including module functions)
     let registered_funcs = resolver.get_registered_funcs();
-    println!(
-        "[LIB DEBUG] Got {} registered functions",
-        registered_funcs.len()
-    );
 
     for ast in registered_funcs {
         if let AstNode::FuncDef { name, .. } = &ast {
-            println!("[LIB] Generating MIR for registered function: {}", name);
             let mir = resolver.lower_to_mir(&ast);
             mirs.push(mir);
-        } else {
-            println!("[LIB DEBUG] Registered AST is not a FuncDef: {:?}", ast);
         }
     }
 
@@ -433,7 +427,7 @@ pub fn compile_with_diagnostics(code: &str, filename: &'static str) -> Result<i6
 
     // Evaluate constants
     let const_evaluated_asts = crate::middle::const_eval::evaluate_constants(&expanded_asts)
-        .map_err(|e| {
+        .map_err(|e: CtfeError| {
             let span = SourceSpan::single(SourceLocation::new(filename, 1, 1, 0));
             let diag = diagnostic_from_code(
                 "E2003",
