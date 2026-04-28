@@ -1,3 +1,4 @@
+#include <time.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -153,4 +154,24 @@ long long parallel_sieve(long long limit, long long threads) {
     free(work_arr);
 
     return total;
+}
+
+// Timing and result output
+long long get_time_us(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)ts.tv_sec * 1000000LL + (long long)ts.tv_nsec / 1000LL;
+}
+
+long long time_is_up(long long start_us, long long target_us) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    long long now = (long long)ts.tv_sec * 1000000LL + (long long)ts.tv_nsec / 1000LL;
+    return (now - start_us) >= target_us ? 1 : 0;
+}
+
+void print_result(long long passes, long long elapsed_us) {
+    double secs = (double)elapsed_us / 1000000.0;
+    printf("murphsicles;%lld;%.6f;20;algorithm=other,faithful=no,bits=1\n", passes, secs);
+    fflush(stdout);
 }
