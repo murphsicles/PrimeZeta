@@ -20,24 +20,19 @@ void println_i64(long long v) { printf("%lld\n", v); fflush(stdout); }
 static long long *sp = NULL; static int sc = 0;
 static void init_sp(void) {
     if (sp) return;
-    int sw = (1000 + 63) / 64;
-    uint64_t *sb = calloc(sw, 8);
-    for (int i = 0; i < sw; i++) sb[i] = ~0ULL;
-    sb[0] &= ~3ULL;
+    uint8_t *sb = calloc(1000, 1);
     for (long long p = 3; p * p < 1000; p += 2)
-        if (sb[p/64] & (1ULL << (p%64)))
-            for (long long j = p*p; j < 1000; j += 2*p)
-                sb[j/64] &= ~(1ULL << (j%64));
-    sc = 0;
-    for (long long p = 2; p < 1000; p++)
-        if (sb[p/64] & (1ULL << (p%64))) sc++;
-    sp = malloc(sc * 8); int idx = 0;
-    for (long long p = 2; p < 1000; p++)
-        if (sb[p/64] & (1ULL << (p%64))) sp[idx++] = p;
+        if (sb[p] == 0)
+            for (long long j = p * p; j < 1000; j += 2 * p) sb[j] = 1;
+    sc = 1;
+    for (long long i = 3; i < 1000; i += 2) if (sb[i] == 0) sc++;
+    sp = malloc(sc * 8); int idx = 0; sp[idx++] = 2;
+    for (long long i = 3; i < 1000; i += 2) if (sb[i] == 0) sp[idx++] = i;
     free(sb);
 }
 
 typedef struct { uint8_t *bits; long long lim; long long s, e; } tw_t;
+
 static void *worker(void *arg) {
     tw_t *tw = (tw_t*)arg;
     for (int si = 0; si < sc; si++) {
@@ -48,46 +43,49 @@ static void *worker(void *arg) {
         if (f >= tw->e) continue;
         if (f % 2 == 0) f += p;
         if (f >= tw->e) continue;
-        for (long long j = f; j < tw->e; j += 2 * p)
-            tw->bits[j] = 1;
+        for (long long j = f; j < tw->e; j += 2 * p) tw->bits[j] = 1;
     }
     return NULL;
 }
 
-long long parallel_sieve(long long limit, long long threads) {
+long long parallel_sieve_timed(long long limit, long long run_us, long long threads) {
     init_sp();
-    uint8_t *bits = calloc(limit, 1);
-    if (threads < 2) threads = 2;
-    if (threads > 20) threads = 20;
+    if (threads < 2 || threads > 20) threads = 20;
+    
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    long long start = ts.tv_sec * 1000000LL + ts.tv_nsec / 1000LL;
+    long long passes = 0;
     long long chunk = ((limit + threads - 1) / threads + 63) / 64 * 64;
-    pthread_t pt[64];
-    tw_t tw[64];
-    for (int t = 0; t < threads; t++) {
-        tw[t].bits = bits; tw[t].lim = limit;
-        tw[t].s = t * chunk; tw[t].e = (t + 1) * chunk;
-        if (tw[t].s >= limit) continue;
-        if (tw[t].e > limit) tw[t].e = limit;
-        pthread_create(&pt[t], NULL, worker, &tw[t]);
+    
+    pthread_t pt[64]; tw_t tw[64];
+    
+    while (1) {
+        uint8_t *bits = calloc(limit, 1);
+        
+        for (int t = 0; t < threads; t++) {
+            tw[t].bits = bits; tw[t].lim = limit;
+            tw[t].s = t * chunk; tw[t].e = (t + 1) * chunk;
+            if (tw[t].s >= limit) continue;
+            if (tw[t].e > limit) tw[t].e = limit;
+            pthread_create(&pt[t], NULL, worker, &tw[t]);
+        }
+        for (int t = 0; t < threads; t++)
+            if (tw[t].s < limit) pthread_join(pt[t], NULL);
+        
+        passes++;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        long long now = ts.tv_sec * 1000000LL + ts.tv_nsec / 1000LL;
+        if ((now - start) >= run_us) {
+            // Count + output
+            long long cnt = 1;
+            for (long long i = 3; i < limit; i += 2) if (bits[i] == 0) cnt++;
+            double secs = (now - start) / 1000000.0;
+            printf("murphsicles;%lld;%.6f;%lld;algorithm=base,faithful=no,bits=8\n", passes, secs, threads);
+            fflush(stdout);
+            free(bits);
+            return 0;
+        }
+        free(bits);
     }
-    for (int t = 0; t < threads; t++)
-        if (tw[t].s < limit) pthread_join(pt[t], NULL);
-    long long count = 1;
-    for (long long i = 3; i < limit; i += 2)
-        if (bits[i] == 0) count++;
-    free(bits);
-    return count;
-}
-
-long long get_time_us(void) {
-    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000000LL + ts.tv_nsec / 1000LL;
-}
-long long time_is_up(long long s, long long t) {
-    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
-    long long n = ts.tv_sec * 1000000LL + ts.tv_nsec / 1000LL;
-    return (n - s) >= t ? 1 : 0;
-}
-void print_result(long long passes, long long elapsed_us) {
-    printf("murphsicles;%lld;%.6f;20;algorithm=base,faithful=no,bits=8\n", passes, elapsed_us / 1000000.0);
-    fflush(stdout);
 }
