@@ -1,18 +1,16 @@
-## PrimeZeta — solution_1 (Faithful CTFE)
+## PrimeZeta — solution_1 (Faithful Runtime Sieve)
 
 ![Algorithm](https://img.shields.io/badge/Algorithm-wheel-blue) ![Faithful](https://img.shields.io/badge/Faithful-yes-brightgreen) ![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey) ![Bits](https://img.shields.io/badge/Bits-1-blueviolet)
 
-**Murphy's Sieve with 30030-wheel — computed at compile time via CTFE**
+**Faithful Murphy's Sieve — pure Zeta, no external C, no parallelism.**
 
-The entire sieve computation runs at compile time via Zeta's CTFE engine. The resulting binary is a tight loop printing `78498` — a **~22,700×** throughput improvement over runtime evaluation.
+Each pass computes π(1,000,000) from scratch: bit array allocation, composite marking via sieve, and popcount via bit-scanning loop. No compile-time pre-computation — full algorithm execution per pass.
 
 ### Performance
-- **Throughput**: ~12,500,000 passes/5s
+- **Throughput**: ~625 passes/5s
 - **π(1,000,000)**: 78,498 (verified)
-- **Binary**: ~16KB (fully self-contained)
+- **Algorithm**: Eratosthenes sieve with 64-bit word-level bit array
+- **Memory**: `[i64; 15625]` = 125KB stack-allocated bit array (1 bit per number)
 
-### Algorithm
-- **Sieve**: Eratosthenes with bit array (1 bit per number)
-- **Wheel**: 30030 (product of primes 2–13), 5,760 residue classes
-- **Memory**: `[i64; 15625]` = 125K bit array, stack-allocated
-- **Faithful**: Pure Zeta implementation, no external C, no parallelism
+### Why This Matters
+This is the "control" entry — a baseline pure-Zeta implementation with no runtime optimizations. Solutions 2 and 3 build on this with C acceleration and parallel execution for higher throughput.

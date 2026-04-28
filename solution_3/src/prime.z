@@ -1,12 +1,12 @@
 // PrimeZeta Competition Entry — solution_3
-// Multi-threaded parallel sieve (pthreads)
+// Multi-threaded parallel sieve (pthreads) — re-computes each pass
 // Algorithm: wheel, Faithful: no, Parallel: yes, Bits: 1
 
 extern fn parallel_sieve(limit: i64, threads: i64) -> i64;
 
 fn main() -> i64 {
-    let count = parallel_sieve(1000000, 20);
     loop {
+        let count = parallel_sieve(1000000, 20);
         println_i64(count);
     }
     0
