@@ -12,18 +12,13 @@ fn sieve(limit: i64) -> i64 {
     if limit % 64 > 0 {
         bits[words - 1] = bits[words - 1] & !((-1) << (limit % 64));
     }
-    
-    // Count starts at limit/2 (all odd numbers 3,5,7... + prime 2)
-    // Odd count = limit/2, subtract 1 for number 1 (odd, not prime) 
     let mut count: i64 = limit / 2;
-    
     let mut p: i64 = 3;
     while p * p < limit {
         let w = p / 64; let b = p % 64;
         if ((bits[w] >> b) & 1) == 1 {
             let mut m = p * p;
             while m < limit {
-                // Only decrement if this bit wasn't already cleared
                 let cw = m / 64; let cb = m % 64;
                 if ((bits[cw] >> cb) & 1) == 1 {
                     bits[cw] = bits[cw] & !(1 << cb);
@@ -34,7 +29,6 @@ fn sieve(limit: i64) -> i64 {
         }
         p += 2;
     }
-    
     return count;
 }
 
