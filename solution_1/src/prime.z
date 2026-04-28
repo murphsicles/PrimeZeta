@@ -1,5 +1,6 @@
 // PrimeZeta Competition Entry — solution_1
-// Faithful pure Zeta runtime sieve — re-computes each pass
+// Faithful implementation of Dave's Sieve of Eratosthenes (base algorithm)
+// Pure Zeta — no C sieve code, no parallelism
 // Algorithm: base, Faithful: yes, Parallel: no, Bits: 1
 
 extern fn time_is_up(start_us: i64, target_us: i64) -> i64;
@@ -10,25 +11,41 @@ fn sieve(limit: i64) -> i64 {
     let mut bits: [i64; 15625] = [0; 15625];
     let mut i = 0;
     while i < word_count { bits[i] = -1; i += 1; }
-    bits[0] = bits[0] & !(1 << 0);
-    if limit > 1 { bits[0] = bits[0] & !(1 << 1); }
-    let mut p: i64 = 2;
+    
+    // Clear 0 and 1 (not prime)
+    bits[0] = bits[0] & !((1 << 0) | (1 << 1));
+    
+    // Clear all even numbers > 2 (they're not prime)
+    // Base algorithm checks odd numbers only, starting at 3
+    let mut j: i64 = 4;
+    while j < limit {
+        bits[j / 64] = bits[j / 64] & !(1 << (j % 64));
+        j += 2;
+    }
+    
+    // Base algorithm: outer loop checks odd numbers starting at 3
+    let mut p: i64 = 3;
     while p * p < limit {
-        let w = p / 64; let b = p % 64;
-        if ((bits[w] >> b) & 1) == 1 {
-            let mut j = p * p;
-            while j < limit {
-                let wj = j / 64; let bj = j % 64;
-                bits[wj] = bits[wj] & !(1 << bj);
-                j += p;
+        if ((bits[p / 64] >> (p % 64)) & 1) == 1 {
+            // Base algorithm: inner loop uses 2*p stride (skip even multiples)
+            let mut m = p * p;
+            while m < limit {
+                bits[m / 64] = bits[m / 64] & !(1 << (m % 64));
+                m += p * 2;
             }
         }
-        p += 1;
+        p += 2;
     }
-    let mut count: i64 = 0; let mut k: i64 = 0;
+    
+    // Count primes using bit-scanning
+    let mut count: i64 = 0;
+    let mut k: i64 = 0;
     while k < limit {
-        let wk = k / 64; let bk = k % 64;
-        if ((bits[wk] >> bk) & 1) == 1 { count += 1; }
+        let wk = k / 64;
+        let bk = k % 64;
+        if ((bits[wk] >> bk) & 1) == 1 {
+            count += 1;
+        }
         k += 1;
     }
     return count;
