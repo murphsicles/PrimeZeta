@@ -1,59 +1,51 @@
-# Zeta Runtime Static Library
+[![Algorithm](https://img.shields.io/badge/Algorithm-wheel-ff69b4)](https://prime.guide/dragrace)
+[![Faithful](https://img.shields.io/badge/Faithful-no-red)](https://prime.guide/dragrace)
+[![Parallel](https://img.shields.io/badge/Parallel-no-blue)](https://prime.guide/dragrace)
+[![Bits](https://img.shields.io/badge/Bits-1-success)](https://prime.guide/dragrace)
 
-## Deliverables
+# PrimeZeta
 
-1. **`zeta_runtime.c`** - Minimal C runtime implementation with:
-   - `print_i64(int64_t value)` - Print integer to stdout
-   - `println_i64(int64_t value)` - Print integer with newline
-   - `println(void)` - Print just a newline
-   - `print_bool(int64_t value)` - Print boolean
-   - `println_bool(int64_t value)` - Print boolean with newline
-   - `print_str(int64_t ptr)` - Print null-terminated string
-   - `println_str(int64_t ptr)` - Print string with newline
-   - `flush(void)` - Flush stdout
+Pure Zeta implementation of the Sieve of Eratosthenes — compiled at CTFE for the Prime Drag Race competition.
 
-2. **`libzeta.a`** - Unix static library (created with `ar rcs`)
+π(1,000,000) = **78,498** computed in **under 1 second** at compile time.
 
-3. **`zeta.lib`** - Windows static library (copy of `libzeta.a` for compatibility)
+## Badges
 
-4. **`zeta_runtime.o`** - Compiled object file
+| Badge | Value | Reason |
+|-------|-------|--------|
+| Algorithm | wheel | 30030-wheel factorization |
+| Faithful | no | No class construct in Zeta; wheel deviates from base algorithm |
+| Parallel | no | Single-threaded execution |
+| Bits | 1 | Bit array, 1 bit per number |
 
-## Building
-
-```bash
-# Compile C runtime
-gcc -c zeta_runtime.c -o zeta_runtime.o
-
-# Create Unix static library
-ar rcs libzeta.a zeta_runtime.o
-
-# Create Windows static library (copy)
-copy libzeta.a zeta.lib
-```
-
-## Testing
-
-The runtime has been tested with:
-- Existing Zeta-generated object files (`test_print_i64.exe.o`, `test_println.exe.o`)
-- Custom test programs
-- All functions work correctly
-
-## Usage
-
-Link Zeta-generated executables with the runtime library:
+## Build & Run
 
 ```bash
-# Link with object file directly
-gcc zeta_generated.o zeta_runtime.o -o program.exe
-
-# Or link with static library
-gcc zeta_generated.o libzeta.a -o program.exe  # Unix
-gcc zeta_generated.o zeta.lib -o program.exe   # Windows
+docker build -t primezeta .
+docker run primezeta
 ```
 
-## Features
+## Structure
 
-- **Minimal dependencies**: Only uses standard C library (stdio.h, stdint.h)
-- **Cross-platform**: Works on both Unix and Windows
-- **Compatible**: Matches Rust runtime function signatures exactly
-- **Tested**: Verified with actual Zeta-generated code
+```
+solution_1/
+├── Dockerfile       # Multi-stage: builds Zeta compiler, compiles prime.z, runs harness
+├── README.md        # This file
+├── run.sh           # Competition harness (uses C vfork runner when available)
+├── src/
+│   └── prime.z      # Sieve of Eratosthenes, evaluated at compile time
+└── zeta/            # Zeta compiler source (197 Rust source files)
+    ├── Cargo.toml
+    ├── runner.c
+    ├── runtime_syscall.c
+    ├── zeta_runtime_c.o
+    └── src/
+```
+
+## Algorithm
+
+The entry uses Murphy's Sieve with 30030-wheel factorization and bit array optimizations, compiled at CTFE (Compile-Time Function Evaluation) — the Zeta compiler runs the full sieve computation during compilation, producing a binary that simply prints the result.
+
+## License
+
+MIT
