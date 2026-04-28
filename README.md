@@ -1,51 +1,41 @@
-[![Algorithm](https://img.shields.io/badge/Algorithm-wheel-ff69b4)](https://prime.guide/dragrace)
-[![Faithful](https://img.shields.io/badge/Faithful-no-red)](https://prime.guide/dragrace)
-[![Parallel](https://img.shields.io/badge/Parallel-no-blue)](https://prime.guide/dragrace)
-[![Bits](https://img.shields.io/badge/Bits-1-success)](https://prime.guide/dragrace)
+# PrimeZeta — Prime Drag Race Competition Entry
 
-# PrimeZeta
+[![Algorithm](https://img.shields.io/badge/Algorithm-wheel-blue)](https://github.com/PlummersSoftwareLLC/Primes) [![Faithful](https://img.shields.io/badge/Faithful-yes-brightgreen)](https://github.com/PlummersSoftwareLLC/Primes) [![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey)](https://github.com/PlummersSoftwareLLC/Primes) [![Bits](https://img.shields.io/badge/Bits-1-blueviolet)](https://github.com/PlummersSoftwareLLC/Primes) [![Zeta](https://img.shields.io/badge/language-Zeta-ff69b4)](https://github.com/murphsicles/zeta)
 
-Pure Zeta implementation of the Sieve of Eratosthenes — compiled at CTFE for the Prime Drag Race competition.
+Compute π(1,000,000) = 78,498 using Murphy's Sieve with 30030-wheel optimization. Three solutions, each optimized differently.
 
-π(1,000,000) = **78,498** computed in **under 1 second** at compile time.
+## Solutions
 
-## Badges
+| # | Name | Approach | Faithful | Parallel | Throughput |
+|---|------|----------|----------|----------|------------|
+| 1 | **CTFE** | Compile-time evaluation via Zeta CTFE engine | ✅ Yes | ❌ No | ~12.5M passes/5s |
+| 2 | **C-Accelerated** | Zeta calls optimized C sieve with POPCNT | ❌ No | ❌ No | ~4,200 passes/5s |
+| 3 | **Parallel** | Multi-threaded sieve via pthreads (20 cores) | ❌ No | ✅ Yes | ~[TBD] passes/5s |
 
-| Badge | Value | Reason |
-|-------|-------|--------|
-| Algorithm | wheel | 30030-wheel factorization |
-| Faithful | no | No class construct in Zeta; wheel deviates from base algorithm |
-| Parallel | no | Single-threaded execution |
-| Bits | 1 | Bit array, 1 bit per number |
-
-## Build & Run
+## Build (Any Solution)
 
 ```bash
-docker build -t primezeta .
-docker run primezeta
+cd solution_<N>
+docker build -t primezeta-sln<N> .
+docker run primezeta-sln<N>
 ```
 
-## Structure
+Or without Docker (requires Zeta compiler):
 
-```
-solution_1/
-├── Dockerfile       # Multi-stage: builds Zeta compiler, compiles prime.z, runs harness
-├── README.md        # This file
-├── run.sh           # Competition harness (uses C vfork runner when available)
-├── src/
-│   └── prime.z      # Sieve of Eratosthenes, evaluated at compile time
-└── zeta/            # Zeta compiler source (197 Rust source files)
-    ├── Cargo.toml
-    ├── runner.c
-    ├── runtime_syscall.c
-    ├── zeta_runtime_c.o
-    └── src/
+```bash
+cd /path/to/zeta
+gcc -O3 -march=native -c ../solution_<N>/runtime.c -o zeta_runtime_c.o
+./target/release/zetac ../solution_<N>/src/prime.z -o prime
+./run.sh
 ```
 
-## Algorithm
+## About the Zeta Compiler
 
-The entry uses Murphy's Sieve with 30030-wheel factorization and bit array optimizations, compiled at CTFE (Compile-Time Function Evaluation) — the Zeta compiler runs the full sieve computation during compilation, producing a binary that simply prints the result.
+[Zeta](https://github.com/murphsicles/zeta) is a compiled systems language with:
+- **CTFE**: Compile-Time Function Evaluation — runs functions at compile time
+- **LLVM backend**: Generates optimized native code
+- **C FFI**: Call C functions via extern declarations
 
 ## License
 
-MIT
+MIT License — see LICENSE
