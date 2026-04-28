@@ -1,5 +1,61 @@
-extern fn run_sieve_timed(limit: i64, run_us: i64) -> i64;
+extern fn get_time_us() -> i64;
+extern fn time_is_up(start_us: i64, target_us: i64) -> i64;
+extern fn print_result(passes: i64, elapsed_us: i64);
+
+// Bit-array sieve using i64 words — pure Zeta, no C for the algorithm
+fn sieve(limit: i64) -> i64 {
+    let words = (limit + 63) / 64;
+    let mut bits: [i64; 15625] = [0; 15625];
+    let odd_mask: i64 = -6148914691236517206;
+    
+    let mut i = 0;
+    while i < words { bits[i] = odd_mask; i += 1; }
+    bits[0] = (bits[0] & !3) | (1 << 2);
+    if limit % 64 > 0 {
+        let last = words - 1;
+        bits[last] = bits[last] & !((-1) << (limit % 64));
+    }
+    
+    let mut p: i64 = 3;
+    while p * p < limit {
+        let w = p / 64; let b = p % 64;
+        if ((bits[w] >> b) & 1) == 1 {
+            let mut m = p * p;
+            while m < limit {
+                bits[m / 64] = bits[m / 64] & !(1 << (m % 64));
+                m += p * 2;
+            }
+        }
+        p += 2;
+    }
+    
+    let mut count: i64 = 0;
+    let mut k: i64 = 0;
+    while k < limit {
+        let wk = k / 64; let bk = k % 64;
+        if ((bits[wk] >> bk) & 1) == 1 { count += 1; }
+        k += 1;
+    }
+    return count;
+}
 
 fn main() -> i64 {
-    return run_sieve_timed(1000000, 5000000);
+    let start_us = get_time_us();
+    let mut passes: i64 = 0;
+    let mut done: i64 = 0;
+    
+    while done == 0 {
+        let result = sieve(1000000);
+        passes += 1;
+        if passes % 50 == 0 {
+            if time_is_up(start_us, 5000000) == 1 {
+                done = 1;
+            }
+        }
+        if result != 78498 { return 1; }
+    }
+    
+    let elapsed_us = get_time_us() - start_us;
+    print_result(passes, elapsed_us);
+    return 0;
 }
