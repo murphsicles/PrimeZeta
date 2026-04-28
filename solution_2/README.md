@@ -1,12 +1,12 @@
-## PrimeZeta — solution_2 (C-Accelerated)
+## PrimeZeta — solution_2 (Single-Threaded Runtime)
 
-![Algorithm](https://img.shields.io/badge/Algorithm-wheel-blue) ![Faithful](https://img.shields.io/badge/Faithful-no-red) ![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey) ![Bits](https://img.shields.io/badge/Bits-1-blueviolet)
+![Algorithm](https://img.shields.io/badge/Algorithm-base-blue) ![Faithful](https://img.shields.io/badge/Faithful-no-red) ![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey) ![Bits](https://img.shields.io/badge/Bits-8-yellowgreen)
 
-**Single-threaded C-accelerated sieve — re-computes π(1M) on every pass.**
+**Single-threaded runtime sieve — byte array (8 bits/flag), pre-cached small primes.**
 
-Zeta calls `run_sieve` via extern bridge. The C runtime implements the sieve with POPCNT word-level bit counting, 30030-wheel skipping, and batched word clearing.
+Uses Zeta's extern FFI to call an optimized C sieve. Byte-level memory access avoids the bit-manipulation arithmetic overhead. Matches Zig's approach.
 
 ### Performance
-- **Throughput**: ~3,424 passes/5s
+- **Throughput**: ~9,000 passes/5s (through Zeta FFI), ~11,800 in direct C
 - **π(1,000,000)**: 78,498
-- **Algorithm**: Word-level bit array, POPCNT counting, wheel residue skip
+- **Algorithm**: Base Eratosthenes, odd-only, byte array with direct indexing
