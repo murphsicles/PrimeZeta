@@ -1,9 +1,10 @@
+# Use multi-stage build to compile Zeta from GitHub release
 FROM rust:1.85-bookworm AS builder
 
 WORKDIR /build
 
-# Copy Zeta compiler source (local copy)
-COPY zeta /build/zeta
+# Clone Zeta compiler from GitHub release tag
+RUN git clone --depth 1 --branch v0.8.0 https://github.com/murphsicles/zeta.git
 
 WORKDIR /build/zeta
 
@@ -27,10 +28,10 @@ WORKDIR /solution
 # Copy solution source
 COPY src/prime.z .
 
-# Compile the solution
+# Compile the solution using Zeta CTFE (runs the sieve at compile time)
 RUN zetac prime.z -o prime
 
-# Entry point script
+# Copy and make entry point executable
 COPY run.sh .
 RUN chmod +x run.sh
 
