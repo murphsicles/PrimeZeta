@@ -13,62 +13,40 @@ fn sieve(limit: i64) -> i64 {
         bits[words - 1] = bits[words - 1] & !((-1) << (limit % 64));
     }
     
+    // Count starts at limit/2 (all odd numbers 3,5,7... + prime 2)
+    // Odd count = limit/2, subtract 1 for number 1 (odd, not prime) 
+    let mut count: i64 = limit / 2;
+    
     let mut p: i64 = 3;
     while p * p < limit {
         let w = p / 64; let b = p % 64;
         if ((bits[w] >> b) & 1) == 1 {
-            // Batch-clear: track current word, accumulate mask
             let mut m = p * p;
-            let mut cw = m / 64;
-            let mut cb = m % 64;
-            let mut mask: i64 = 1 << cb;
-            m += p * 2;
-            
             while m < limit {
-                let nw = m / 64;
-                let nb = m % 64;
-                if nw != cw {
-                    bits[cw] = bits[cw] & !mask;
-                    cw = nw;
-                    cb = nb;
-                    mask = 1 << nb;
-                } else {
-                    mask = mask | (1 << nb);
-                    if nb == 63 {
-                        bits[cw] = bits[cw] & !mask;
-                        mask = 0;
-                    }
+                // Only decrement if this bit wasn't already cleared
+                let cw = m / 64; let cb = m % 64;
+                if ((bits[cw] >> cb) & 1) == 1 {
+                    bits[cw] = bits[cw] & !(1 << cb);
+                    count -= 1;
                 }
                 m += p * 2;
-            }
-            if mask != 0 {
-                bits[cw] = bits[cw] & !mask;
             }
         }
         p += 2;
     }
     
-    let mut count: i64 = 0; let mut k: i64 = 0;
-    while k < limit {
-        if ((bits[k / 64] >> (k % 64)) & 1) == 1 { count += 1; }
-        k += 1;
-    }
     return count;
 }
 
 fn main() -> i64 {
-    let start_us = get_time_us();
-    let mut passes: i64 = 0;
-    let mut done: i64 = 0;
+    let start_us = get_time_us(); let mut passes: i64 = 0; let mut done: i64 = 0;
     while done == 0 {
-        let result = sieve(1000000);
-        passes += 1;
+        let result = sieve(1000000); passes += 1;
         if passes % 50 == 0 {
             if time_is_up(start_us, 5000000) == 1 { done = 1; }
         }
         if result != 78498 { return 1; }
     }
     let elapsed_us = get_time_us() - start_us;
-    print_result(passes, elapsed_us);
-    return 0;
+    print_result(passes, elapsed_us); return 0;
 }
