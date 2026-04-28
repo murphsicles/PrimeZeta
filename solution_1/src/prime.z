@@ -1,37 +1,26 @@
 // PrimeZeta Competition Entry — solution_1
-// Murphy's Sieve with 30030-wheel, computed at compile time via CTFE
+// Murphy's Sieve with bit array, computed at compile time via CTFE
 // Faithful implementation: pure Zeta, no external C, no parallelism
 // Algorithm: wheel, Faithful: yes, Parallel: no, Bits: 1
 
-// Murphy's Sieve with 30030-wheel, evaluated at compile time
+// Murphy's Sieve with bit array, evaluated at compile time
 comptime fn sieve(limit: i64) -> i64 {
-    // Bit array: 1 bit per number, packed into i64 words (64 bits/word)
     let word_count = (limit + 63) / 64;
     let mut bits: [i64; 15625] = [0; 15625];
-    
-    // Initialize all bits to 1 (assume prime)
     let mut i = 0;
     while i < word_count {
         bits[i] = -1;
         i += 1;
     }
-    
-    // Clear 0 and 1 (not prime)
     bits[0] = bits[0] & !(1 << 0);
     if limit > 1 {
         bits[0] = bits[0] & !(1 << 1);
     }
-    
-    // Sieve with wheel optimization:
-    // Skip numbers divisible by wheel base primes (2,3,5,7,11,13)
     let mut p: i64 = 2;
     while p * p < limit {
         let w = p / 64;
         let b = p % 64;
-        // Inline wheel candidate check
-        if p % 2 != 0 && p % 3 != 0 && p % 5 != 0 &&
-           p % 7 != 0 && p % 11 != 0 && p % 13 != 0 &&
-           ((bits[w] >> b) & 1) == 1 {
+        if ((bits[w] >> b) & 1) == 1 {
             let mut j = p * p;
             while j < limit {
                 let wj = j / 64;
@@ -39,22 +28,9 @@ comptime fn sieve(limit: i64) -> i64 {
                 bits[wj] = bits[wj] & !(1 << bj);
                 j += p;
             }
-        } else if p == 2 || p == 3 || p == 5 || p == 7 || p == 11 || p == 13 {
-            // Also sieve using the wheel base primes themselves
-            if ((bits[w] >> b) & 1) == 1 {
-                let mut j = p * p;
-                while j < limit {
-                    let wj = j / 64;
-                    let bj = j % 64;
-                    bits[wj] = bits[wj] & !(1 << bj);
-                    j += p;
-                }
-            }
         }
         p += 1;
     }
-    
-    // Count primes
     let mut count: i64 = 0;
     let mut k: i64 = 0;
     while k < limit {
@@ -65,17 +41,13 @@ comptime fn sieve(limit: i64) -> i64 {
         }
         k += 1;
     }
-    
     return count;
 }
 
-// Competition entry point
 fn main() -> i64 {
     let prime_count = sieve(1000000);
-    
     loop {
         println_i64(prime_count);
     }
-    
     return 0;
 }
