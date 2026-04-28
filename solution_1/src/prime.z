@@ -1,33 +1,40 @@
 // PrimeZeta Competition Entry — solution_1
-// Faithful implementation of Dave's Sieve of Eratosthenes (base algorithm)
-// Pure Zeta — no C sieve code, no parallelism
+// Faithful Sieve of Eratosthenes — pure Zeta, fully compiled through LLVM
 // Algorithm: base, Faithful: yes, Parallel: no, Bits: 1
 
+extern fn get_time_us() -> i64;
 extern fn time_is_up(start_us: i64, target_us: i64) -> i64;
 extern fn print_result(passes: i64, elapsed_us: i64);
 
 fn sieve(limit: i64) -> i64 {
     let word_count = (limit + 63) / 64;
     let mut bits: [i64; 15625] = [0; 15625];
+    
+    // ODD_MASK = 0xAAAAAAAAAAAAAAAA = all odd bits set, all even bits clear
+    // This marks all odd numbers as prime, evens as non-prime
+    let odd_mask: i64 = -6148914691236517206;
+    
+    // Quick init: all odds prime, evens not
     let mut i = 0;
-    while i < word_count { bits[i] = -1; i += 1; }
-    
-    // Clear 0 and 1 (not prime)
-    bits[0] = bits[0] & !((1 << 0) | (1 << 1));
-    
-    // Clear all even numbers > 2 (they're not prime)
-    // Base algorithm checks odd numbers only, starting at 3
-    let mut j: i64 = 4;
-    while j < limit {
-        bits[j / 64] = bits[j / 64] & !(1 << (j % 64));
-        j += 2;
+    while i < word_count {
+        bits[i] = odd_mask;
+        i += 1;
     }
     
-    // Base algorithm: outer loop checks odd numbers starting at 3
+    // Clear bits 0 and 1, set bit 2 (prime 2)
+    bits[0] = (bits[0] & !3) | (1 << 2);
+    
+    // Clear bits beyond limit in last word
+    let last_bit = limit % 64;
+    if last_bit != 0 {
+        bits[word_count - 1] = bits[word_count - 1] & !((-1) << last_bit);
+    }
+    
+    // Main sieve: only check odd numbers starting at 3
     let mut p: i64 = 3;
     while p * p < limit {
         if ((bits[p / 64] >> (p % 64)) & 1) == 1 {
-            // Base algorithm: inner loop uses 2*p stride (skip even multiples)
+            // Clear multiples of p: stride = 2p (skip even multiples)
             let mut m = p * p;
             while m < limit {
                 bits[m / 64] = bits[m / 64] & !(1 << (m % 64));
@@ -37,7 +44,7 @@ fn sieve(limit: i64) -> i64 {
         p += 2;
     }
     
-    // Count primes using bit-scanning
+    // Count using bit-scan
     let mut count: i64 = 0;
     let mut k: i64 = 0;
     while k < limit {
