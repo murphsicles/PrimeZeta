@@ -34,7 +34,7 @@ WORKDIR /build/zeta
 # Copy solution source
 COPY src/prime.z .
 
-# Compile the solution (CTFE: sieve runs at compile time)
+# Compile the solution (faithful runtime: sieve runs per pass)
 RUN zetac prime.z -o prime
 
 # Copy and make entry point executable
