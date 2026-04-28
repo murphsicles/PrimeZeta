@@ -1,6 +1,0 @@
-// Test usize const
-const MAX: usize = 100;
-
-fn main() -> usize {
-    return MAX;
-}

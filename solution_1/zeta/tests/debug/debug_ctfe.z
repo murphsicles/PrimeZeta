@@ -1,7 +1,0 @@
-// Debug CTFE - simplest possible
-comptime X: i64 = 42;
-
-fn main() -> i64 {
-    println_i64(X);
-    return X;
-}

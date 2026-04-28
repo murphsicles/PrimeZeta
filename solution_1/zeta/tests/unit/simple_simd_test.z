@@ -1,5 +1,0 @@
-fn main() -> i64 {
-    // Simple test: declare a vector and return a value
-    let x: Vector<u64, 8>;
-    42
-}

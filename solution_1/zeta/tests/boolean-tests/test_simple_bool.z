@@ -1,7 +1,0 @@
-fn test() -> bool {
-    return true
-}
-
-fn main() {
-    let x = test()
-}

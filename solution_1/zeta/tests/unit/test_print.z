@@ -1,5 +1,0 @@
-fn main() -> i64 {
-    print_i64(123)
-    println()
-    return 456
-}

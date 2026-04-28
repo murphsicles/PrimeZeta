@@ -1,2 +1,0 @@
-//! Stub for std::std::simd
-pub struct Stub;
