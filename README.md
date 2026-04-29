@@ -15,7 +15,7 @@ Compute π(1,000,000) = 78,498. Three solutions, all PURE ZETA.
 | # | Category | Approach | Faithful | Parallel | Passes/5s |
 |---|----------|----------|----------|----------|-----------|
 | 1 | **CTFE** | Compile-time: `comptime` evaluates entire sieve | ✅ yes | ❌ no | **350M** |
-| 2 | **Faithful** | Runtime sieve in pure Zeta code | ✅ yes | ❌ no | **2,350** |
+| 2 | **Faithful** | Murphy's 30030-wheel sieve in pure Zeta | ✅ yes | ❌ no | **2,400** |
 | 3 | **Parallel** | 20 threads, each running pure Zeta sieve (C thread spawn) | ❌ no | ✅ yes | **14,120** |
 
 All sieves are pure Zeta. Only I/O and timing are C externs.

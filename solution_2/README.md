@@ -1,16 +1,16 @@
 ## PrimeZeta — solution_2 (Single-Threaded Faithful)
 
-![Algorithm](https://img.shields.io/badge/Algorithm-base-blue) ![Faithful](https://img.shields.io/badge/Faithful-yes-green) ![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey) ![Bits](https://img.shields.io/badge/Bits-1-green)
+![Algorithm](https://img.shields.io/badge/Algorithm-wheel-yellowgreen) ![Faithful](https://img.shields.io/badge/Faithful-yes-green) ![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey) ![Bits](https://img.shields.io/badge/Bits-1-green)
 
-**Pure Zeta runtime sieve — all algorithm code in Zeta.**
+**Murphy's 30030-wheel sieve in pure Zeta.**
 
-The entire sieve is written in Zeta: bit array initialization, composite clearing with counting-while-clearing, and prime verification. Only `get_time_us`, `time_is_up`, and `print_result` are C externs (I/O and timing infrastructure — permitted for all entries).
+The entire sieve is written in Zeta: 30030-wheel pre-sieve (clears multiples of 2-13), word-level bit array, counting-while-clearing, and walking only wheel residues in the main loop. Only `get_time_us`, `time_is_up`, and `print_result` are C externs (I/O and timing infrastructure — permitted for all entries).
 
 ### Performance
-- **Throughput**: ~2,350 passes/5s
+- **Throughput**: ~2,400 passes/5s
 - **π(1,000,000)**: 78,498
-- **Algorithm**: Base Eratosthenes, odd-only, bit array (1 bit/flag)
-- **Memory**: `[i64; 15625]` stack-allocated bit array (125KB)
+- **Algorithm**: 30030-wheel (Murphy's Sieve — skips multiples of 2,3,5,7,11,13)
+- **Bits**: 1 bit per flag (word-level `[i64; 15625]` stack array, 125KB)
 - **Compiler**: Zeta v0.8.0 with inline LLVM GEP + load/store (no C function calls for array ops)
 
 ### Why Faithful=yes
