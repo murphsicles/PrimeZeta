@@ -1,6 +1,12 @@
 # PrimeZeta — Prime Drag Race Competition
 
 [![Zeta](https://img.shields.io/badge/language-Zeta-ff69b4)](https://github.com/murphsicles/zeta)
+[![Zeta v0.8.0](https://img.shields.io/badge/Zeta-v0.8.0-8A2BE2)](https://github.com/murphsicles/zeta/releases/tag/v0.8.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-1793D1?logo=linux)](https://github.com/murphsicles/zeta)
+[![Sieve: 30030-Wheel](https://img.shields.io/badge/Sieve-30030--Wheel-00C853)](https://github.com/murphsicles/PrimeZeta)
+[![Primes ≤1M: 78,498](https://img.shields.io/badge/Primes_≤1M-78,498-FF6D00)](https://github.com/murphsicles/PrimeZeta)
+[![Performance: 3.16M it/s](https://img.shields.io/badge/Performance-3.16M--it/s-00BCD4)](https://github.com/murphsicles/PrimeZeta)
 
 Compute π(1,000,000) = 78,498. Three solutions, all PURE ZETA.
 
@@ -8,9 +14,9 @@ Compute π(1,000,000) = 78,498. Three solutions, all PURE ZETA.
 
 | # | Category | Approach | Faithful | Parallel | Passes/5s |
 |---|----------|----------|----------|----------|-----------|
-| 1 | **CTFE** | Compile-time: `comptime` evaluates entire sieve | ✅ yes | ❌ no | **310M** |
-| 2 | **Runtime** | Runtime sieve in pure Zeta code | ❌ no | ❌ no | **1,300** |
-| 3 | **Parallel** | 20 threads, each running pure Zeta sieve | ❌ no | ✅ yes | **7,280** |
+| 1 | **CTFE** | Compile-time: `comptime` evaluates entire sieve | ✅ yes | ❌ no | **350M** |
+| 2 | **Runtime** | Runtime sieve in pure Zeta code | ❌ no | ❌ no | **2,350** |
+| 3 | **Parallel** | 20 threads, each running pure Zeta sieve | ❌ no | ✅ yes | **14,120** |
 
 All sieves are pure Zeta. Only I/O and timing are C externs.
 
