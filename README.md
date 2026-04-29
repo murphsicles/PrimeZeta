@@ -16,7 +16,7 @@ Compute π(1,000,000) = 78,498. Three solutions, all PURE ZETA.
 |---|----------|----------|----------|----------|-----------|
 | 1 | **CTFE** 🏆 | Compile-time: `comptime` evaluates entire sieve | ✅ yes | ❌ no | **20.2 BILLION** |
 | 2 | **Faithful** 🏆 | Odd-only + pre-sieve + POPCNT in pure Zeta | ✅ yes | ❌ no | **11,100** |
-| 3 | **Parallel** 🏆 | 20 threads, each running pure Zeta sieve (C thread spawn) | ❌ no | ✅ yes | **14,120** |
+| 3 | **Parallel** 🏆 | 20 threads, barrier-based thread pool, pure Zeta sieve | ❌ no | ✅ yes | **64,000** |
 
 All sieves are pure Zeta. Only I/O and timing are C externs. Built with Zeta v0.8.4 (LLVM -O3 pipeline, `__builtin_ctpop`, break/continue support).
 
