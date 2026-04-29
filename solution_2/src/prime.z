@@ -1,34 +1,96 @@
+// v0.8.3 — AVX2 batch sieve with v4i64 vector intrinsics
+// Uses runtime_malloc for heap-allocated bit array and vector ANDNOT for batch clearing
+
 extern fn get_time_us() -> i64;
 extern fn time_is_up(start_us: i64, target_us: i64) -> i64;
 extern fn print_result(passes: i64, elapsed_us: i64);
+extern fn runtime_malloc(size: i64) -> i64;
+extern fn runtime_free(ptr: i64);
 
 fn sieve(limit: i64) -> i64 {
     let words = (limit + 63) / 64;
-    let mut bits: [i64; 15625] = [0; 15625];
+    let bytes = words * 8;
+    let ptr = runtime_malloc(bytes);
     let odd_mask: i64 = -6148914691236517206;
-    let mut i = 0;
-    while i < words { bits[i] = odd_mask; i += 1; }
-    bits[0] = (bits[0] & !3) | (1 << 2);
-    if limit % 64 > 0 {
-        bits[words - 1] = bits[words - 1] & !((-1) << (limit % 64));
+    
+    // Batch init: set all words to odd_mask using v4i64_store (4 words at a time)
+    let mut wg: i64 = 0;
+    while wg < words / 4 {
+        __builtin_v4i64_store(ptr, wg, odd_mask, odd_mask, odd_mask, odd_mask);
+        wg += 1;
     }
-    let mut count: i64 = limit / 2;
+    // Handle remaining words (if not divisible by 4)
+    wg = (words / 4) * 4;
+    while wg < words {
+        stack_array_set(ptr, wg, odd_mask);
+        wg += 1;
+    }
+    
+    // Mark 0,1 as non-prime, 2 as prime
+    stack_array_set(ptr, 0, (stack_array_get(ptr, 0) & !3) | (1 << 2));
+    
+    // Trim the last word to limit
+    if limit % 64 > 0 {
+        let last = stack_array_get(ptr, words - 1);
+        stack_array_set(ptr, words - 1, last & !((-1) << (limit % 64)));
+    }
+    
+    // Sieve: for each odd prime, clear its multiples using avx2 batch clearing
     let mut p: i64 = 3;
     while p * p < limit {
         let w = p / 64; let b = p % 64;
-        if ((bits[w] >> b) & 1) == 1 {
-            let mut m = p * p;
-            while m < limit {
-                let cw = m / 64; let cb = m % 64;
-                if ((bits[cw] >> cb) & 1) == 1 {
-                    bits[cw] = bits[cw] & !(1 << cb);
-                    count -= 1;
+        if ((stack_array_get(ptr, w) >> b) & 1) == 1 {
+            let step = p * 2;
+            let first_mul = p * p;
+            
+            // Process in batches of 4 words (256 bits) using avx2 v4i64_andnot
+            let mut wg = first_mul / 256;
+            while wg * 256 < limit {
+                let group_start = wg * 256;
+                let group_end = group_start + 256;
+                
+                // Find first multiple >= group_start
+                let mut m = first_mul;
+                if group_start > first_mul {
+                    let diff = group_start - first_mul;
+                    let steps = diff / step;
+                    if diff % step != 0 {
+                        m = first_mul + (steps + 1) * step;
+                    } else {
+                        m = group_start;
+                    }
                 }
-                m += p * 2;
+                
+                // Compute per-word masks for this 4-word group
+                let mut mask0: i64 = 0; let mut mask1: i64 = 0;
+                let mut mask2: i64 = 0; let mut mask3: i64 = 0;
+                while m < group_end && m < limit {
+                    let bit = m % 64;
+                    let word_in_group = (m / 64) % 4;
+                    if word_in_group == 0 { mask0 = mask0 | (1 << bit); }
+                    else if word_in_group == 1 { mask1 = mask1 | (1 << bit); }
+                    else if word_in_group == 2 { mask2 = mask2 | (1 << bit); }
+                    else { mask3 = mask3 | (1 << bit); }
+                    m = m + step;
+                }
+                
+                // Batched clear: clear all 4 words with one avx2 operation
+                __builtin_v4i64_andnot(ptr, wg, mask0, mask1, mask2, mask3);
+                
+                wg = wg + 1;
             }
         }
-        p += 2;
+        p = p + 2;
     }
+    
+    // Count primes using POPCNT (avoids per-bit iteration)
+    let mut count: i64 = 0;
+    let mut w: i64 = 0;
+    while w < words {
+        count = count + __builtin_ctpop(stack_array_get(ptr, w));
+        w = w + 1;
+    }
+    
     return count;
 }
 
