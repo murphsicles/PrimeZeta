@@ -1,7 +1,7 @@
 # PrimeZeta — Prime Drag Race Competition
 
 [![Zeta](https://img.shields.io/badge/language-Zeta-ff69b4)](https://github.com/murphsicles/zeta)
-[![Zeta v0.8.0](https://img.shields.io/badge/Zeta-v0.8.0-8A2BE2)](https://github.com/murphsicles/zeta/releases/tag/v0.8.0)
+[![Zeta v0.8.2](https://img.shields.io/badge/Zeta-v0.8.2-8A2BE2)](https://github.com/murphsicles/zeta/releases/tag/v0.8.2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-1793D1?logo=linux)](https://github.com/murphsicles/zeta)
 [![Sieve: 30030-Wheel](https://img.shields.io/badge/Sieve-30030--Wheel-00C853)](https://github.com/murphsicles/PrimeZeta)
