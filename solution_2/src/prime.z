@@ -1,10 +1,23 @@
-// PrimeZeta Competition Entry — solution_2
-// Murphy's Sieve with 30030 wheel — faithful pure Zeta
-// Algorithm: wheel, Faithful: yes, Parallel: no, Bits: 1
+// ============================================================
+// Murphy's Sieve — optimized 30030-wheel bit sieve
+// POPCNT counting, unconditional clearing, pre-sieve
+// Pure Zeta, faithful, algorithm=wheel, bits=1
+// ============================================================
 
 extern fn get_time_us() -> i64;
 extern fn time_is_up(start_us: i64, target_us: i64) -> i64;
 extern fn print_result(passes: i64, elapsed_us: i64);
+
+fn popcnt(x: i64) -> i64 {
+    let mut n: i64 = x;
+    n = n - ((n >> 1) & 0x5555555555555555);
+    n = (n & 0x3333333333333333) + ((n >> 2) & 0x3333333333333333);
+    n = (n + (n >> 4)) & 0x0F0F0F0F0F0F0F0F;
+    n = n + (n >> 8);
+    n = n + (n >> 16);
+    n = n + (n >> 32);
+    return n & 0x7F;
+}
 
 fn sieve(limit: i64) -> i64 {
     let words = (limit + 63) / 64;
@@ -13,67 +26,48 @@ fn sieve(limit: i64) -> i64 {
     let mut i = 0;
     while i < words { bits[i] = odd_mask; i += 1; }
     bits[0] = (bits[0] | (1 << 2)) & !(1 << 1);
-
-    // Word-bound handling for non-aligned limits
     if limit % 64 > 0 {
         bits[words - 1] = bits[words - 1] & !((-1) << (limit % 64));
     }
 
-    // Count: odd numbers ≤ limit (includes 2, excludes 1)
-    let mut count: i64 = (limit + 1) / 2;
+    // Pre-sieve: clear multiples of 3,5,7,11,13 (the 30030 wheel base)
+    // Unconditional clearing — no branch, no counting
+    let mut m: i64 = 9;
+    while m < limit { bits[m/64] = bits[m/64] & !(1 << (m%64)); m += 6; }
+    m = 25; while m < limit { bits[m/64] = bits[m/64] & !(1 << (m%64)); m += 10; }
+    m = 49; while m < limit { bits[m/64] = bits[m/64] & !(1 << (m%64)); m += 14; }
+    m = 121; while m < limit { bits[m/64] = bits[m/64] & !(1 << (m%64)); m += 22; }
+    m = 169; while m < limit { bits[m/64] = bits[m/64] & !(1 << (m%64)); m += 26; }
 
-    // === 30030-WHEEL PRE-SIEVE ===
-    // Pre-clear multiples of 3,5,7,11,13 starting from p²
-    // (2 is already excluded by odd-only mask, stride = 2p for odd-only stepping)
-    let mut m: i64 = 0;
-    let mut cw: i64 = 0;
-    let mut cb: i64 = 0;
-
-    m = 9; while m < limit { cw = m/64; cb = m%64; if ((bits[cw]>>cb)&1)==1 { bits[cw]=bits[cw]&!(1<<cb); count-=1; } m += 6; }
-    m = 25; while m < limit { cw = m/64; cb = m%64; if ((bits[cw]>>cb)&1)==1 { bits[cw]=bits[cw]&!(1<<cb); count-=1; } m += 10; }
-    m = 49; while m < limit { cw = m/64; cb = m%64; if ((bits[cw]>>cb)&1)==1 { bits[cw]=bits[cw]&!(1<<cb); count-=1; } m += 14; }
-    m = 121; while m < limit { cw = m/64; cb = m%64; if ((bits[cw]>>cb)&1)==1 { bits[cw]=bits[cw]&!(1<<cb); count-=1; } m += 22; }
-    m = 169; while m < limit { cw = m/64; cb = m%64; if ((bits[cw]>>cb)&1)==1 { bits[cw]=bits[cw]&!(1<<cb); count-=1; } m += 26; }
-
-    // === MAIN SIEVE ===
-    // Walk 30030 wheel residues (numbers coprime to 2,3,5,7,11,13) up to √limit
+    // Main sieve: walk all odd numbers
+    // (wheel skip on outer loop costs more than it saves — modulo checks > saved bit tests)
     let mut p: i64 = 17;
     while p * p < limit {
-        // Wheel check: skip if divisible by 3,5,7,11,13
-        if p % 3 != 0 && p % 5 != 0 && p % 7 != 0 && p % 11 != 0 && p % 13 != 0 {
-            let w = p / 64; let b = p % 64;
-            if ((bits[w] >> b) & 1) == 1 {
-                let mut m = p * p;
-                while m < limit {
-                    let cw = m / 64; let cb = m % 64;
-                    if ((bits[cw] >> cb) & 1) == 1 {
-                        bits[cw] = bits[cw] & !(1 << cb);
-                        count -= 1;
-                    }
-                    m += p * 2;
-                }
+        if ((bits[p/64] >> (p%64)) & 1) == 1 {
+            let mut m = p * p;
+            while m < limit {
+                bits[m/64] = bits[m/64] & !(1 << (m%64));
+                m += p * 2;
             }
         }
         p += 2;
     }
 
+    // Count primes using POPCNT
+    let mut count: i64 = 0;
+    i = 0;
+    while i < words { count += popcnt(bits[i]); i += 1; }
     return count;
 }
 
 fn main() -> i64 {
     let start_us = get_time_us();
-    let mut passes: i64 = 0;
-    let mut done: i64 = 0;
-
+    let mut passes: i64 = 0; let mut done: i64 = 0;
     while done == 0 {
         passes += 1;
-        let result = sieve(1000000);
-        if result != 78498 { return 1; }
-        if passes % 50 == 0 {
-            if time_is_up(start_us, 5000000) == 1 { done = 1; }
-        }
+        if sieve(1000000) != 78498 { return 1; }
+        if passes % 50 == 0 && time_is_up(start_us, 5000000) == 1 { done = 1; }
     }
-
     let elapsed_us = get_time_us() - start_us;
     print_result(passes, elapsed_us);
     return 0;
