@@ -4,3 +4,5 @@ memory/
 MEMORY.md
 *.json
 credentials*
+*.o
+prime
