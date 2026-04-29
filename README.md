@@ -6,7 +6,7 @@
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-1793D1?logo=linux)](https://github.com/murphsicles/zeta)
 [![Primes ≤1M: 78,498](https://img.shields.io/badge/Primes_≤1M-78,498-FF6D00)](https://github.com/murphsicles/PrimeZeta)
 [![Performance: 20.2B/5s](https://img.shields.io/badge/Performance-20.2B--5s-00BCD4)](https://github.com/murphsicles/PrimeZeta)
-[![CTFE: 20B](https://img.shields.io/badge/CTFE-20.2B-pass-8A2BE2)](https://github.com/murphsicles/PrimeZeta)
+[![CTFE](https://img.shields.io/badge/CTFE-20.2B-8A2BE2)](https://github.com/murphsicles/PrimeZeta)
 
 Compute π(1,000,000) = 78,498. Three solutions, all PURE ZETA.
 
