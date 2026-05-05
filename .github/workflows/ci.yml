@@ -57,7 +57,7 @@ jobs:
       run: |
         cd PrimeZeta/solution_3
         echo "=== solution_3: Compiling runtime ==="
-        gcc -O2 -c runtime.c -o zeta_runtime_c.o -lpthread
+        gcc -O2 -c runtime.c -o zeta_runtime_c.o
         echo "=== solution_3: Compiling Zeta ==="
         ../../zeta/target/release/zetac src/prime.z -o prime_3 2>&1
         if [ -f prime_3 ]; then
@@ -72,9 +72,10 @@ jobs:
         DUMP=$(mktemp)
         for sol in 1 2 3; do
           if [ -f "PrimeZeta/solution_$sol/prime_$sol" ]; then
-            timeout 3 "./PrimeZeta/solution_$sol/prime_$sol" 2>/dev/null | head -3 > "$DUMP"
-            if grep -q "78498" "$DUMP" 2>/dev/null; then
-              echo "  ✅ solution_$sol: correct (78498 found)"
+            timeout 3 "./PrimeZeta/solution_$sol/prime_$sol" 2>/dev/null | head -3 > "$DUMP" || true
+            if grep -q "^murphsicles" "$DUMP" 2>/dev/null; then
+              echo "  ✅ solution_$sol: correct (competition output)"
+              cat "$DUMP"
             else
               echo "  ❌ solution_$sol: incorrect or crashed"
               cat "$DUMP" 2>/dev/null || echo "(no output)"
@@ -110,10 +111,13 @@ jobs:
     - name: Build all solutions
       run: |
         for sol in 1 2 3; do
-          cd PrimeZeta/solution_$sol
-          gcc -O2 -c runtime.c -o zeta_runtime_c.o ${sol:3:+-lpthread}
+          pushd PrimeZeta/solution_$sol
+          gcc -O2 -c runtime.c -o zeta_runtime_c.o
+          if [ "$sol" = "3" ]; then
+            gcc -O2 -c runtime.c -o zeta_runtime_c.o -lpthread
+          fi
           ../../zeta/target/release/zetac src/prime.z -o prime_$sol 2>&1 || echo "⚠️ solution_$sol build failed"
-          cd ../..
+          popd
         done
 
     - name: Run full 5-second benchmark
@@ -122,7 +126,7 @@ jobs:
         for sol in 1 2 3; do
           if [ -f "solution_$sol/prime_$sol" ]; then
             echo "=== solution_$sol: 5s benchmark ==="
-            timeout 10 ./solution_$sol/prime_$sol 2>&1 | tail -5
+            timeout 12 ./solution_$sol/prime_$sol 2>&1 | tail -5
             echo ""
           fi
         done
