@@ -1,0 +1,93 @@
+# Build & Release — compiles and packages all 3 PrimeZeta solutions
+# Uses self-hosted runner for Zeta compiler builds (needs LLVM 21)
+# Publishes as GitHub Release with compiled binaries
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+  LLVM_SYS_210_PREFIX: /usr/lib/llvm-21
+  LLVM_SYS_211_PREFIX: /usr/lib/llvm-21
+
+jobs:
+  build-solutions:
+    runs-on: [self-hosted, galaxy, wsl2, x86-64]
+    steps:
+    - name: Checkout PrimeZeta
+      uses: actions/checkout@v4
+      with:
+        path: PrimeZeta
+
+    - name: Checkout Zeta compiler
+      uses: actions/checkout@v4
+      with:
+        repository: murphsicles/zeta
+        ref: dev
+        path: zeta
+
+    - name: Build Zeta compiler
+      run: |
+        cd zeta
+        cargo build --release --bin zetac
+        echo "zetac built OK"
+
+    - name: Build all solutions
+      run: |
+        mkdir -p dist
+        for sol in 1 2 3; do
+          echo "=== Building solution_$sol ==="
+          pushd PrimeZeta/solution_$sol
+          
+          # Compile runtime C
+          gcc -O2 -c runtime.c -o zeta_runtime_c.o
+          
+          # Compile Zeta source
+          ../../zeta/target/release/zetac src/prime.z -o prime_$sol 2>&1 || {
+            echo "⚠️ solution_$sol build failed"
+            popd
+            continue
+          }
+          
+          # Copy binary
+          cp prime_$sol ../../dist/prime_$sol-linux-x86_64
+          
+          # Sanity check
+          timeout 3 ./prime_$sol 2>/dev/null | head -1 || echo "(not runnable standalone)"
+          popd
+        done
+
+    - name: Document benchmarks
+      run: |
+        echo "=== Running 5-second benchmarks ==="
+        cd PrimeZeta
+        for sol in 1 2 3; do
+          if [ -f "../dist/prime_$sol-linux-x86_64" ]; then
+            echo "=== solution_$sol ==="
+            timeout 12 ./solution_$sol/prime_$sol 2>&1 | head -5 || echo "(timeout or error)"
+          fi
+        done | tee ../dist/benchmark-results.txt
+
+    - name: Create checksums
+      run: |
+        cd dist
+        for f in prime_*-linux-x86_64; do
+          sha256sum "$f" > "$f.sha256"
+        done
+        cat benchmark-results.txt
+
+    - name: Publish release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          dist/prime_1-linux-x86_64
+          dist/prime_1-linux-x86_64.sha256
+          dist/prime_2-linux-x86_64
+          dist/prime_2-linux-x86_64.sha256
+          dist/prime_3-linux-x86_64
+          dist/prime_3-linux-x86_64.sha256
+          dist/benchmark-results.txt
+        generate_release_notes: true
+        make_latest: true
