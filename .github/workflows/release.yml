@@ -21,18 +21,12 @@ jobs:
       with:
         path: PrimeZeta
 
-    - name: Checkout Zeta compiler
-      uses: actions/checkout@v4
-      with:
-        repository: murphsicles/zeta
-        ref: dev
-        path: zeta
-
-    - name: Build Zeta compiler
+    - name: Download pre-built zetac from main
       run: |
-        cd zeta
-        cargo build --release --bin zetac
-        echo "zetac built OK"
+        curl -sL "https://github.com/murphsicles/zeta/raw/main/bin/zetac" -o zetac
+        chmod +x zetac
+        ls -lh zetac
+        echo "Using pre-built zetac from main branch"
 
     - name: Build all solutions
       run: |
@@ -45,7 +39,7 @@ jobs:
           gcc -O2 -c runtime.c -o zeta_runtime_c.o
           
           # Compile Zeta source
-          ../../zeta/target/release/zetac src/prime.z -o prime_$sol 2>&1 || {
+          ../../zetac src/prime.z -o prime_$sol 2>&1 || {
             echo "⚠️ solution_$sol build failed"
             popd
             continue

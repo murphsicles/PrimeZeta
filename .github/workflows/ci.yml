@@ -20,18 +20,12 @@ jobs:
       with:
         path: PrimeZeta
 
-    - name: Checkout Zeta compiler
-      uses: actions/checkout@v4
-      with:
-        repository: murphsicles/zeta
-        ref: dev
-        path: zeta
-
-    - name: Build Zeta compiler
+    - name: Download pre-built zetac from main
       run: |
-        cd zeta
-        cargo build --release --bin zetac
-        echo "zetac built OK"
+        curl -sL "https://github.com/murphsicles/zeta/raw/main/bin/zetac" -o zetac
+        chmod +x zetac
+        ls -lh zetac
+        echo "Using pre-built zetac from main branch"
 
     - name: Compile and test solution_1
       run: |
@@ -39,7 +33,7 @@ jobs:
         echo "=== solution_1: Compiling runtime ==="
         gcc -O2 -c runtime.c -o zeta_runtime_c.o
         echo "=== solution_1: Compiling Zeta ==="
-        ../../zeta/target/release/zetac src/prime.z -o prime_1 2>&1
+        ../../zetac src/prime.z -o prime_1 2>&1
         echo "=== solution_1: Running ==="
         timeout 10 ./prime_1 2>&1 | head -10 || echo "(exited after 10s)"
 
@@ -49,7 +43,7 @@ jobs:
         echo "=== solution_2: Compiling runtime ==="
         gcc -O2 -c runtime.c -o zeta_runtime_c.o
         echo "=== solution_2: Compiling Zeta ==="
-        ../../zeta/target/release/zetac src/prime.z -o prime_2 2>&1
+        ../../zetac src/prime.z -o prime_2 2>&1
         echo "=== solution_2: Running ==="
         timeout 10 ./prime_2 2>&1 | head -10 || echo "(exited after 10s)"
 
@@ -59,7 +53,7 @@ jobs:
         echo "=== solution_3: Compiling runtime ==="
         gcc -O2 -c runtime.c -o zeta_runtime_c.o
         echo "=== solution_3: Compiling Zeta ==="
-        ../../zeta/target/release/zetac src/prime.z -o prime_3 2>&1
+        ../../zetac src/prime.z -o prime_3 2>&1
         if [ -f prime_3 ]; then
           echo "=== solution_3: Running ==="
           timeout 10 ./prime_3 2>&1 | head -10 || echo "(exited after 10s)"
@@ -91,17 +85,10 @@ jobs:
       with:
         path: PrimeZeta
 
-    - name: Checkout Zeta
-      uses: actions/checkout@v4
-      with:
-        repository: murphsicles/zeta
-        ref: dev
-        path: zeta
-
-    - name: Build Zeta release
+    - name: Download pre-built zetac
       run: |
-        cd zeta
-        cargo build --release --bin zetac
+        curl -sL "https://github.com/murphsicles/zeta/raw/main/bin/zetac" -o zetac
+        chmod +x zetac
 
     - name: Build all solutions
       run: |
@@ -111,7 +98,7 @@ jobs:
           if [ "$sol" = "3" ]; then
             gcc -O2 -c runtime.c -o zeta_runtime_c.o -lpthread
           fi
-          ../../zeta/target/release/zetac src/prime.z -o prime_$sol 2>&1 || echo "⚠️ solution_$sol build failed"
+          ../../zetac src/prime.z -o prime_$sol 2>&1 || echo "⚠️ solution_$sol build failed"
           popd
         done
 
