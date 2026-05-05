@@ -1,7 +1,7 @@
 # PrimeZeta — Prime Drag Race Competition
 
 [![Zeta](https://img.shields.io/badge/language-Zeta-ff69b4)](https://github.com/murphsicles/zeta)
-[![Zeta v0.8.4](https://img.shields.io/badge/Zeta-v0.8.4-8A2BE2)](https://github.com/murphsicles/zeta/releases/tag/v0.8.4)
+[![Zeta v1.0.0](https://img.shields.io/badge/Zeta-v1.0.0-8A2BE2)](https://github.com/murphsicles/zeta/releases/tag/v1.0.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-1793D1?logo=linux)](https://github.com/murphsicles/zeta)
 [![Primes ≤1M: 78,498](https://img.shields.io/badge/Primes_≤1M-78,498-FF6D00)](https://github.com/murphsicles/PrimeZeta)
@@ -18,7 +18,7 @@ Compute π(1,000,000) = 78,498. Three solutions, all PURE ZETA.
 | 2 | **Faithful** 🏆 | Odd-only + pre-sieve + POPCNT in pure Zeta | ✅ yes | ❌ no | **11,100** |
 | 3 | **Parallel** 🏆 | 20 threads, barrier-based thread pool, pure Zeta sieve | ❌ no | ✅ yes | **64,000** |
 
-All sieves are pure Zeta. Only I/O and timing are C externs. Built with Zeta v0.8.4 (LLVM -O3 pipeline, `__builtin_ctpop`, break/continue support).
+All sieves are pure Zeta. Only I/O and timing are C externs. Built with Zeta v1.0.0 (LLVM -O3 pipeline, `__builtin_ctpop`, break/continue support).
 
 ## Build
 

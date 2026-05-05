@@ -1,6 +1,6 @@
 ## PrimeZeta — solution_3 (Multi-Threaded Parallel) 🏆
 
-![Algorithm](https://img.shields.io/badge/Algorithm-base-blue) ![Faithful](https://img.shields.io/badge/Faithful-no-red) ![Parallel](https://img.shields.io/badge/Parallel-yes-brightgreen) ![Bits](https://img.shields.io/badge/Bits-1-green) ![Zeta v0.8.4](https://img.shields.io/badge/Zeta-v0.8.4-8A2BE2)
+![Algorithm](https://img.shields.io/badge/Algorithm-base-blue) ![Faithful](https://img.shields.io/badge/Faithful-no-red) ![Parallel](https://img.shields.io/badge/Parallel-yes-brightgreen) ![Bits](https://img.shields.io/badge/Bits-1-green) ![Zeta v1.0.0](https://img.shields.io/badge/Zeta-v1.0.0-8A2BE2)
 
 **Pure Zeta sieve on 20 threads — barrier-based thread pool.**
 
@@ -18,4 +18,4 @@ Optimizations applied: `__builtin_ctpop` (POPCNT instruction), LLVM -O3 pass pip
 The sieve function itself is pure Zeta, but thread pool management uses C pthreads barriers. Zeta does not have built-in threading constructs (yet).
 
 ### Compiler
-Zeta v0.8.4 — LLVM -O3 pipeline, `__builtin_ctpop` intrinsic, POPCNT instruction, AVX2 auto-vectorization.
+Zeta v1.0.0 — LLVM -O3 pipeline, `__builtin_ctpop` intrinsic, POPCNT instruction, AVX2 auto-vectorization.

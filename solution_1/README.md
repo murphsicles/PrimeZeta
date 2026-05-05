@@ -1,6 +1,6 @@
 ## PrimeZeta — solution_1 (CTFE Faithful) 🏆
 
-![Algorithm](https://img.shields.io/badge/Algorithm-base-blue) ![Faithful](https://img.shields.io/badge/Faithful-yes-brightgreen) ![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey) ![Bits](https://img.shields.io/badge/Bits-1-blueviolet) ![Zeta v0.8.4](https://img.shields.io/badge/Zeta-v0.8.4-8A2BE2)
+![Algorithm](https://img.shields.io/badge/Algorithm-base-blue) ![Faithful](https://img.shields.io/badge/Faithful-yes-brightgreen) ![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey) ![Bits](https://img.shields.io/badge/Bits-1-blueviolet) ![Zeta v1.0.0](https://img.shields.io/badge/Zeta-v1.0.0-8A2BE2)
 
 **Compile-Time Function Evaluation — 20.2 BILLION passes/5s.**
 
@@ -16,4 +16,4 @@ The entire sieve of Eratosthenes runs at compile time via Zeta's `comptime` keyw
 Same technique as Rust's `const fn` and Zig's `comptime` — compile-time computation eliminates runtime sieve entirely. Zeta's CTFE matches the most competitive entries in the drag race. The 58× speedup over the previous 350M came from replacing per-iteration `clock_gettime` with a periodic check every 1000 iterations.
 
 ### Compiler
-Zeta v0.8.4 — LLVM -O3 pipeline, `__builtin_ctpop` intrinsic, periodic clock check optimization.
+Zeta v1.0.0 — LLVM -O3 pipeline, `__builtin_ctpop` intrinsic, periodic clock check optimization.

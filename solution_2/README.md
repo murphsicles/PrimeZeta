@@ -1,6 +1,6 @@
 ## PrimeZeta — solution_2 (Single-Threaded Faithful) 🏆
 
-![Algorithm](https://img.shields.io/badge/Algorithm-base-blue) ![Faithful](https://img.shields.io/badge/Faithful-yes-green) ![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey) ![Bits](https://img.shields.io/badge/Bits-1-green) ![Zeta v0.8.4](https://img.shields.io/badge/Zeta-v0.8.4-8A2BE2)
+![Algorithm](https://img.shields.io/badge/Algorithm-base-blue) ![Faithful](https://img.shields.io/badge/Faithful-yes-green) ![Parallel](https://img.shields.io/badge/Parallel-no-lightgrey) ![Bits](https://img.shields.io/badge/Bits-1-green) ![Zeta v1.0.0](https://img.shields.io/badge/Zeta-v1.0.0-8A2BE2)
 
 **Pure Zeta runtime sieve — optimized with POPCNT, pre-sieve, LLVM -O3 pipeline.**
 
@@ -26,4 +26,4 @@ No C code participates in the sieve computation, bit manipulation, or prime coun
 | v0.8.0 (base) | 2,400 | 1× |
 | v0.8.1 (LLVM -O3) | 10,350 | 4.3× |
 | v0.8.2 (+POPCNT) | 10,777 | 4.5× |
-| v0.8.4 (+periodic clock) | 11,100 | 4.6× |
+| v1.0.0 (+periodic clock) | 11,100 | 4.6× |
