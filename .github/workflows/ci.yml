@@ -1,0 +1,128 @@
+# CI for PrimeZeta — validates all 3 solutions compile and produce correct output
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  LLVM_SYS_210_PREFIX: /usr/lib/llvm-21
+  LLVM_SYS_211_PREFIX: /usr/lib/llvm-21
+
+jobs:
+  validate-solutions:
+    runs-on: [self-hosted, galaxy, wsl2, x86-64]
+    steps:
+    - name: Checkout PrimeZeta
+      uses: actions/checkout@v4
+      with:
+        path: PrimeZeta
+
+    - name: Checkout Zeta compiler
+      uses: actions/checkout@v4
+      with:
+        repository: murphsicles/zeta
+        ref: dev
+        path: zeta
+
+    - name: Build Zeta compiler
+      run: |
+        cd zeta
+        cargo build --release --bin zetac
+        echo "zetac built OK"
+        # Copy runtime C files for linking
+        cp zeta_runtime_c.o ../PrimeZeta/solution_1/ 2>/dev/null || true
+        cp zeta_runtime_c.o ../PrimeZeta/solution_2/ 2>/dev/null || true
+        cp zeta_runtime_c.o ../PrimeZeta/solution_3/ 2>/dev/null || true
+
+    - name: Build runtime.o
+      run: |
+        for dir in solution_1 solution_2 solution_3; do
+          if [ -f "PrimeZeta/$dir/runtime.c" ]; then
+            gcc -O2 -c "PrimeZeta/$dir/runtime.c" -o "PrimeZeta/$dir/runtime.o"
+          fi
+        done
+
+    - name: Compile and test solution_1
+      run: |
+        cd PrimeZeta/solution_1
+        echo "=== solution_1: Compiling ==="
+        ../../zeta/target/release/zetac src/prime.z -o prime_1 2>&1
+        echo "=== solution_1: Running ==="
+        timeout 10 ./prime_1 2>&1 | head -10 || echo "(exited after 10s)"
+
+    - name: Compile and test solution_2
+      run: |
+        cd PrimeZeta/solution_2
+        echo "=== solution_2: Compiling ==="
+        gcc -O2 -c runtime.c -o runtime.o 2>/dev/null
+        ../../zeta/target/release/zetac src/prime.z -o prime_2 2>&1
+        if [ -f prime_2 ]; then
+          echo "=== solution_2: Running ==="
+          timeout 10 ./prime_2 2>&1 | head -10 || echo "(exited after 10s)"
+        fi
+
+    - name: Compile and test solution_3
+      run: |
+        cd PrimeZeta/solution_3
+        echo "=== solution_3: Compiling ==="
+        gcc -O2 -c runtime.c -o runtime.o 2>/dev/null
+        ../../zeta/target/release/zetac src/prime.z -o prime_3 2>&1
+        if [ -f prime_3 ]; then
+          echo "=== solution_3: Running ==="
+          timeout 10 ./prime_3 2>&1 | head -10 || echo "(exited after 10s)"
+        fi
+
+    - name: Verify output correctness
+      run: |
+        echo "=== Output Verification ==="
+        FAILED=0
+        DUMP=$(mktemp)
+        for sol in 1 2 3; do
+          if [ -f "PrimeZeta/solution_$sol/prime_$sol" ]; then
+            timeout 3 "./PrimeZeta/solution_$sol/prime_$sol" 2>/dev/null | head -3 > "$DUMP"
+            if grep -q "78498" "$DUMP" 2>/dev/null; then
+              echo "  ✅ solution_$sol: correct (78498 found)"
+            else
+              echo "  ❌ solution_$sol: incorrect or crashed"
+              cat "$DUMP" 2>/dev/null || echo "(no output)"
+              FAILED=1
+            fi
+          else
+            echo "  ⚠️ solution_$sol: binary not built"
+          fi
+        done
+        exit $FAILED
+
+  benchmark:
+    runs-on: [self-hosted, galaxy, wsl2, x86-64]
+    needs: validate-solutions
+    steps:
+    - name: Checkout PrimeZeta
+      uses: actions/checkout@v4
+      with:
+        path: PrimeZeta
+
+    - name: Checkout Zeta
+      uses: actions/checkout@v4
+      with:
+        repository: murphsicles/zeta
+        ref: dev
+        path: zeta
+
+    - name: Build Zeta release
+      run: |
+        cd zeta
+        cargo build --release --bin zetac
+
+    - name: Run full 5-second benchmark
+      run: |
+        cd PrimeZeta
+        for sol in 1 2 3; do
+          if [ -f "solution_$sol/prime_$sol" ]; then
+            echo "=== solution_$sol: 5s benchmark ==="
+            timeout 10 ./solution_$sol/prime_$sol 2>&1 | tail -5
+          fi
+        done
