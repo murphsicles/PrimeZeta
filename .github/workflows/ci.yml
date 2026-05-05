@@ -32,23 +32,13 @@ jobs:
         cd zeta
         cargo build --release --bin zetac
         echo "zetac built OK"
-        # Copy runtime C files for linking
-        cp zeta_runtime_c.o ../PrimeZeta/solution_1/ 2>/dev/null || true
-        cp zeta_runtime_c.o ../PrimeZeta/solution_2/ 2>/dev/null || true
-        cp zeta_runtime_c.o ../PrimeZeta/solution_3/ 2>/dev/null || true
-
-    - name: Build runtime.o
-      run: |
-        for dir in solution_1 solution_2 solution_3; do
-          if [ -f "PrimeZeta/$dir/runtime.c" ]; then
-            gcc -O2 -c "PrimeZeta/$dir/runtime.c" -o "PrimeZeta/$dir/runtime.o"
-          fi
-        done
 
     - name: Compile and test solution_1
       run: |
         cd PrimeZeta/solution_1
-        echo "=== solution_1: Compiling ==="
+        echo "=== solution_1: Compiling runtime ==="
+        gcc -O2 -c runtime.c -o zeta_runtime_c.o
+        echo "=== solution_1: Compiling Zeta ==="
         ../../zeta/target/release/zetac src/prime.z -o prime_1 2>&1
         echo "=== solution_1: Running ==="
         timeout 10 ./prime_1 2>&1 | head -10 || echo "(exited after 10s)"
@@ -56,19 +46,19 @@ jobs:
     - name: Compile and test solution_2
       run: |
         cd PrimeZeta/solution_2
-        echo "=== solution_2: Compiling ==="
-        gcc -O2 -c runtime.c -o runtime.o 2>/dev/null
+        echo "=== solution_2: Compiling runtime ==="
+        gcc -O2 -c runtime.c -o zeta_runtime_c.o
+        echo "=== solution_2: Compiling Zeta ==="
         ../../zeta/target/release/zetac src/prime.z -o prime_2 2>&1
-        if [ -f prime_2 ]; then
-          echo "=== solution_2: Running ==="
-          timeout 10 ./prime_2 2>&1 | head -10 || echo "(exited after 10s)"
-        fi
+        echo "=== solution_2: Running ==="
+        timeout 10 ./prime_2 2>&1 | head -10 || echo "(exited after 10s)"
 
     - name: Compile and test solution_3
       run: |
         cd PrimeZeta/solution_3
-        echo "=== solution_3: Compiling ==="
-        gcc -O2 -c runtime.c -o runtime.o 2>/dev/null
+        echo "=== solution_3: Compiling runtime ==="
+        gcc -O2 -c runtime.c -o zeta_runtime_c.o -lpthread
+        echo "=== solution_3: Compiling Zeta ==="
         ../../zeta/target/release/zetac src/prime.z -o prime_3 2>&1
         if [ -f prime_3 ]; then
           echo "=== solution_3: Running ==="
@@ -117,6 +107,15 @@ jobs:
         cd zeta
         cargo build --release --bin zetac
 
+    - name: Build all solutions
+      run: |
+        for sol in 1 2 3; do
+          cd PrimeZeta/solution_$sol
+          gcc -O2 -c runtime.c -o zeta_runtime_c.o ${sol:3:+-lpthread}
+          ../../zeta/target/release/zetac src/prime.z -o prime_$sol 2>&1 || echo "⚠️ solution_$sol build failed"
+          cd ../..
+        done
+
     - name: Run full 5-second benchmark
       run: |
         cd PrimeZeta
@@ -124,5 +123,6 @@ jobs:
           if [ -f "solution_$sol/prime_$sol" ]; then
             echo "=== solution_$sol: 5s benchmark ==="
             timeout 10 ./solution_$sol/prime_$sol 2>&1 | tail -5
+            echo ""
           fi
         done
