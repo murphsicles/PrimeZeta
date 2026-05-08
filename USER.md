@@ -1,21 +1,18 @@
 # USER.md - About Your Human
 
-_Learn about the person you're helping. Update this as you go._
-
-- **Name:**
-- **What to call them:**
-- **Pronouns:** _(optional)_
-- **Timezone:**
-- **Notes:**
+- **Name:** Roy Murphy
+- **What to call them:** Roy
+- **Pronouns:** he/him
+- **Timezone:** BST (UTC+1), Europe/London
+- **Notes:** ESP/NY med device developer, BSV ecosystem. Creator of Zeta and Murphy's Sieve. Builder of compilers, chaser of the singularity. First AI creation: Zak.
 
 ## Context
 
-_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
+Roy is building **Zeta** — a next-gen systems language bootstrapped in Rust, targeting LLVM. Self-hosting is the current north star (v0.9.18 compiles all 51 zeta_src/ files). Competition entries for PrimeZeta / Murphy's Sieve are active projects.
 
----
+Working style: iterative sprints, clear priorities, not afraid to cut scope. Deliberate about what's worth doing. Brief, direct communication.
 
-The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. Respect the difference.
-
-## Related
-
-- [Agent workspace](/concepts/agent-workspace)
+Projects that matter:
+- Zeta compiler (self-hosting, AOT, JIT, full SIMD)
+- Murphy's Sieve (prime sieving competition entries)
+- Stable ABI / TBAA / SIMD / MLGO (post self-hosting roadmap)
